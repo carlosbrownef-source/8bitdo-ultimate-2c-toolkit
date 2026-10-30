@@ -23,12 +23,14 @@ class Found:
 
 
 def find() -> list[Found]:
-    """One entry per mode found (a device shows several HID interfaces); other HID devices are ignored."""
-    out: dict[str, Found] = {}
+    """Every controller-like device found (two units are two entries); a Bluetooth pad shows several HID interfaces
+    and is listed once. Other HID devices are ignored."""
+    out: list[Found] = []
     for d in transport.list_devices():
         for vendor, product, page, mode in MODES:
             if d.vendor == vendor and d.product == product and (page is None or d.usage_page == page):
-                if mode.startswith("bluetooth") and "Bluetooth" not in d.transport:
-                    continue
-                out.setdefault(mode, Found(d, mode))
-    return list(out.values())
+                if mode.startswith("bluetooth"):
+                    if "Bluetooth" not in d.transport or any(f.mode == mode for f in out):
+                        continue
+                out.append(Found(d, mode))
+    return out

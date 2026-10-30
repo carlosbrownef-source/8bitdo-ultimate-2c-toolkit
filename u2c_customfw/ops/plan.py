@@ -6,7 +6,7 @@ from .. import protocol
 from ..firmware import image
 from ..protocol import boot
 
-INTERRUPTED = "Interrupted: run the same operation again, or use Diagnose > Restore."
+INTERRUPTED = "Interrupted: the controller may not start until this is finished. Use Diagnose > Restore (your backup or 8BitDo's v1.09); the bootloader is untouched."
 
 
 class OpError(Exception):

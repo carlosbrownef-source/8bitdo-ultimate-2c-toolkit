@@ -100,7 +100,13 @@ def make_server(store: Path, port: int = 0):
         def do_POST(self):
             if not self.auth():
                 return
-            route, req = self.path.split("?")[0], self.body()
+            try:
+                req = self.body()
+                if not isinstance(req, dict):
+                    raise ValueError("not an object")
+            except ValueError:
+                return self.send(400, json.dumps({"error": "bad request"}))
+            route = self.path.split("?")[0]
             if route == "/api/accept":
                 state.accept(store)
                 return self.send(200, json.dumps({"accepted": True}))

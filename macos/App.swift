@@ -63,9 +63,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+        var errTail = Data()
+        err.fileHandleForReading.readabilityHandler = { h in
+            errTail.append(h.availableData)
+            if errTail.count > 8192 { errTail = errTail.suffix(8192) }
+        }
         p.terminationHandler = { [weak self] proc in
             if proc.terminationStatus != 0, let self = self {
-                let msg = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                let msg = String(data: errTail, encoding: .utf8) ?? ""
                 DispatchQueue.main.async { self.fail("The Python core stopped (status \(proc.terminationStatus)).\n\n\(msg)") }
             }
         }
@@ -73,6 +78,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    // Never end the app silently while a job (a write above all) is running: ask first.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        web.evaluateJavaScript("typeof busy !== 'undefined' && busy === true") { result, _ in
+            if (result as? Bool) == true {
+                let alert = NSAlert()
+                alert.messageText = "An operation is running"
+                alert.informativeText = "Quitting now can leave the controller half-written. If that happens, put it in boot mode and use Diagnose and restore. Quit anyway?"
+                alert.addButton(withTitle: "Keep running")
+                alert.addButton(withTitle: "Quit anyway")
+                NSApp.reply(toApplicationShouldTerminate: alert.runModal() == .alertSecondButtonReturn)
+            } else {
+                NSApp.reply(toApplicationShouldTerminate: true)
+            }
+        }
+        return .terminateLater
+    }
     func applicationWillTerminate(_ note: Notification) { core?.terminate() }
 }
 

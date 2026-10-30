@@ -96,6 +96,37 @@ class WebTest(unittest.TestCase):
         release.set()
         self.events()
 
+    def test_malformed_json_is_a_400_not_a_dropped_connection(self):
+        for raw in (b"{not json", b"[1, 2]"):
+            req = urllib.request.Request(self.base + "/api/accept", method="POST", data=raw, headers={"X-Token": self.token})
+            with self.assertRaises(urllib.error.HTTPError) as e:
+                urllib.request.urlopen(req, timeout=5)
+            self.assertEqual(e.exception.code, 400)
+            e.exception.close()
+
+    def test_running_and_the_end_event_change_together(self):
+        runner = jobs.Runner(self.store)
+        jobs.ACTIONS["backup"] = lambda args, store: None
+        bad = []
+        stop = threading.Event()
+
+        def sample():
+            while not stop.is_set():
+                with runner.cond:
+                    last = runner.events[-1]["type"] if runner.events else None
+                    terminal = last in ("done", "error")
+                    if (terminal and runner.running) or (runner.events and not terminal and not runner.running):
+                        bad.append((last, runner.running))   # finished without its end event, or an end event while running
+        t = threading.Thread(target=sample, daemon=True)
+        t.start()
+        for _ in range(200):
+            while not runner.start("backup"):
+                pass
+            with runner.cond:
+                runner.cond.wait_for(lambda: runner.events and runner.events[-1]["type"] in ("done", "error"), timeout=5)
+        stop.set(); t.join()
+        self.assertEqual(bad, [])
+
     def test_wrong_host_header_is_refused(self):
         req = urllib.request.Request(self.base + "/api/state", headers={"X-Token": self.token, "Host": "evil.example"})
         with self.assertRaises(urllib.error.HTTPError) as e:

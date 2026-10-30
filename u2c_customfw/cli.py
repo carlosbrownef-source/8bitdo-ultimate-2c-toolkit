@@ -9,7 +9,8 @@ from .firmware import image, recipes
 from .ops import backup as bkp, devices, patch, report, restore
 from .ops.log import get_logger
 from .ops.plan import OpError
-from .transport import open_channel
+from . import protocol
+from .transport import PermissionDenied, open_channel
 
 CONTROLLER_MODES = ("cable", "cable_360", "boot", "dongle")
 BOOT_HELP = "Power the controller fully off, then hold L1+R1 while plugging in the cable. The LED blinks white."
@@ -167,7 +168,7 @@ def main(argv=None) -> int:
     except Exit as e:
         print(e.msg, file=sys.stderr)
         return e.code
-    except (OpError, fetch.FetchError) as e:
-        print(f"refused: {e}", file=sys.stderr)
+    except (OpError, fetch.FetchError, protocol.ProtocolError, PermissionDenied) as e:
+        print(f"stopped: {e}", file=sys.stderr)
         return 1
     return 0

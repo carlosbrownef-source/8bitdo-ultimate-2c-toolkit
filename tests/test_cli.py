@@ -47,6 +47,20 @@ class CliTest(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("More than one device: unplug all but one controller.", text)
 
+    def test_two_units_in_the_same_mode_exit_2(self):
+        a = found("boot", 0x3208, 0x8C)
+        code, text = run(["patch", "--tweaks", "cable_360", "--store", str(self.tmp)], [a, found("boot", 0x3208, 0x8C)], SimBoot(self.flash))
+        self.assertEqual(code, 2)
+        self.assertIn("More than one device", text)
+
+    def test_protocol_errors_are_messages_not_tracebacks(self):
+        class Dead(SimBoot):
+            def xfer(self, r, timeout=0.5):
+                return None
+        code, text = run(["patch", "--tweaks", "cable_360", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], Dead(self.flash))
+        self.assertEqual(code, 1)
+        self.assertNotIn("Traceback", text)
+
     def test_patch_without_write_makes_no_erase_or_write(self):
         dev = SimBoot(self.flash)
         code, text = run(["patch", "--tweaks", "cable_360", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], dev)

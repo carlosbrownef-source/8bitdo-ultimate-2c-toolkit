@@ -44,5 +44,6 @@ class Runner:
         except Exception as e:  # shown to the user, never a hang
             end = {"type": "error", "message": f"{type(e).__name__}: {e}"}
         with self.cond:
+            self.events.append(end)
             self.running = False
-        self.push(end)
+            self.cond.notify_all()

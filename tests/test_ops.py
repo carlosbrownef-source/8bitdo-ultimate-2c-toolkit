@@ -227,5 +227,11 @@ class DevicesTest(unittest.TestCase):
                              ["cable", "cable_360", "boot", "dongle", "bluetooth_xbox", "bluetooth"])
 
 
+    def test_two_devices_of_the_same_mode_are_both_listed(self):
+        d = lambda h: transport.DeviceInfo(0x2DC8, 0x3208, 0x8C, "USB", "x", h)
+        with mock.patch.object(transport, "list_devices", lambda: [d("a"), d("b")]):
+            self.assertEqual([f.info.handle for f in devices.find()], ["a", "b"])
+
+
 if __name__ == "__main__":
     unittest.main()
