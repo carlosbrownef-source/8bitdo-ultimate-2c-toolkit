@@ -67,25 +67,25 @@ def need_accept(args, store):
 def cmd_devices(args, store):
     for f in find():
         i = f.info
-        print(f"{f.mode:15} {i.vendor:04x}:{i.product:04x} {i.name!r}")
+        args.say(f"{f.mode:15} {i.vendor:04x}:{i.product:04x} {i.name!r}")
 
 
 def cmd_backup(args, store):
     f = pick(("cable", "cable_360", "boot"))
     ch = open_channel(f.info, 0 if f.mode == "boot" else 0x81)
     try:
-        b = bkp.backup(ch, f.mode, store, Bar())
+        b = bkp.backup(ch, f.mode, store, args.progress)
     finally:
         ch.close()
     s = b.state
-    print(f"saved {b.path}\nsha256 {b.sha256}\nfirmware: " + (("stock v1.09" + (f" plus {', '.join(s.recipes)}" if s.recipes else "")) if s.known else "unknown"))
+    args.say(f"saved {b.path}\nsha256 {b.sha256}\nfirmware: " + (("stock v1.09" + (f" plus {', '.join(s.recipes)}" if s.recipes else "")) if s.known else "unknown"))
 
 
 def cmd_identify(args, store):
     data = Path(args.file).read_bytes()
     bank_a = data[image.BASE:image.BANK_A_END] if len(data) == image.FLASH_SIZE else data
     s = recipes.identify(bank_a)
-    print(("stock v1.09" + (f" plus {', '.join(s.recipes)}" if s.recipes else "")) if s.known else "unknown firmware")
+    args.say(("stock v1.09" + (f" plus {', '.join(s.recipes)}" if s.recipes else "")) if s.known else "unknown firmware")
 
 
 def _backup_for(args, ch, store):
@@ -105,12 +105,12 @@ def cmd_patch(args, store):
     try:
         b = _backup_for(args, ch, store)
         plan = patch.plan_patch(ch, b, stock_for(args, b), [k for k in args.tweaks.split(",") if k])
-        print(plan.summary)
+        args.say(plan.summary)
         if not args.write:
-            print("dry run: nothing written; add --write to flash")
+            args.say("dry run: nothing written; add --write to flash")
             return
-        patch.apply(ch, plan, Bar())
-        print("done: unplug the controller and plug it back in. If a Bluetooth tweak changed, forget it in Bluetooth settings and pair again.")
+        patch.apply(ch, plan, args.progress)
+        args.say("done: unplug the controller and plug it back in. If a Bluetooth tweak changed, forget it in Bluetooth settings and pair again.")
     finally:
         ch.close()
 
@@ -120,15 +120,15 @@ def cmd_restore(args, store):
     f = pick(("boot",))
     ch = open_channel(f.info, 0)
     try:
-        b = bkp.load(Path(args.file)) if args.source == "backup" else _backup_for(args, ch, store)
+        b = bkp.load(Path(args.file)) if args.file else _backup_for(args, ch, store)
         stock = fetch.fetch_stock() if args.source == "stock" else None
         plan = restore.plan_restore(ch, b, args.source, stock)
-        print(plan.summary)
+        args.say(plan.summary)
         if not args.write:
-            print("dry run: nothing written; add --write to restore")
+            args.say("dry run: nothing written; add --write to restore")
             return
-        patch.apply(ch, plan, Bar())
-        print("done: unplug the controller and plug it back in.")
+        patch.apply(ch, plan, args.progress)
+        args.say("done: unplug the controller and plug it back in.")
     finally:
         ch.close()
 
@@ -136,7 +136,7 @@ def cmd_restore(args, store):
 def cmd_report(args, store):
     log = store / "u2c-customfw.log"
     tail = "\n".join(log.read_text().splitlines()[-30:]) if log.exists() else ""
-    print(report.report(find(), None, tail))
+    args.say(report.report(find(), None, tail))
 
 
 def main(argv=None) -> int:
@@ -158,6 +158,7 @@ def main(argv=None) -> int:
         if p.prog.endswith(("patch", "restore")):
             p.add_argument("--write", action="store_true"); p.add_argument("--accept-disclaimer", action="store_true")
     args = ap.parse_args(argv)
+    args.say, args.progress = print, Bar()
     store = args.store or state.default_store()
     get_logger(store).info("command %s", args.cmd)
     try:

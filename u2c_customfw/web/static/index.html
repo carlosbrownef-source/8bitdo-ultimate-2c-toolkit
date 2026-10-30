@@ -1,0 +1,75 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>u2c-customfw</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main>
+  <h1>u2c-customfw <small id="version"></small></h1>
+  <p class="only">8BitDo Ultimate 2C Wireless · firmware 1.09 only</p>
+
+  <section id="disclaimer" hidden>
+    <h2>Before you start</h2>
+    <div id="disclaimer-text"></div>
+    <button id="accept">I understand and accept</button>
+  </section>
+
+  <div id="app" hidden>
+    <section>
+      <h2>Controller</h2>
+      <ul id="devices"></ul>
+      <button id="refresh" class="secondary">Refresh</button>
+    </section>
+
+    <section>
+      <h2>1. Back up</h2>
+      <p>Plug the controller in by cable. This reads its whole flash twice and saves it; needed before the first write.</p>
+      <button id="backup">Back up</button>
+    </section>
+
+    <section>
+      <h2>2. Patch</h2>
+      <label><input type="checkbox" class="tweak" value="bt_xbox"> Bluetooth: Xbox Series X/S controller</label>
+      <label><input type="checkbox" class="tweak" value="bt_rumble"> Bluetooth: rumble <em>(needs the Xbox option)</em></label>
+      <label><input type="checkbox" class="tweak" value="cable_360"> Cable: wired Xbox 360 controller</label>
+      <label><input type="checkbox" class="tweak" value="dim_leds"> Dimmer LEDs</label>
+      <p>Built from stock v1.09:
+        <label class="inline"><input type="radio" name="base" value="backup" checked> from your backup</label>
+        <label class="inline"><input type="radio" name="base" value="download"> download from 8BitDo</label></p>
+      <p class="boot">Power the controller fully off, then hold L1+R1 while plugging in the cable. The LED blinks white.</p>
+      <button id="patch-dry" class="secondary">Dry run</button>
+      <button id="patch-write" class="danger">Write…</button>
+    </section>
+
+    <section>
+      <h2>3. Diagnose and restore</h2>
+      <p>In boot mode (as above). Restoring puts back your backup or 8BitDo's v1.09.</p>
+      <button id="restore-backup-dry" class="secondary">Dry run: your backup</button>
+      <button id="restore-backup" class="danger">Restore your backup…</button>
+      <button id="restore-stock-dry" class="secondary">Dry run: 8BitDo's v1.09</button>
+      <button id="restore-stock" class="danger">Restore 8BitDo's v1.09…</button>
+      <p><button id="report" class="secondary">Show a report for bug reports</button></p>
+      <pre id="report-text" hidden></pre>
+    </section>
+
+    <section>
+      <h2>Progress</h2>
+      <pre id="bar">idle</pre>
+      <pre id="log"></pre>
+    </section>
+  </div>
+</main>
+
+<dialog id="confirm">
+  <p><strong>This writes to your controller and voids its warranty.</strong></p>
+  <p id="confirm-what"></p>
+  <p>No warranty of any kind applies. You can go back to stock afterwards with <em>Diagnose and restore</em>.</p>
+  <menu><button id="confirm-no" class="secondary">Cancel</button><button id="confirm-yes" class="danger">Write</button></menu>
+</dialog>
+<script src="/static/app.js"></script>
+</body>
+</html>

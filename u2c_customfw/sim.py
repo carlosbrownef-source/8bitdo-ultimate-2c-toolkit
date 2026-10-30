@@ -62,3 +62,38 @@ class SimBoot:
 
     def close(self):
         pass
+
+
+def install(store) -> None:
+    """U2C_SIM=1: pretend a controller in boot mode is plugged in, backed by a synthetic flash and a synthetic 'stock'
+    (with matching constants), so the UI can be exercised without hardware. Seeds a backup of that flash in the store."""
+    import hashlib
+    import random
+    from pathlib import Path
+
+    from . import cli
+    from .firmware import image, recipes
+    from .transport import DeviceInfo
+    from .ops import devices
+
+    rnd = random.Random(1)
+    stock = bytearray(rnd.randbytes(image.BANK_A_SIZE))
+    stock[0x18274 - image.BASE:] = bytes(image.BANK_A_END - 0x18274)
+    stock = bytes(stock)
+    flash = bytearray(b"\xff" * image.FLASH_SIZE)
+    flash[0:0x5000] = rnd.randbytes(0x5000)
+    flash[image.BASE:image.BANK_A_END] = stock
+    for a in range(image.CONFIG_START, image.FLASH_SIZE, 0x1000):
+        flash[a:a + 64] = rnd.randbytes(64)
+    consts = (hashlib.sha256(stock).hexdigest(),
+              {(e.addr, e.size): hashlib.sha256(stock[e.addr - image.BASE:e.addr - image.BASE + e.size]).hexdigest()
+               for r in recipes.RECIPES.values() for e in r.edits},
+              hashlib.sha256(recipes.masked(stock)).hexdigest())
+    recipes._constants = lambda a=None, b=None, c=None: consts
+    Path(store).mkdir(parents=True, exist_ok=True)
+    (Path(store) / "controller-sim.bin").write_bytes(bytes(flash))
+    dev = SimBoot(bytes(flash))
+    info = DeviceInfo(0x2DC8, 0x3208, 0x8C, "USB", "Simulated controller (boot mode)", None)
+    cli.find = lambda: [devices.Found(info, "boot")]
+    cli.open_channel = lambda i, rid: dev
+    cli.fetch.fetch_stock = lambda: stock
