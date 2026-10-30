@@ -1,0 +1,20 @@
+[project]
+name = "u2c-customfw"
+version = "0.1.0"
+description = "Back up, patch and repair the firmware of the 8BitDo Ultimate 2C Wireless controller (firmware 1.09)"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+u2c-customfw = "u2c_customfw.cli:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["u2c_customfw*"]
+
+[tool.setuptools.package-data]
+u2c_customfw = ["firmware/blobs/*", "web/static/*"]

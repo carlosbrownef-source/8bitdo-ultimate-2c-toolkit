@@ -1,0 +1,9 @@
+# 8BitDo's firmware and any unit's flash never go in this repository
+*.dat
+backups/
+dumps/
+__pycache__/
+*.pyc
+dist/
+build/
+.superpowers/
