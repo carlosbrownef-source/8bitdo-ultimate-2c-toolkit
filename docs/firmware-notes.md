@@ -1,0 +1,33 @@
+# Firmware notes (Ultimate 2C controller, v1.09)
+
+What was established by disassembling 8BitDo's v1.09 image. Addresses are image addresses (flash address = image address). No 8BitDo bytes are reproduced here.
+
+## Chip and image
+
+- Telink B80 (TC32 instruction set, close to ARM Thumb-1 but not Thumb). The `.dat` update file is a 0x1C-byte header plus the payload, which is not encrypted, loaded at `0x6000`; the payload is 0x12400 bytes (bank A, `0x6000-0x18400`, then erased padding to `0x19000`).
+- The first 0x2500 bytes of the payload (`0x6000-0x8500`) are copied to RAM and run there **at addresses `0x0-0x2500`** (CPU vectors, flash driver, interrupt handler, radio driver, analog access, reset). Reading that code at its flash address gives wrong call targets.
+- RAM is 16 KB (`0x840000-0x844000`): RAM code to `0x842500`, instruction cache to `0x842e00`, initialised data, zeroed data and stacks. Of the RAM code, about 1.1 KB is unreferenced (for example run addresses `0x1640-0x16d4` and `0x1738-0x17d4`).
+
+## Flash (512 KB)
+
+| Range | Contents |
+| --- | --- |
+| `0x0-0x5000` | resident bootloader (never written) |
+| `0x6000-0x18400` | app bank A (the running firmware) |
+| `0x3f000` | update record (52 bytes: version, staging address `0x40000`, pending length, CRC) |
+| `0x40000-0x52400` | app bank B (normal-mode updates are staged here and applied by the bootloader) |
+| `0x73000-0x77000`, `0x79000`, `0x7c000`, `0x7f000` | configuration, MAC (`0x76000`), calibration, Bluetooth pairings (`0x7c000`, 64-byte records) |
+
+## Update channel (running controller)
+
+USB interface with vendor usage page `0xff7a`, 64-byte reports: output report `0x81`, input report `0x02`. Read command `81 05 05` (length at byte 6, address at bytes 14-17, at most 46 bytes), reply `02 05` with status, echoes and data from byte 18; no checksum. Some firmware states ignore reads until a session start `81 05 00 21 01`. `81 05 c1` lifts the flash write protection until restart. `81 05 00 51 00` makes the app reboot into the bootloader (not used by this app).
+
+## Bootloader (`2dc8:3208`)
+
+Enter by powering the controller fully off and holding L1+R1 while plugging in the cable (white LED). One HID interface, 64-byte reports without report ID: `[0]=05 [1:3]=command [5:7]=data length [7:9]=CRC-16/MODBUS of the data [9:13]=parameter [13:17]=address [17:]=data`. Commands: 5 read (data from byte 18), 4 erase (4 KB units), 3 write (at most 46 bytes), 8 version. Success reply: `[0]=0 [1]=5 [2]=0 [4]=command`. No signature or encryption is involved.
+
+## Other findings
+
+- Main loop (`0xa430`): the button/stick/rumble tasks; in Bluetooth mode it calls the motor setter with zero strength on every pass, which is why rumble is off in stock Bluetooth mode.
+- LEDs are three plain GPIO outputs (PB7, PD5, PF1) switched by the LED task every 200 ms; their drive strength is the only brightness control.
+- The Bluetooth stack is a closed Telink library; the firmware never requests a connection-parameter update, so macOS runs the link at a 15 ms interval.
