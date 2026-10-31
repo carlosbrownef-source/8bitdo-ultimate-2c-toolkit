@@ -92,7 +92,7 @@ async function showFirmware() {  // reads the controller's firmware (read-only);
     if (mine !== fwSeq) return;
     el.textContent = "";
     if (f.error || f.note) { el.textContent = f.error || f.note; return; }
-    const head = document.createElement("strong"), ver = f.version ? f.version.toFixed(2) : null;
+    const head = document.createElement("strong"), source = document.createElement("small"), ver = f.version ? f.version.toFixed(2) : null;
     if (f.known) {
       const modified = f.recipes.length > 0;
       head.className = modified ? "mod" : "ok"; head.textContent = `Firmware 1.09 — ${modified ? "modified" : "unmodified"}`;
@@ -102,6 +102,7 @@ async function showFirmware() {  // reads the controller's firmware (read-only);
       head.className = "bad"; head.textContent = "Firmware not recognised — not an unmodified 1.09 or one of our builds; use Diagnose and restore";
     }
     el.append(head);
+    if (f.version_from && f.version_from !== "unknown") { source.className = "src"; source.textContent = ` (version from ${f.version_from})`; el.append(source); }
     if (f.known) {
       const list = document.createElement("div"); list.className = "applied";
       for (const t of f.tweaks) {

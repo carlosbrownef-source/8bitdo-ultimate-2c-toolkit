@@ -23,3 +23,4 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); } menu { padding: 0; display: 
 .fw { margin: 8px 0 0; } .fw strong.ok { color: #6fcf97; } .fw strong.bad { color: var(--warn); }
 #log:empty { display: none; }
 .fw strong.mod { color: #f2c94c; } .applied { margin: 6px 0 2px; } .applied label { margin: 2px 0; } .applied input:disabled { opacity: 1; accent-color: var(--accent); } .applied input:disabled:not(:checked) + * { }
+.fw small.src { color: var(--dim); }

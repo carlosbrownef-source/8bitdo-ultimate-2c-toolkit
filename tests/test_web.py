@@ -115,7 +115,7 @@ class WebTest(unittest.TestCase):
         self.assertTrue(data["known"])
         self.assertEqual(data["recipes"], ["bt_xbox", "cable_360"])
         self.assertIn("Bluetooth: Xbox", " ".join(data["titles"]))
-        self.assertEqual(data["version"], 1.09)
+        self.assertEqual((data["version"], data["version_from"]), (1.09, "update record"))
         self.assertEqual([(t["key"], t["on"]) for t in data["tweaks"]],
                          [("bt_xbox", True), ("bt_rumble", False), ("cable_360", True), ("dim_leds", False)])
 

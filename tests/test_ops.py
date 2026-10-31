@@ -235,31 +235,50 @@ class ProbeTest(Base):
 
 
 class VersionTest(Base):
-    def flash_with_version(self, v):
-        f = bytearray(controller_flash()); f[0x3F00C] = v
-        return bytes(f)
+    def setUp(self):
+        super().setUp()
+        self.flash = controller_flash()
+        self.backup = bkp.backup(SimApp(self.flash), "cable", self.tmp, noprogress)
 
-    def test_read_version(self):
-        self.assertEqual(probe.read_version(SimApp(controller_flash()), "cable"), 1.09)
-        self.assertEqual(probe.read_version(SimBoot(self.flash_with_version(106)), "boot"), 1.06)
-        self.assertIsNone(probe.read_version(SimApp(self.flash_with_version(0xFF)), "cable"))
+    def device(self, record=0x6D, bank_a=None, bank_b=None, boot_mode=False):
+        f = bytearray(self.flash)
+        f[0x3F00C] = record
+        if bank_a is not None:
+            f[0x6000:0x18400] = bank_a
+        if bank_b is not None:
+            f[0x40000:0x52400] = bank_b
+        return SimBoot(bytes(f)) if boot_mode else SimApp(bytes(f))
+
+    def test_version_comes_from_the_update_record(self):
+        self.assertEqual(probe.detect_version(self.device(106), "cable"), (1.06, "update record"))
+        self.assertEqual(probe.detect_version(self.device(0x6D, boot_mode=True), "boot"), (1.09, "update record"))
+
+    def test_blank_record_falls_back_to_the_hash_of_bank_a_then_bank_b(self):
+        odd = bytes(random.Random(5).randbytes(0x12400))
+        for blank in (0xFF, 0x00):
+            self.assertEqual(probe.detect_version(self.device(blank), "cable"), (1.09, "bank A hash"))
+            self.assertEqual(probe.detect_version(self.device(blank, bank_a=odd), "cable"), (1.09, "bank B hash"))
+            self.assertEqual(probe.detect_version(self.device(blank, bank_a=odd, bank_b=odd), "cable"), (None, "unknown"))
 
     def test_stock_restore_refused_on_another_firmware_version(self):
-        flash = controller_flash()
-        b = bkp.backup(SimApp(flash), "cable", self.tmp, noprogress)
-        dev = SimBoot(flash)
-        dev.f[0x3F00C] = 106   # same unit (bootloader and MAC match), but an earlier firmware: only 1.09 is supported
+        dev = self.device(106, boot_mode=True)
         with self.assertRaises(OpError) as e:
-            restore.plan_restore(dev, b, "stock", STOCK_A)
+            restore.plan_restore(dev, self.backup, "stock", STOCK_A)
         self.assertIn("1.06", str(e.exception))
         self.assertIn("1.09", str(e.exception))
 
-    def test_stock_restore_still_allowed_when_the_record_is_blank_or_1_09(self):
-        flash = controller_flash()
-        b = bkp.backup(SimApp(flash), "cable", self.tmp, noprogress)
-        for v in (0x6D, 0xFF, 0x00):
-            dev = SimBoot(flash); dev.f[0x3F00C] = v
-            self.assertTrue(restore.plan_restore(dev, b, "stock", STOCK_A))
+    def test_stock_restore_refused_when_the_version_cannot_be_determined(self):
+        odd = bytes(random.Random(6).randbytes(0x12400))
+        dev = self.device(0xFF, bank_a=odd, bank_b=odd, boot_mode=True)
+        with self.assertRaises(OpError) as e:
+            restore.plan_restore(dev, self.backup, "stock", STOCK_A)
+        self.assertIn("cannot tell", str(e.exception))
+
+    def test_stock_restore_allowed_when_a_blank_record_is_resolved_by_a_bank(self):
+        odd = bytes(random.Random(7).randbytes(0x12400))   # damaged bank A, blank record, bank B still stock
+        dev = self.device(0xFF, bank_a=odd, boot_mode=True)
+        self.assertTrue(restore.plan_restore(dev, self.backup, "stock", STOCK_A).bank_a)
+        self.assertTrue(restore.plan_restore(self.device(0x6D, boot_mode=True), self.backup, "stock", STOCK_A))
 
 
 class DevicesTest(unittest.TestCase):

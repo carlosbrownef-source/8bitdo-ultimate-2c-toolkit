@@ -1,45 +1,78 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Read bank A of the connected controller (read-only) and say which firmware it holds."""
+"""Read the connected controller (read-only): which firmware it holds, its version, and which tweaks are applied."""
+from dataclasses import dataclass
+
 from .. import protocol
 from ..firmware import image, recipes
 from ..protocol import app, boot
 from .plan import OpError
 
+BANK_B = 0x40000
 
-def read_state(ch, mode: str) -> recipes.State:
-    """Stock v1.09 plus which tweaks, or unknown. By cable (update channel) or in boot mode."""
-    try:
-        if mode == "boot":
-            if boot.kind(ch) != "controller":
-                raise OpError("the device in boot mode is not a controller (the dongle is not supported)")
-            bank_a = boot.read(ch, image.BASE, image.BANK_A_SIZE)
-        else:
-            if app.open_session(ch) is None:
-                raise OpError("the controller does not answer reads: unplug it, plug it back in and try again")
-            if app.read(ch, 0x10000, 16) == b"\xff" * 16:
-                raise OpError("this looks like the 2.4 GHz dongle, which this app does not support")
-            out = bytearray()
-            for a in range(image.BASE, image.BANK_A_END, boot.CHUNK):
-                c = app.read(ch, a, min(boot.CHUNK, image.BANK_A_END - a))
-                if c is None:
-                    raise OpError(f"the controller did not answer at {a:#x}")
-                out += c
-            bank_a = bytes(out)
-    except protocol.ProtocolError as e:
-        raise OpError(str(e)) from e
-    return recipes.identify(bank_a)
+
+@dataclass
+class Firmware:
+    state: recipes.State
+    version: float | None
+    version_from: str   # "update record", "bank A hash", "bank B hash" or "unknown"
+
+
+def _read(ch, mode: str, addr: int, n: int) -> bytes:
+    if mode == "boot":
+        return boot.read(ch, addr, n)
+    out = bytearray()
+    for a in range(addr, addr + n, boot.CHUNK):
+        c = app.read(ch, a, min(boot.CHUNK, addr + n - a))
+        if c is None:
+            raise OpError(f"the controller did not answer at {a:#x}")
+        out += c
+    return bytes(out)
+
+
+def _check_device(ch, mode: str) -> None:
+    if mode == "boot":
+        if boot.kind(ch) != "controller":
+            raise OpError("the device in boot mode is not a controller (the dongle is not supported)")
+        return
+    if app.open_session(ch) is None:
+        raise OpError("the controller does not answer reads: unplug it, plug it back in and try again")
+    if app.read(ch, 0x10000, 16) == b"\xff" * 16:
+        raise OpError("this looks like the 2.4 GHz dongle, which this app does not support")
 
 
 def parse_version(record: bytes) -> float | None:
-    """Firmware version from the update record, or None if it is blank."""
+    """Firmware version from the update record (byte +0x0c is the version times 100), or None if it is blank."""
     v = record[0x0C] if len(record) > 0x0C else 0
     return None if v in (0, 0xFF) else v / 100
 
 
-def read_version(ch, mode: str) -> float | None:
-    """The firmware version the controller's update record carries (1.09 for the supported firmware)."""
+def detect_version(ch, mode: str, bank_a: bytes | None = None) -> tuple[float | None, str]:
+    """The firmware version and where it was read from: the update record if it has one; otherwise 1.09 when bank A
+    (or else bank B, the second app copy) is, by hash, stock v1.09 or one of our builds; otherwise unknown."""
     try:
-        rec = boot.read(ch, image.UPDATE_RECORD, 16) if mode == "boot" else app.read(ch, image.UPDATE_RECORD, 16)
-    except protocol.ProtocolError:
-        return None
-    return None if rec is None else parse_version(rec)
+        v = parse_version(_read(ch, mode, image.UPDATE_RECORD, 16))
+        if v is not None:
+            return v, "update record"
+        if bank_a is None:
+            bank_a = _read(ch, mode, image.BASE, image.BANK_A_SIZE)
+        if recipes.identify(bank_a).known:
+            return image.SUPPORTED_VERSION, "bank A hash"
+        if recipes.identify(_read(ch, mode, BANK_B, image.BANK_A_SIZE)).known:
+            return image.SUPPORTED_VERSION, "bank B hash"
+    except protocol.ProtocolError as e:
+        raise OpError(str(e)) from e
+    return None, "unknown"
+
+
+def read_firmware(ch, mode: str) -> Firmware:
+    try:
+        _check_device(ch, mode)
+        bank_a = _read(ch, mode, image.BASE, image.BANK_A_SIZE)
+    except protocol.ProtocolError as e:
+        raise OpError(str(e)) from e
+    version, how = detect_version(ch, mode, bank_a)
+    return Firmware(recipes.identify(bank_a), version, how)
+
+
+def read_state(ch, mode: str) -> recipes.State:
+    return read_firmware(ch, mode).state

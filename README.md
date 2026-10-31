@@ -43,7 +43,7 @@ Or from source, with Python 3.12+: `python3 -m u2c_customfw.web` prints a local 
 2. **Patch**: choose tweaks, put the controller in boot mode (power it fully off, hold L1+R1 while plugging in the cable; the LED blinks white), do a *dry run*, then *Write*. Afterwards unplug the cable; if a Bluetooth tweak changed, forget the controller in Bluetooth settings and pair it again (macOS caches the old description).
 3. **Diagnose and restore**: if anything looks wrong, put the controller in boot mode and restore your backup, or 8BitDo's v1.09 (downloaded from 8BitDo's update server and checked against its known SHA-256).
 
-Safeguards, enforced in the code: nothing is written below `0x6000` (bootloader) or at/above `0x73000` (configuration, MAC, calibration, Bluetooth pairings); a write needs a backup of the same unit (bootloader and MAC match); the firmware must be v1.09 stock or one of ours; the dongle is refused; every edit checks the stock bytes it replaces.
+Safeguards, enforced in the code: nothing is written below `0x6000` (bootloader) or at/above `0x73000` (configuration, MAC, calibration, Bluetooth pairings); a write needs a backup of the same unit (bootloader and MAC match); the firmware must be v1.09 stock or one of ours; the dongle is refused; restoring 8BitDo's v1.09 is refused unless the controller really is on 1.09 (read from its update record, or, if that is blank, identified by the hash of bank A or bank B) and is also refused when the version cannot be determined; every edit checks the stock bytes it replaces.
 
 ## Porting to Linux
 
