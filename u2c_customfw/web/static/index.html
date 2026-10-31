@@ -19,9 +19,16 @@
   </section>
 
   <div id="app" hidden>
+    <section id="status">
+      <h2>Status</h2>
+      <pre id="bar">idle</pre>
+      <pre id="log"></pre>
+    </section>
+
     <section>
       <h2>Controller</h2>
       <ul id="devices"></ul>
+      <p id="firmware" class="fw"></p>
       <button id="refresh" class="secondary">Refresh</button>
     </section>
 
@@ -56,11 +63,6 @@
       <pre id="report-text" hidden></pre>
     </section>
 
-    <section>
-      <h2>Progress</h2>
-      <pre id="bar">idle</pre>
-      <pre id="log"></pre>
-    </section>
   </div>
 </main>
 

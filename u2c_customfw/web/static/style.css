@@ -18,3 +18,7 @@ pre { background: #101215; border: 1px solid var(--line); border-radius: 7px; pa
 dialog { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; max-width: 460px; }
 dialog::backdrop { background: rgba(0, 0, 0, .6); } menu { padding: 0; display: flex; justify-content: flex-end; }
 #disclaimer-text h3 { margin: 0 0 8px; color: var(--warn); } #disclaimer-text p { margin: 8px 0; }
+#status { position: sticky; top: 8px; z-index: 5; box-shadow: 0 6px 18px rgba(0, 0, 0, .45); }
+#status pre { max-height: 130px; margin: 4px 0; } #status h2 { margin-bottom: 2px; }
+.fw { margin: 8px 0 0; } .fw strong.ok { color: #6fcf97; } .fw strong.bad { color: var(--warn); }
+#log:empty { display: none; }

@@ -10,7 +10,10 @@ from urllib.parse import parse_qs, urlparse
 
 from .. import __version__, disclaimer, state
 from .. import cli
-from ..ops import report as report_mod
+from ..firmware import recipes
+from ..ops import probe, report as report_mod
+from ..ops.plan import OpError
+from ..transport import PermissionDenied
 from . import jobs
 
 STATIC = Path(__file__).parent / "static"
@@ -56,6 +59,8 @@ def make_server(store: Path, port: int = 0):
                 return self.api_state()
             if path == "/api/events":
                 return self.api_events()
+            if path == "/api/firmware":
+                return self.api_firmware()
             name = "index.html" if path == "/" else path.lstrip("/").removeprefix("static/")
             f = (STATIC / name).resolve()
             if f.parent == STATIC.resolve() and f.is_file():
@@ -75,6 +80,34 @@ def make_server(store: Path, port: int = 0):
             self.send(200, json.dumps({"version": __version__, "accepted": state.accepted(store), "devices": found,
                                        "backups": backups, "busy": runner.running,
                                        "disclaimer": disclaimer.text()}))
+
+        def api_firmware(self):
+            """Read the connected controller's bank A (read-only) and name its firmware and tweaks."""
+            if not self.auth():
+                return
+            if runner.running:
+                return self.send(409, json.dumps({"error": "another operation is running"}))
+            ours = [f for f in cli.find() if f.mode in cli.CONTROLLER_MODES]
+            if len(ours) > 1:
+                return self.send(200, json.dumps({"error": "More than one device: unplug all but one controller."}))
+            if not ours:
+                note = "No controller by cable or in boot mode."
+                if any(f.mode.startswith("bluetooth") for f in cli.find()):
+                    note = "Only seen over Bluetooth: connect it by cable (or boot mode) to read its firmware."
+                return self.send(200, json.dumps({"note": note}))
+            f = ours[0]
+            if f.mode == "dongle":
+                return self.send(200, json.dumps({"error": "That is the 2.4 GHz dongle, which this app does not support."}))
+            try:
+                ch = cli.open_channel(f.info, 0 if f.mode == "boot" else 0x81)
+                try:
+                    st = probe.read_state(ch, f.mode)
+                finally:
+                    ch.close()
+            except (OpError, PermissionDenied, OSError) as e:
+                return self.send(200, json.dumps({"error": str(e)}))
+            self.send(200, json.dumps({"mode": f.mode, "known": st.known, "recipes": list(st.recipes),
+                                       "titles": [recipes.RECIPES[k].title for k in st.recipes]}))
 
         def api_events(self):
             if not self.auth():

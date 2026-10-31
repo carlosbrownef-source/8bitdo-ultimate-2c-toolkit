@@ -7,7 +7,14 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from u2c_customfw import state
+from unittest import mock
+
+from u2c_customfw import cli, state
+from u2c_customfw.firmware import recipes
+from u2c_customfw.ops import devices
+from u2c_customfw import transport
+from u2c_customfw.sim import SimApp
+from tests.test_ops import K, STOCK_A, controller_flash
 from u2c_customfw.web import jobs, server
 
 
@@ -93,6 +100,33 @@ class WebTest(unittest.TestCase):
         jobs.ACTIONS["backup"] = lambda args, store: release.wait(5)
         self.assertEqual(self.call("POST", "/api/backup")[0], 202)
         self.assertEqual(self.call("POST", "/api/backup")[0], 409)
+        release.set()
+        self.events()
+
+    def test_firmware_endpoint_names_the_tweaks(self):
+        built = recipes.build(STOCK_A, ["bt_xbox", "cable_360"], **K)
+        info = transport.DeviceInfo(0x2DC8, 0x310A, 0xFF7A, "USB", "x", None)
+        with mock.patch.object(cli, "find", lambda: [devices.Found(info, "cable")]), \
+                mock.patch.object(cli, "open_channel", lambda i, rid: SimApp(controller_flash(built))), \
+                mock.patch.object(recipes, "_constants", lambda a=None, b=None, c=None: (K["stock_sha256"], K["region_sha256"], K["remainder_sha256"])):
+            status, text = self.call("GET", "/api/firmware")
+        data = json.loads(text)
+        self.assertEqual(status, 200, text)
+        self.assertTrue(data["known"])
+        self.assertEqual(data["recipes"], ["bt_xbox", "cable_360"])
+        self.assertIn("Bluetooth: Xbox", " ".join(data["titles"]))
+
+    def test_firmware_endpoint_with_only_bluetooth_explains(self):
+        info = transport.DeviceInfo(0x045E, 0x0B13, 1, "Bluetooth Low Energy", "x", None)
+        with mock.patch.object(cli, "find", lambda: [devices.Found(info, "bluetooth_xbox")]):
+            data = json.loads(self.call("GET", "/api/firmware")[1])
+        self.assertIn("cable", data["note"])
+
+    def test_firmware_endpoint_is_refused_while_a_job_runs(self):
+        release = threading.Event()
+        jobs.ACTIONS["backup"] = lambda args, store: release.wait(5)
+        self.call("POST", "/api/backup")
+        self.assertEqual(self.call("GET", "/api/firmware")[0], 409)
         release.set()
         self.events()
 

@@ -78,7 +78,26 @@ async function refresh() {
     for (const d of s.devices) {
       const li = document.createElement("li"); li.textContent = `${d.mode}: ${d.name || ""}`; if (d.mode === "error") li.className = "err"; $("devices").append(li);
     }
-  } catch (e) { $("devices").textContent = "Cannot reach the app: " + e.message; }
+  } catch (e) { $("devices").textContent = "Cannot reach the app: " + e.message; return; }
+  showFirmware();
+}
+
+let fwSeq = 0;
+async function showFirmware() {  // reads the controller's firmware (read-only); skipped while a job runs
+  const el = $("firmware"), mine = ++fwSeq;
+  if (busy) return;
+  el.textContent = "Reading the controller's firmware…";
+  try {
+    const f = await api("GET", "/api/firmware");
+    if (mine !== fwSeq) return;
+    el.textContent = "";
+    const strong = document.createElement("strong");
+    if (f.error || f.note) { el.textContent = f.error || f.note; return; }
+    el.append("Firmware: ");
+    if (!f.known) { strong.className = "bad"; strong.textContent = "unknown (not stock v1.09 or one of ours): use Diagnose and restore"; el.append(strong); return; }
+    strong.className = "ok"; strong.textContent = "stock v1.09"; el.append(strong);
+    el.append(f.titles.length ? " with: " + f.titles.join(", ") : ", no tweaks applied");
+  } catch (e) { if (mine === fwSeq) el.textContent = ""; }
 }
 
 $("accept").onclick = async () => { await api("POST", "/api/accept"); refresh(); };

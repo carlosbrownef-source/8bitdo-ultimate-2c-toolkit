@@ -9,7 +9,7 @@ from unittest import mock
 
 from u2c_customfw import transport
 from u2c_customfw.firmware import image, recipes
-from u2c_customfw.ops import backup as bkp, devices, patch, report, restore
+from u2c_customfw.ops import backup as bkp, devices, patch, probe, report, restore
 from u2c_customfw.ops.plan import OpError
 from u2c_customfw.sim import SimApp, SimBoot
 
@@ -214,6 +214,23 @@ class ReportTest(Base):
         self.assertIn("last log line", text)
         for secret in (mac, bonds):
             self.assertNotIn(secret.hex(), text)
+
+
+class ProbeTest(Base):
+    def test_cable_stock_and_patched(self):
+        self.assertEqual(probe.read_state(SimApp(controller_flash()), "cable"), recipes.State(True, ()))
+        built = recipes.build(STOCK_A, ["bt_xbox", "dim_leds"], **K)
+        st = probe.read_state(SimApp(controller_flash(built)), "cable_360")
+        self.assertEqual((st.known, st.recipes), (True, ("bt_xbox", "dim_leds")))
+
+    def test_boot_mode_and_unknown(self):
+        odd = bytearray(controller_flash()); odd[0x9000] ^= 0xFF
+        self.assertFalse(probe.read_state(SimBoot(bytes(odd)), "boot").known)
+
+    def test_dongle_refused(self):
+        f = bytearray(controller_flash()); f[0x10000:0x10010] = b"\xff" * 16
+        with self.assertRaises(OpError):
+            probe.read_state(SimApp(bytes(f)), "cable")
 
 
 class DevicesTest(unittest.TestCase):
