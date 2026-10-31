@@ -156,7 +156,8 @@ def make_server(store: Path, port: int = 0):
                       "/api/patch": ("patch", dict(tweaks=",".join(req.get("tweaks", [])), download=req.get("base") == "download",
                                                     write=bool(req.get("write")))),
                       "/api/restore": ("restore", dict(source=req.get("source", "backup"), file=req.get("file"),
-                                                        download=req.get("source") == "stock", write=bool(req.get("write"))))}.get(route)
+                                                        download=req.get("source") == "stock", write=bool(req.get("write")),
+                                                        force_unknown=bool(req.get("force_unknown"))))}.get(route)
             if params is None:
                 return self.send(404, json.dumps({"error": "unknown call"}))
             if not runner.start(params[0], **params[1]):

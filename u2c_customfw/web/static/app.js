@@ -14,7 +14,7 @@ const bar = (label, done, total) => {
   $("bar").textContent = `[${"#".repeat(p / 10)}${"-".repeat(10 - p / 10)}] ${String(p).padStart(3)} % ${label}`;
 };
 let busy = false;
-const setBusy = (b) => { busy = b; document.querySelectorAll("button").forEach((x) => { if (x.id !== "confirm-no" && x.id !== "confirm-yes") x.disabled = b; }); };
+const setBusy = (b) => { busy = b; document.querySelectorAll("button").forEach((x) => { if (!["confirm-no", "confirm-yes", "force-no", "force-yes"].includes(x.id)) x.disabled = b; }); };
 
 async function runJob(path, body) {
   $("log").textContent = ""; $("bar").textContent = "starting…"; setBusy(true);
@@ -128,5 +128,13 @@ $("restore-backup-dry").onclick = () => runJob("/api/restore", { source: "backup
 $("restore-stock-dry").onclick = () => runJob("/api/restore", { source: "stock", write: false });
 $("restore-backup").onclick = async () => { if (await confirmWrite("Put back your backup.")) runJob("/api/restore", { source: "backup", write: true }); };
 $("restore-stock").onclick = async () => { if (await confirmWrite("Put back 8BitDo's firmware 1.09.")) runJob("/api/restore", { source: "stock", write: true }); };
+$("force-open").onclick = () => {
+  const d = $("force"), tick = $("force-understand"), yes = $("force-yes");
+  tick.checked = false; yes.disabled = true;
+  tick.onchange = () => { yes.disabled = !tick.checked; };
+  $("force-no").onclick = () => d.close();
+  yes.onclick = () => { d.close(); runJob("/api/restore", { source: "stock", write: true, force_unknown: true }); };
+  d.showModal();
+};
 $("report").onclick = async () => { const r = await api("POST", "/api/report"); $("report-text").hidden = false; $("report-text").textContent = r.text; };
 syncTweaks(); refresh();

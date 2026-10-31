@@ -27,7 +27,7 @@ class Runner:
                 return False
             self.running, self.events = True, []
         args = SimpleNamespace(**{**dict(write=False, tweaks="", backup=None, download=False, source="backup", file=None,
-                                         accept_disclaimer=False), **params})
+                                         accept_disclaimer=False, force_unknown=False), **params})
         args.say = lambda text: self.push({"type": "log", "text": str(text)})
         args.progress = lambda label, done, total: self.push({"type": "progress", "label": label, "done": done, "total": total})
         threading.Thread(target=self._run, args=(name, args), daemon=True).start()

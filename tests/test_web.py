@@ -75,16 +75,20 @@ class WebTest(unittest.TestCase):
         seen = {}
 
         def fake(args, store):
-            seen.update(tweaks=args.tweaks, write=args.write, download=args.download, source=args.source)
+            seen.update(tweaks=args.tweaks, write=args.write, download=args.download, source=args.source,
+                        force_unknown=args.force_unknown)
         state.accept(self.store)
         jobs.ACTIONS["patch"] = fake
         jobs.ACTIONS["restore"] = fake
         self.assertEqual(self.call("POST", "/api/patch", {"tweaks": ["bt_xbox", "cable_360"], "base": "download", "write": True})[0], 202)
         self.events()
-        self.assertEqual(seen, dict(tweaks="bt_xbox,cable_360", write=True, download=True, source="backup"))
+        self.assertEqual(seen, dict(tweaks="bt_xbox,cable_360", write=True, download=True, source="backup", force_unknown=False))
         self.assertEqual(self.call("POST", "/api/restore", {"source": "stock", "write": False})[0], 202)
         self.events()
-        self.assertEqual((seen["source"], seen["download"], seen["write"]), ("stock", True, False))
+        self.assertEqual((seen["source"], seen["download"], seen["write"], seen["force_unknown"]), ("stock", True, False, False))
+        self.call("POST", "/api/restore", {"source": "stock", "write": True, "force_unknown": True})
+        self.events()
+        self.assertTrue(seen["force_unknown"])
 
     def test_errors_become_error_events(self):
         def fake(args, store):

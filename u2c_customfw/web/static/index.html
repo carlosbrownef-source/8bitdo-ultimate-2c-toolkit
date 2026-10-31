@@ -59,6 +59,12 @@
       <button id="restore-backup" class="danger">Restore your backup…</button>
       <button id="restore-stock-dry" class="secondary">Dry run: 8BitDo's v1.09</button>
       <button id="restore-stock" class="danger">Restore 8BitDo's v1.09…</button>
+      <div class="warning">
+        <strong>WARNING — only for a controller whose firmware version cannot be determined.</strong>
+        If the controller is not recognised and its version is unknown, you can force-install 8BitDo's v1.09. This
+        cannot be verified beforehand and may leave the controller not starting. Your backup can always be restored.
+        <div><button id="force-open" class="danger">Force install 8BitDo's v1.09 (unknown version)…</button></div>
+      </div>
       <p><button id="report" class="secondary">Show a report for bug reports</button></p>
       <pre id="report-text" hidden></pre>
     </section>
@@ -71,6 +77,18 @@
   <p id="confirm-what"></p>
   <p>No warranty of any kind applies. You can go back to stock afterwards with <em>Diagnose and restore</em>.</p>
   <menu><button id="confirm-no" class="secondary">Cancel</button><button id="confirm-yes" class="danger">Write</button></menu>
+</dialog>
+<dialog id="force">
+  <h3>WARNING — force install without knowing the version</h3>
+  <ul>
+    <li>This app cannot tell which firmware this controller runs, and cannot check that v1.09 is right for it.</li>
+    <li>It will erase and rewrite the controller's main firmware with 8BitDo's v1.09. If the controller really runs another firmware generation, it may <strong>not start</strong> afterwards, or buttons, Bluetooth, battery or rumble may misbehave.</li>
+    <li>The bootloader is never touched, so boot mode keeps working. A backup of this unit is required first, and Diagnose and restore can put that backup back.</li>
+    <li>Pairings and the controller's identity (MAC, calibration) are not changed.</li>
+    <li>It voids the warranty, and no warranty of any kind applies.</li>
+  </ul>
+  <label><input type="checkbox" id="force-understand"> I understand the risks and want to continue</label>
+  <menu><button id="force-no" class="secondary">Cancel</button><button id="force-yes" class="danger" disabled>Force install</button></menu>
 </dialog>
 <script src="/static/app.js"></script>
 </body>

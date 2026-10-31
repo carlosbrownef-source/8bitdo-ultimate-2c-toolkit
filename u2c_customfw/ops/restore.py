@@ -8,18 +8,21 @@ from .probe import detect_version
 from .plan import OpError, Plan
 
 
-def plan_restore(ch, backup, source: str, stock) -> Plan:
-    """Bank A may be in any state (this exists for damaged firmware); the unit checks still apply."""
+def plan_restore(ch, backup, source: str, stock, force_unknown: bool = False) -> Plan:
+    """Bank A may be in any state (this exists for damaged firmware); the unit checks still apply. Restoring stock also
+    needs the firmware to be 1.09; force_unknown lets it proceed when the version cannot be determined (never when it is
+    known to be another version)."""
     check_unit(ch, backup)
     if source not in ("backup", "stock"):
         raise OpError(f"unknown restore source {source!r}")
     cur = current_bank_a(ch)
-    if source == "stock":  # writing 1.09 over another version would be an update this app does not support
-        v, how = detect_version(ch, "boot", cur)
-        if v is None:
+    if source == "stock":
+        v, _ = detect_version(ch, "boot", cur)
+        if v is None and not force_unknown:
             raise OpError("cannot tell which firmware version this controller has (the update record is blank and neither "
-                          "bank is a known 1.09): nothing written. Restoring your own backup is still possible.")
-        if abs(v - image.SUPPORTED_VERSION) > 1e-6:
+                          "bank is a known 1.09): nothing written. Restoring your own backup is still possible, or use "
+                          "\"Force install\" if you accept the risk.")
+        if v is not None and abs(v - image.SUPPORTED_VERSION) > 1e-6:
             raise OpError(f"this controller has firmware {v:.2f}, and this app only supports {image.SUPPORTED_VERSION:.2f}: "
                           "update it with 8BitDo's own updater first (restoring your own backup is still possible)")
     target = bytearray(backup.data)

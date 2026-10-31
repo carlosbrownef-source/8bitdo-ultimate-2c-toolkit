@@ -123,7 +123,7 @@ def cmd_restore(args, store):
     try:
         b = bkp.load(Path(args.file)) if args.file else _backup_for(args, ch, store)
         stock = fetch.fetch_stock() if args.source == "stock" else None
-        plan = restore.plan_restore(ch, b, args.source, stock)
+        plan = restore.plan_restore(ch, b, args.source, stock, args.force_unknown)
         args.say(plan.summary)
         if not args.write:
             args.say("dry run: nothing written; add --write to restore")
@@ -162,6 +162,7 @@ def main(argv=None) -> int:
     p = sub.add_parser("restore", parents=[common])
     p.add_argument("source", choices=["backup", "stock"]); p.add_argument("file", nargs="?")
     p.add_argument("--backup"); p.add_argument("--download", action="store_true")
+    p.add_argument("--force-unknown", action="store_true", help="restore 8BitDo's v1.09 even though the firmware version cannot be determined (risky)")
     for p in sub.choices.values():
         if p.prog.endswith(("patch", "restore")):
             p.add_argument("--write", action="store_true"); p.add_argument("--accept-disclaimer", action="store_true")

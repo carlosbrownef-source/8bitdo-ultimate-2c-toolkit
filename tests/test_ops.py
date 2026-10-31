@@ -274,6 +274,29 @@ class VersionTest(Base):
             restore.plan_restore(dev, self.backup, "stock", STOCK_A)
         self.assertIn("cannot tell", str(e.exception))
 
+    def test_force_install_only_overrides_an_unknown_version(self):
+        odd = bytes(random.Random(8).randbytes(0x12400))
+        unknown = self.device(0xFF, bank_a=odd, bank_b=odd, boot_mode=True)
+        with self.assertRaises(OpError):
+            restore.plan_restore(unknown, self.backup, "stock", STOCK_A)
+        plan = restore.plan_restore(unknown, self.backup, "stock", STOCK_A, force_unknown=True)
+        self.assertTrue(plan.bank_a)
+        # a version that is known and different is never overridden: that is 8BitDo's updater's job
+        with self.assertRaises(OpError) as e:
+            restore.plan_restore(self.device(106, boot_mode=True), self.backup, "stock", STOCK_A, force_unknown=True)
+        self.assertIn("1.06", str(e.exception))
+
+    def test_force_install_still_checks_the_unit_and_the_device_kind(self):
+        odd = bytes(random.Random(9).randbytes(0x12400))
+        other = bytearray(self.flash); other[image.MAC_SECTOR + 3] ^= 1
+        dev = SimBoot(bytes(other)); dev.f[0x3F00C] = 0xFF; dev.f[0x6000:0x18400] = odd; dev.f[0x40000:0x52400] = odd
+        with self.assertRaises(OpError) as e:
+            restore.plan_restore(dev, self.backup, "stock", STOCK_A, force_unknown=True)
+        self.assertIn("another unit", str(e.exception))
+        dongle = bytearray(b"\xff" * 0x20000); dongle[:0x5000] = random.Random(1).randbytes(0x5000)
+        with self.assertRaises(OpError):
+            restore.plan_restore(SimBoot(bytes(dongle)), self.backup, "stock", STOCK_A, force_unknown=True)
+
     def test_stock_restore_allowed_when_a_blank_record_is_resolved_by_a_bank(self):
         odd = bytes(random.Random(7).randbytes(0x12400))   # damaged bank A, blank record, bank B still stock
         dev = self.device(0xFF, bank_a=odd, boot_mode=True)

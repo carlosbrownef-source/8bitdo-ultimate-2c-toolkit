@@ -24,3 +24,5 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); } menu { padding: 0; display: 
 #log:empty { display: none; }
 .fw strong.mod { color: #f2c94c; } .applied { margin: 6px 0 2px; } .applied label { margin: 2px 0; } .applied input:disabled { opacity: 1; accent-color: var(--accent); } .applied input:disabled:not(:checked) + * { }
 .fw small.src { color: var(--dim); }
+.warning { border: 1px solid var(--warn); border-left-width: 4px; border-radius: 8px; padding: 10px 12px; margin: 14px 0; background: rgba(224, 101, 79, .08); }
+.warning strong { color: var(--warn); } dialog#force h3 { margin: 0 0 8px; color: var(--warn); } dialog#force ul { padding-left: 18px; margin: 8px 0; }

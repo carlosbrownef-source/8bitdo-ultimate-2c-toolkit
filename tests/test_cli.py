@@ -88,6 +88,12 @@ class CliTest(unittest.TestCase):
         self.assertIn("Firmware: stock v1.09", text)
         self.assertNotIn("not read", text)
 
+    def test_restore_stock_accepts_force_unknown(self):
+        dev = SimBoot(self.flash)
+        code, text = run(["restore", "stock", "--force-unknown", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], dev)
+        self.assertNotEqual(code, 2, text)   # 2 would be a usage error
+        self.assertEqual([o for o in dev.ops if o[0] != "read"], [])
+
     def test_no_device(self):
         code, text = run(["backup", "--store", str(self.tmp)], [])
         self.assertEqual(code, 2)
