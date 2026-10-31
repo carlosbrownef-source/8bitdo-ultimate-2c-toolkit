@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 const token = new URLSearchParams(location.search).get("token") || "";
+if (new URLSearchParams(location.search).has("native")) document.body.classList.add("native");  // in the Mac app, whose title bar shows the name and Help
 const $ = (id) => document.getElementById(id);
 const api = async (method, path, body) => {
   const r = await fetch(path, { method, headers: { "X-Token": token }, body: body ? JSON.stringify(body) : undefined });

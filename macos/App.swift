@@ -4,7 +4,7 @@ import AppKit
 import IOKit.hid
 import WebKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     var window: NSWindow!
     var web: WKWebView!
     var core: Process?
@@ -21,9 +21,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         web.underPageBackgroundColor = background
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 860),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+        // The title bar replaces the page's own top bar (hidden with ?native=1): name, what it is for, and Help.
         window.title = "u2c-customfw"
-        window.titleVisibility = .hidden            // the page's own top bar names the app
-        window.titlebarAppearsTransparent = true    // the title bar takes the window colour, so it blends into the page
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        window.subtitle = "v\(version) · 8BitDo Ultimate 2C Wireless · firmware 1.09 only"
+        window.titlebarAppearsTransparent = true    // takes the window colour, so it blends into the page
+        let toolbar = NSToolbar(identifier: "main")
+        toolbar.delegate = self
+        window.toolbar = toolbar
+        window.toolbarStyle = .unified
         window.backgroundColor = background
         window.contentMinSize = NSSize(width: 760, height: 640)
         window.contentView = web
@@ -32,6 +38,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installMenu()
         startCore()
     }
+
+    static let helpItem = NSToolbarItem.Identifier("help")
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { [.flexibleSpace, Self.helpItem] }
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { [.flexibleSpace, Self.helpItem] }
+    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        let item = NSToolbarItem(itemIdentifier: id)
+        item.label = "Help"
+        item.image = NSImage(systemSymbolName: "questionmark.circle", accessibilityDescription: "Help")
+        item.isBordered = true
+        item.target = self
+        item.action = #selector(showHelp)
+        return item
+    }
+    @objc func showHelp() { web.evaluateJavaScript("document.getElementById('help-open').click()") }
 
     func installMenu() {
         let main = NSMenu(), item = NSMenuItem(), menu = NSMenu()
@@ -69,7 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let text = String(data: self.buffer, encoding: .utf8) else { return }
             for line in text.split(separator: "\n") where line.hasPrefix("U2C_URL ") {
                 h.readabilityHandler = nil
-                if let url = URL(string: String(line.dropFirst("U2C_URL ".count))) {
+                if let url = URL(string: String(line.dropFirst("U2C_URL ".count)) + "&native=1") {
                     DispatchQueue.main.async { self.web.load(URLRequest(url: url)) }
                 }
             }
@@ -96,7 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if (result as? Bool) == true {
                 let alert = NSAlert()
                 alert.messageText = "An operation is running"
-                alert.informativeText = "Quitting now can leave the controller half-written. If that happens, put it in boot mode and use Diagnose and restore. Quit anyway?"
+                alert.informativeText = "Quitting now can leave the controller half-written. If that happens, put it in update mode and use Restore. Quit anyway?"
                 alert.addButton(withTitle: "Keep running")
                 alert.addButton(withTitle: "Quit anyway")
                 NSApp.reply(toApplicationShouldTerminate: alert.runModal() == .alertSecondButtonReturn)
