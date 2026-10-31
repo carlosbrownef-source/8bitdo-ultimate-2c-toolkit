@@ -21,6 +21,19 @@ class Runner:
             self.events.append(event)
             self.cond.notify_all()
 
+    def claim(self) -> bool:
+        """Take the device for a short read outside the job system (the firmware read); False if it is in use."""
+        with self.cond:
+            if self.running:
+                return False
+            self.running = True
+            return True
+
+    def release(self) -> None:
+        with self.cond:
+            self.running = False
+            self.cond.notify_all()
+
     def start(self, name: str, **params) -> bool:
         with self.cond:
             if self.running:

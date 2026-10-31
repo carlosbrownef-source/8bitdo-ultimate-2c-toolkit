@@ -85,14 +85,21 @@ def make_server(store: Path, port: int = 0):
             """Read the connected controller's bank A (read-only) and name its firmware and tweaks."""
             if not self.auth():
                 return
-            if runner.running:
+            if not runner.claim():   # one user of the device at a time: no job may start during this read
                 return self.send(409, json.dumps({"error": "another operation is running"}))
-            ours = [f for f in cli.find() if f.mode in cli.CONTROLLER_MODES]
+            try:
+                self.firmware_report()
+            finally:
+                runner.release()
+
+        def firmware_report(self):
+            found = cli.find()
+            ours = [f for f in found if f.mode in cli.CONTROLLER_MODES]
             if len(ours) > 1:
                 return self.send(200, json.dumps({"error": "More than one device: unplug all but one controller."}))
             if not ours:
                 note = "No controller by cable or in boot mode."
-                if any(f.mode.startswith("bluetooth") for f in cli.find()):
+                if any(f.mode.startswith("bluetooth") for f in found):
                     note = "Only seen over Bluetooth: connect it by cable (or boot mode) to read its firmware."
                 return self.send(200, json.dumps({"note": note}))
             f = ours[0]

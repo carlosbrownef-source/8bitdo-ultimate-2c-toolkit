@@ -11,7 +11,7 @@ from unittest import mock
 
 from u2c_customfw import cli, state
 from u2c_customfw.firmware import recipes
-from u2c_customfw.ops import devices
+from u2c_customfw.ops import devices, probe
 from u2c_customfw import transport
 from u2c_customfw.sim import SimApp
 from tests.test_ops import K, STOCK_A, controller_flash
@@ -136,6 +136,27 @@ class WebTest(unittest.TestCase):
         self.assertEqual(self.call("GET", "/api/firmware")[0], 409)
         release.set()
         self.events()
+
+    def test_no_job_starts_while_the_firmware_is_being_read(self):
+        reading, release = threading.Event(), threading.Event()
+
+        def slow_read(ch, mode):
+            reading.set()
+            release.wait(5)
+            return probe.Firmware(recipes.State(True, ()), 1.09, "update record")
+        info = transport.DeviceInfo(0x2DC8, 0x310A, 0xFF7A, "USB", "x", None)
+        jobs.ACTIONS["backup"] = lambda args, store: None
+        with mock.patch.object(cli, "find", lambda: [devices.Found(info, "cable")]), \
+                mock.patch.object(cli, "open_channel", lambda i, rid: SimApp(controller_flash())), \
+                mock.patch.object(probe, "read_firmware", slow_read):
+            t = threading.Thread(target=self.call, args=("GET", "/api/firmware"), daemon=True)
+            t.start()
+            self.assertTrue(reading.wait(5))
+            self.assertEqual(self.call("POST", "/api/backup")[0], 409)   # the device is in use
+            release.set()
+            t.join(5)
+            self.assertEqual(self.call("POST", "/api/backup")[0], 202)   # free again
+            self.events()
 
     def test_malformed_json_is_a_400_not_a_dropped_connection(self):
         for raw in (b"{not json", b"[1, 2]"):
