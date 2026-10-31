@@ -19,6 +19,7 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/app"
 tar xzf "$tarball" -C "$app/Contents/Resources"
 rsync -a --exclude __pycache__ u2c_customfw "$app/Contents/Resources/app/"
 cp DISCLAIMER.md LICENSE "$app/Contents/Resources/app/"
+cp macos/AppIcon.icns "$app/Contents/Resources/"  # rendered from macos/icon.svg
 sed "s/@VERSION@/$version/g" macos/Info.plist > "$app/Contents/Info.plist"
 swiftc -O -o "$app/Contents/MacOS/u2c-customfw" macos/App.swift -framework AppKit -framework WebKit -framework IOKit
 codesign --force --deep -s - "$app"

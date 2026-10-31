@@ -1,5 +1,7 @@
 # u2c-customfw
 
+<p align="center"><img src="docs/images/controller.svg" alt="The 8BitDo Ultimate 2C Wireless controller, drawn for this project" width="420"></p>
+
 Back up, patch and repair the firmware of the **8BitDo Ultimate 2C Wireless controller (firmware 1.09)**, so macOS treats it as an Xbox controller and every game sees it.
 
 > ## READ THIS FIRST
@@ -17,6 +19,29 @@ Back up, patch and repair the firmware of the **8BitDo Ultimate 2C Wireless cont
 >
 > **You can always return to the original firmware.** The part of the controller that runs update mode (its bootloader)
 > is never modified, and Restore restores either your own backup or 8BitDo's firmware 1.09.
+
+## Why this is public
+
+Out of the box, macOS and most Mac games don't recognise the Ultimate 2C as a standard controller. This project is
+public to help Mac users use it as a native controller on their system.
+
+It only supports this controller with firmware 1.09, because that is the only one I have and could test. The same
+approach could be extended to other firmware versions, and perhaps to other 8BitDo controllers, but I can't do that
+myself without the hardware. If you have one, [docs/firmware-notes.md](docs/firmware-notes.md) explains how the
+firmware is laid out and [docs/porting.md](docs/porting.md) how to port the app to Linux.
+
+This is possible because the controller's firmware is neither encrypted nor signed: 8BitDo's update file is a plain
+image, and the controller's bootloader only checks a CRC on each block it receives, so it accepts and runs a modified
+firmware. Each tweak here is a small, hash-checked edit to that image.
+
+## Credits
+
+- **[jgus-org/8bitdo-2c-re-flake](https://github.com/jgus-org/8bitdo-2c-re-flake)** (MIT): reverse engineering of the
+  Ultimate 2C's update and bootloader protocols, its recovery and its flash layout. This project reimplements those
+  protocols from jgus's notes; it does not copy its code.
+- **[xpadneo](https://github.com/atar-axis/xpadneo)**: the captured Xbox Series X|S Bluetooth report descriptor.
+- **8BitDo**: the hardware, and the update server the app downloads firmware 1.09 from (only on request).
+- **Telink**: the tc32 toolchain ([flyskywhy/tc32](https://github.com/flyskywhy/tc32)) used to build `firmware-src/`.
 
 ## What the tweaks do
 
@@ -57,6 +82,6 @@ The only OS-specific part is `u2c_customfw/transport/`. See [docs/porting.md](do
 - [docs/bluetooth-and-rumble.md](docs/bluetooth-and-rumble.md): how the Bluetooth Xbox identity and rumble work.
 - [firmware-src/README.md](firmware-src/README.md): the C and assembly we add, and how to rebuild it.
 
-## License and credits
+## License
 
-GPL-3.0-or-later; see `LICENSE` and [CREDITS.md](CREDITS.md). 8BitDo firmware is not included in this repository.
+GPL-3.0-or-later; see `LICENSE`. Credits are [above](#credits) and in [CREDITS.md](CREDITS.md). 8BitDo firmware is not included in this repository.
