@@ -64,9 +64,10 @@ class SimBoot:
         pass
 
 
-def install(store) -> None:
+def install(store, unknown: bool = False) -> None:
     """U2C_SIM=1: pretend a controller in boot mode is plugged in, backed by a synthetic flash and a synthetic 'stock'
-    (with matching constants), so the UI can be exercised without hardware. Seeds a backup of that flash in the store."""
+    (with matching constants), so the UI can be exercised without hardware. Seeds a backup of that flash in the store.
+    unknown=True: the simulated controller has damaged banks A and B and a blank update record (version undeterminable)."""
     import hashlib
     import random
     from pathlib import Path
@@ -92,7 +93,12 @@ def install(store) -> None:
     recipes._constants = lambda a=None, b=None, c=None: consts
     Path(store).mkdir(parents=True, exist_ok=True)
     (Path(store) / "controller-sim.bin").write_bytes(bytes(flash))
-    dev = SimBoot(bytes(flash))
+    live = bytearray(flash)
+    if unknown:
+        live[image.BASE:image.BANK_A_END] = rnd.randbytes(image.BANK_A_SIZE)
+        live[0x40000:0x40000 + image.BANK_A_SIZE] = rnd.randbytes(image.BANK_A_SIZE)
+        live[0x3F000:0x3F034] = b"\xff" * 0x34
+    dev = SimBoot(bytes(live))
     info = DeviceInfo(0x2DC8, 0x3208, 0x8C, "USB", "Simulated controller (boot mode)", None)
     cli.find = lambda: [devices.Found(info, "boot")]
     cli.open_channel = lambda i, rid: dev
