@@ -23,7 +23,7 @@ Back up, patch and repair the firmware of the **8BitDo Ultimate 2C Wireless cont
 ## Why this is public
 
 Out of the box, macOS and most Mac games don't recognise the Ultimate 2C as a standard controller (just as a HID device). This project is
-public to help Mac users use it as a native controller on their system. This doesn't happen on Windows, as it isn't as inflexible as macOS in detecting Xbox 360-compatible controllers.
+public to help Mac users use it as a native controller on their system. This doesn't happen on Windows, as it isn't as inflexible as macOS in detecting Xbox 360-compatible controllers (when using a cable), and because it supports Xbox 360 controllers via bluetooth, and macOS does not.
 
 It only supports this controller with firmware 1.09, because that is the only one I have and could test. The same
 approach could probably be extended to other firmware versions, and perhaps to other 8BitDo controllers, but I can't do that
