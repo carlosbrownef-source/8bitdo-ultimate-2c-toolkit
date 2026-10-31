@@ -77,10 +77,9 @@ class RealStockTest(unittest.TestCase):
         self.assertEqual((st.known, st.recipes), (True, ()))
 
     def test_matches_the_payload_verified_on_hardware(self):
-        ref = Path(os.environ.get("U2C_REF_PAYLOAD", "backups/"
-                                  "payload-controller-v1.09-xbox-ble-cable360-rumble-hold.bin"))
-        if not ref.exists():
-            self.skipTest(f"{ref} not present")
+        if "U2C_REF_PAYLOAD" not in os.environ:  # a payload flashed and verified on a real controller (not in the repo)
+            self.skipTest("set U2C_REF_PAYLOAD to compare with a payload verified on hardware")
+        ref = Path(os.environ["U2C_REF_PAYLOAD"])
         self.assertEqual(recipes.build(self.stock, ["bt_xbox", "bt_rumble", "cable_360"]), ref.read_bytes())
 
     def test_all_combinations_identify(self):
