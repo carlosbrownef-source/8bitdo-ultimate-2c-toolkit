@@ -59,7 +59,7 @@ def _make() -> dict[str, Recipe]:
     pad = bytes(OLD_NAME_LEN - len(NAME))
     slot = PACKER_SLOT[1] - PACKER_SLOT[0]
     return {r.key: r for r in (
-        Recipe("bt_xbox", "Bluetooth: Xbox Series X|S controller", (), (
+        Recipe("bt_xbox", "Bluetooth: Xbox Series X/S controller", (), (
             Edit(PACKER_SLOT[0], _blob("packer.bin").ljust(slot, b"\0")),
             Edit(0x18274, _blob("report-map.bin")),
             Edit(0x18390, _blob("noop.bin"), superseded_by="bt_rumble"),

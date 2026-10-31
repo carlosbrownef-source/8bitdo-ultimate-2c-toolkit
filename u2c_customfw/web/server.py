@@ -102,12 +102,15 @@ def make_server(store: Path, port: int = 0):
                 ch = cli.open_channel(f.info, 0 if f.mode == "boot" else 0x81)
                 try:
                     st = probe.read_state(ch, f.mode)
+                    version = probe.read_version(ch, f.mode)
                 finally:
                     ch.close()
             except (OpError, PermissionDenied, OSError) as e:
                 return self.send(200, json.dumps({"error": str(e)}))
-            self.send(200, json.dumps({"mode": f.mode, "known": st.known, "recipes": list(st.recipes),
-                                       "titles": [recipes.RECIPES[k].title for k in st.recipes]}))
+            self.send(200, json.dumps({"mode": f.mode, "known": st.known, "recipes": list(st.recipes), "version": version,
+                                       "titles": [recipes.RECIPES[k].title for k in st.recipes],
+                                       "tweaks": [{"key": k, "title": r.title, "on": k in st.recipes}
+                                                  for k, r in recipes.RECIPES.items()]}))
 
         def api_events(self):
             if not self.auth():

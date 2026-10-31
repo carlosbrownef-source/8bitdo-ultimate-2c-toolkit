@@ -4,6 +4,7 @@ from .. import protocol
 from ..firmware import image
 from ..protocol import boot
 from .patch import check_unit, current_bank_a
+from .probe import parse_version
 from .plan import OpError, Plan
 
 
@@ -13,6 +14,14 @@ def plan_restore(ch, backup, source: str, stock) -> Plan:
     if source not in ("backup", "stock"):
         raise OpError(f"unknown restore source {source!r}")
     cur = current_bank_a(ch)
+    if source == "stock":  # writing 1.09 over another firmware version would be an update this app does not support
+        try:
+            v = parse_version(boot.read(ch, image.UPDATE_RECORD, 16))
+        except protocol.ProtocolError as e:
+            raise OpError(f"{e}; nothing written") from e
+        if v is not None and abs(v - image.SUPPORTED_VERSION) > 1e-6:
+            raise OpError(f"this controller has firmware {v:.2f}, and this app only supports {image.SUPPORTED_VERSION:.2f}: "
+                          "update it with 8BitDo's own updater first (restoring your own backup is still possible)")
     target = bytearray(backup.data)
     if source == "stock":
         if stock is None or len(stock) != image.BANK_A_SIZE:

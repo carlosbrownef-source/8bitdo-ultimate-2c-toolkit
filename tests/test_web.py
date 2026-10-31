@@ -115,6 +115,9 @@ class WebTest(unittest.TestCase):
         self.assertTrue(data["known"])
         self.assertEqual(data["recipes"], ["bt_xbox", "cable_360"])
         self.assertIn("Bluetooth: Xbox", " ".join(data["titles"]))
+        self.assertEqual(data["version"], 1.09)
+        self.assertEqual([(t["key"], t["on"]) for t in data["tweaks"]],
+                         [("bt_xbox", True), ("bt_rumble", False), ("cable_360", True), ("dim_leds", False)])
 
     def test_firmware_endpoint_with_only_bluetooth_explains(self):
         info = transport.DeviceInfo(0x045E, 0x0B13, 1, "Bluetooth Low Energy", "x", None)

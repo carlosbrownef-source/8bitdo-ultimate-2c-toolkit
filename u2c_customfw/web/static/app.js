@@ -91,12 +91,26 @@ async function showFirmware() {  // reads the controller's firmware (read-only);
     const f = await api("GET", "/api/firmware");
     if (mine !== fwSeq) return;
     el.textContent = "";
-    const strong = document.createElement("strong");
     if (f.error || f.note) { el.textContent = f.error || f.note; return; }
-    el.append("Firmware: ");
-    if (!f.known) { strong.className = "bad"; strong.textContent = "unknown (not stock v1.09 or one of ours): use Diagnose and restore"; el.append(strong); return; }
-    strong.className = "ok"; strong.textContent = "stock v1.09"; el.append(strong);
-    el.append(f.titles.length ? " with: " + f.titles.join(", ") : ", no tweaks applied");
+    const head = document.createElement("strong"), ver = f.version ? f.version.toFixed(2) : null;
+    if (f.known) {
+      const modified = f.recipes.length > 0;
+      head.className = modified ? "mod" : "ok"; head.textContent = `Firmware 1.09 — ${modified ? "modified" : "unmodified"}`;
+    } else if (ver && ver !== "1.09") {
+      head.className = "bad"; head.textContent = `Firmware ${ver} — not supported (this app needs 1.09)`;
+    } else {
+      head.className = "bad"; head.textContent = "Firmware not recognised — not an unmodified 1.09 or one of our builds; use Diagnose and restore";
+    }
+    el.append(head);
+    if (f.known) {
+      const list = document.createElement("div"); list.className = "applied";
+      for (const t of f.tweaks) {
+        const label = document.createElement("label"), box = document.createElement("input");
+        box.type = "checkbox"; box.checked = t.on; box.disabled = true; box.tabIndex = -1;
+        label.append(box, " " + t.title); list.append(label);
+      }
+      el.append(list);
+    }
   } catch (e) { if (mine === fwSeq) el.textContent = ""; }
 }
 

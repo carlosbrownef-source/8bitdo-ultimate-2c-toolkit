@@ -13,3 +13,6 @@ SECTOR = 0x1000
 
 STOCK_SHA256 = "dfd443c77f831008aa453ee2c1c9cb6871c36f8947c548e61d4387fba0a9da70"      # bank A of v1.09
 STOCK_DAT_SHA256 = "87349e603bb92d6ae9ff6defb6f32b10de2f2d3252fe4e442fa7993f982f2a5a"  # 8BitDo's .dat file
+
+UPDATE_RECORD = 0x3F000        # 52-byte record; byte +0x0c is the firmware version times 100 (0x6d = 1.09)
+SUPPORTED_VERSION = 1.09

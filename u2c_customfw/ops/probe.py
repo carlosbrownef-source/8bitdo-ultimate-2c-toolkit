@@ -28,3 +28,18 @@ def read_state(ch, mode: str) -> recipes.State:
     except protocol.ProtocolError as e:
         raise OpError(str(e)) from e
     return recipes.identify(bank_a)
+
+
+def parse_version(record: bytes) -> float | None:
+    """Firmware version from the update record, or None if it is blank."""
+    v = record[0x0C] if len(record) > 0x0C else 0
+    return None if v in (0, 0xFF) else v / 100
+
+
+def read_version(ch, mode: str) -> float | None:
+    """The firmware version the controller's update record carries (1.09 for the supported firmware)."""
+    try:
+        rec = boot.read(ch, image.UPDATE_RECORD, 16) if mode == "boot" else app.read(ch, image.UPDATE_RECORD, 16)
+    except protocol.ProtocolError:
+        return None
+    return None if rec is None else parse_version(rec)

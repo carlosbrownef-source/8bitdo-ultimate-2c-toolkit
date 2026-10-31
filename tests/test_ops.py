@@ -37,6 +37,7 @@ def controller_flash(bank_a=STOCK_A):
     f[image.BASE:image.BANK_A_END] = bank_a
     f[0x40000:0x40000 + image.BANK_A_SIZE] = bank_a
     f[0x3F000:0x3F034] = rnd.randbytes(0x34)
+    f[0x3F00C] = 0x6D  # update record: firmware version 1.09
     for a in range(image.CONFIG_START, image.FLASH_SIZE, 0x1000):
         f[a:a + 64] = rnd.randbytes(64)
     return bytes(f)
@@ -231,6 +232,34 @@ class ProbeTest(Base):
         f = bytearray(controller_flash()); f[0x10000:0x10010] = b"\xff" * 16
         with self.assertRaises(OpError):
             probe.read_state(SimApp(bytes(f)), "cable")
+
+
+class VersionTest(Base):
+    def flash_with_version(self, v):
+        f = bytearray(controller_flash()); f[0x3F00C] = v
+        return bytes(f)
+
+    def test_read_version(self):
+        self.assertEqual(probe.read_version(SimApp(controller_flash()), "cable"), 1.09)
+        self.assertEqual(probe.read_version(SimBoot(self.flash_with_version(106)), "boot"), 1.06)
+        self.assertIsNone(probe.read_version(SimApp(self.flash_with_version(0xFF)), "cable"))
+
+    def test_stock_restore_refused_on_another_firmware_version(self):
+        flash = controller_flash()
+        b = bkp.backup(SimApp(flash), "cable", self.tmp, noprogress)
+        dev = SimBoot(flash)
+        dev.f[0x3F00C] = 106   # same unit (bootloader and MAC match), but an earlier firmware: only 1.09 is supported
+        with self.assertRaises(OpError) as e:
+            restore.plan_restore(dev, b, "stock", STOCK_A)
+        self.assertIn("1.06", str(e.exception))
+        self.assertIn("1.09", str(e.exception))
+
+    def test_stock_restore_still_allowed_when_the_record_is_blank_or_1_09(self):
+        flash = controller_flash()
+        b = bkp.backup(SimApp(flash), "cable", self.tmp, noprogress)
+        for v in (0x6D, 0xFF, 0x00):
+            dev = SimBoot(flash); dev.f[0x3F00C] = v
+            self.assertTrue(restore.plan_restore(dev, b, "stock", STOCK_A))
 
 
 class DevicesTest(unittest.TestCase):
