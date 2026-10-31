@@ -16,10 +16,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) != kIOHIDAccessTypeGranted {
             _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
         }
+        let background = NSColor(srgbRed: 0x10 / 255.0, green: 0x12 / 255.0, blue: 0x15 / 255.0, alpha: 1)  // the page's --bg
         web = WKWebView(frame: .zero)
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 820),
+        web.underPageBackgroundColor = background
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 860),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "u2c-customfw"
+        window.titleVisibility = .hidden            // the page's own top bar names the app
+        window.titlebarAppearsTransparent = true    // the title bar takes the window colour, so it blends into the page
+        window.backgroundColor = background
+        window.contentMinSize = NSSize(width: 760, height: 640)
         window.contentView = web
         window.center()
         window.makeKeyAndOrderFront(nil)
@@ -32,12 +38,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Quit u2c-customfw", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.submenu = menu
         main.addItem(item)
+        let editItem = NSMenuItem(), edit = NSMenu(title: "Edit")  // so ⌘C and ⌘A work in the page (the problem report)
+        edit.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editItem.submenu = edit
+        main.addItem(editItem)
         NSApp.mainMenu = main
     }
 
     func fail(_ message: String) {
         let escaped = message.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
-        web.loadHTMLString("<body style='font:15px -apple-system;background:#15171a;color:#e6e8eb;padding:24px'><h3>Could not start</h3><pre>\(escaped)</pre></body>", baseURL: nil)
+        web.loadHTMLString("<body style='font:15px -apple-system;background:#101215;color:#e8eaed;padding:24px'><h3>Could not start</h3><pre>\(escaped)</pre></body>", baseURL: nil)
     }
 
     func startCore() {

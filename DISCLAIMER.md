@@ -12,5 +12,5 @@ for a particular purpose. You use it entirely at your own risk.
 
 **It will probably break compatibility with 8BitDo's own apps**, both the Firmware Updater and Ultimate Software.
 
-**You can always return to stock.** The controller's bootloader is never modified, and Diagnose and restore puts back
-either your own backup or 8BitDo's firmware 1.09.
+**You can always return to the original firmware.** The part of the controller that runs update mode is never
+modified, and Restore restores either your own backup or 8BitDo's firmware 1.09.
