@@ -48,14 +48,14 @@ def backup(ch, mode: str, store: Path, progress) -> Backup:
             if app.read(ch, 0x10000, 16) == b"\xff" * 16:
                 raise OpError("this looks like the 2.4 GHz dongle, which this app does not support")
         elif mode == "boot" and boot.kind(ch) != "controller":
-            raise OpError("the device in boot mode is not a controller (the dongle is not supported)")
+            raise OpError("the device in update mode is not a controller (the 2.4 GHz dongle is not supported)")
         a = _read_all(ch, mode, "pass 1", progress)
         b = _read_all(ch, mode, "pass 2", progress)
     except protocol.ProtocolError as e:
         raise OpError(str(e)) from e
     if a != b:
         n = sum(a[i:i + boot.CHUNK] != b[i:i + boot.CHUNK] for i in range(0, len(a), boot.CHUNK))
-        raise OpError(f"the two read passes differ at {n} place(s); nothing was saved. Try again with a good cable.")
+        raise OpError(f"the two read passes differ at {n} place(s); nothing was saved. Try again with another cable.")
     store.mkdir(parents=True, exist_ok=True)
     path = store / f"controller-{datetime.datetime.now():%Y%m%d-%H%M%S}.bin"
     n = 1

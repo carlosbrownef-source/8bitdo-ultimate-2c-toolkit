@@ -6,7 +6,7 @@ from .. import protocol
 from ..firmware import image
 from ..protocol import boot
 
-INTERRUPTED = "Interrupted: the controller may not start until this is finished. Use Diagnose > Restore (your backup or 8BitDo's v1.09); the bootloader is untouched."
+INTERRUPTED = "Interrupted: the controller may not start until this is finished. Use Restore (your backup or 8BitDo's original firmware 1.09); update mode is not affected."
 
 
 class OpError(Exception):
@@ -51,7 +51,7 @@ def apply(ch, plan: Plan, progress) -> None:
                 done += len(blk)
                 progress("write", done, total)
             if boot.read(ch, image.BASE, image.BANK_A_ERASE_END - image.BASE) != plan.image[image.BASE:image.BANK_A_ERASE_END]:
-                raise OpError("the read-back of bank A differs from what was written. " + INTERRUPTED)
+                raise OpError("the firmware read back differs from what was written. " + INTERRUPTED)
         for lo, hi in _runs(plan.other_sectors):
             boot.erase(ch, lo, hi - lo)
             for a in range(lo, hi, boot.CHUNK):
@@ -61,6 +61,6 @@ def apply(ch, plan: Plan, progress) -> None:
                 done += len(blk)
                 progress("write", done, total)
             if boot.read(ch, lo, hi - lo) != plan.image[lo:hi]:
-                raise OpError(f"the read-back of {lo:#x}-{hi:#x} differs from what was written. " + INTERRUPTED)
+                raise OpError(f"the memory read back at {lo:#x}-{hi:#x} differs from what was written. " + INTERRUPTED)
     except protocol.ProtocolError as e:
         raise OpError(f"{e}. {INTERRUPTED}") from e

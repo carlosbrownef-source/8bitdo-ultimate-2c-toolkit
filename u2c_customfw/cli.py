@@ -13,7 +13,7 @@ from . import protocol
 from .transport import PermissionDenied, open_channel
 
 CONTROLLER_MODES = ("cable", "cable_360", "boot", "dongle")
-BOOT_HELP = "Power the controller fully off, then hold L1+R1 while plugging in the cable. The LED blinks white."
+BOOT_HELP = "Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white."
 DISCLAIMER_HELP = ("Read DISCLAIMER.md first (no warranty; voids the controller's warranty; Ultimate 2C firmware 1.09 only). "
                    "Writing needs --accept-disclaimer once.")
 
@@ -45,7 +45,7 @@ def pick(modes=CONTROLLER_MODES):
     if not present or present[0].mode not in modes:
         if present and present[0].mode == "dongle":
             raise Exit(2, "That is the 2.4 GHz dongle, which this app does not support.")
-        want = "in boot mode. " + BOOT_HELP if modes == ("boot",) else "by cable"
+        want = "in update mode. " + BOOT_HELP if modes == ("boot",) else "by cable"
         raise Exit(2, f"No controller found {want}")
     return present[0]
 
@@ -55,7 +55,7 @@ def stock_for(args, backup):
         return fetch.fetch_stock()
     if backup.state.known and not backup.state.recipes:
         return backup.data[image.BASE:image.BANK_A_END]
-    raise Exit(2, "This backup's firmware is not stock: add --download to use 8BitDo's v1.09.")
+    raise Exit(2, "Your backup doesn't hold the original firmware 1.09: download it from 8BitDo instead (--download).")
 
 
 def need_accept(args, store):
@@ -79,14 +79,14 @@ def cmd_backup(args, store):
     finally:
         ch.close()
     s = b.state
-    args.say(f"saved {b.path}\nsha256 {b.sha256}\nfirmware: " + (("stock v1.09" + (f" plus {', '.join(s.recipes)}" if s.recipes else "")) if s.known else "unknown"))
+    args.say(f"saved {b.path}\nsha256 {b.sha256}\nfirmware: " + (("original 1.09" + (f" with tweaks: {', '.join(s.recipes)}" if s.recipes else "")) if s.known else "unknown"))
 
 
 def cmd_identify(args, store):
     data = Path(args.file).read_bytes()
     bank_a = data[image.BASE:image.BANK_A_END] if len(data) == image.FLASH_SIZE else data
     s = recipes.identify(bank_a)
-    args.say(("stock v1.09" + (f" plus {', '.join(s.recipes)}" if s.recipes else "")) if s.known else "unknown firmware")
+    args.say(("original 1.09" + (f" with tweaks: {', '.join(s.recipes)}" if s.recipes else "")) if s.known else "unknown firmware")
 
 
 def _backup_for(args, ch, store):
@@ -95,7 +95,7 @@ def _backup_for(args, ch, store):
         return bkp.load(Path(args.backup))
     found = bkp.find_backups(store, boot.read(ch, 0, image.BOOT_END), boot.read(ch, image.MAC_SECTOR, image.SECTOR))
     if not found:
-        raise Exit(2, "No backup of this unit: run `backup` first (controller by cable).")
+        raise Exit(2, "No backup of this controller: back it up first, connected by cable.")
     return found[0]
 
 
@@ -108,10 +108,10 @@ def cmd_patch(args, store):
         plan = patch.plan_patch(ch, b, stock_for(args, b), [k for k in args.tweaks.split(",") if k])
         args.say(plan.summary)
         if not args.write:
-            args.say("dry run: nothing written; add --write to flash")
+            args.say("Check passed (dry run): nothing was written; add --write to install.")
             return
         patch.apply(ch, plan, args.progress)
-        args.say("done: unplug the controller and plug it back in. If a Bluetooth tweak changed, forget it in Bluetooth settings and pair again.")
+        args.say("Done. Unplug the controller and plug it back in. If a Bluetooth tweak changed, remove the controller from Bluetooth settings and pair it again.")
     finally:
         ch.close()
 
@@ -126,10 +126,10 @@ def cmd_restore(args, store):
         plan = restore.plan_restore(ch, b, args.source, stock, args.force_unknown)
         args.say(plan.summary)
         if not args.write:
-            args.say("dry run: nothing written; add --write to restore")
+            args.say("Check passed (dry run): nothing was written; add --write to restore.")
             return
         patch.apply(ch, plan, args.progress)
-        args.say("done: unplug the controller and plug it back in.")
+        args.say("Done. Unplug the controller and plug it back in.")
     finally:
         ch.close()
 

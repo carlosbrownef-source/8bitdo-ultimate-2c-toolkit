@@ -16,8 +16,8 @@ def report(found, state, log_tail: str) -> str:
     if state is None:
         lines.append("Firmware: not read")
     elif state.known:
-        lines.append("Firmware: stock v1.09" + (f" plus {', '.join(state.recipes)}" if state.recipes else ""))
+        lines.append("Firmware: original 1.09" + (f" with tweaks: {', '.join(state.recipes)}" if state.recipes else ""))
     else:
-        lines.append("Firmware: unknown (not stock v1.09 or one of ours)")
+        lines.append("Firmware: unknown (not the original 1.09, with or without the tweaks)")
     lines += ["", "Last log lines:", log_tail.strip() or "  (empty)"]
     return "\n".join(lines) + "\n"

@@ -85,7 +85,7 @@ class CliTest(unittest.TestCase):
     def test_report_uses_the_newest_backups_firmware_state(self):
         code, text = run(["report", "--store", str(self.tmp)], [found("cable")])
         self.assertEqual(code, 0)
-        self.assertIn("Firmware: stock v1.09", text)
+        self.assertIn("Firmware: original 1.09", text)
         self.assertNotIn("not read", text)
 
     def test_restore_stock_accepts_force_unknown(self):

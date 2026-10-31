@@ -59,7 +59,7 @@ def _make() -> dict[str, Recipe]:
     pad = bytes(OLD_NAME_LEN - len(NAME))
     slot = PACKER_SLOT[1] - PACKER_SLOT[0]
     return {r.key: r for r in (
-        Recipe("bt_xbox", "Bluetooth: Xbox Series X/S controller", (), (
+        Recipe("bt_xbox", "Xbox Series X|S controller over Bluetooth", (), (
             Edit(PACKER_SLOT[0], _blob("packer.bin").ljust(slot, b"\0")),
             Edit(0x18274, _blob("report-map.bin")),
             Edit(0x18390, _blob("noop.bin"), superseded_by="bt_rumble"),
@@ -74,10 +74,10 @@ def _make() -> dict[str, Recipe]:
             Edit(0x17254, bytes([len(NAME) + 1, 9]) + NAME + pad),  # scan response name
             Edit(0xA214, bytes([len(NAME) + 2, 0xA1])),          # scan response length immediate
         )),
-        Recipe("bt_rumble", "Bluetooth: rumble", ("bt_xbox",), (
+        Recipe("bt_rumble", "Rumble over Bluetooth", ("bt_xbox",), (
             Edit(0x18390, _blob("rumble.bin")),
         )),
-        Recipe("cable_360", "Cable: wired Xbox 360 controller", (), (
+        Recipe("cable_360", "Xbox 360 controller over cable", (), (
             Edit(0x17994, bytes.fromhex("ffffff")),              # class, subclass, protocol
             Edit(0x17998, bytes.fromhex("5e048e02")),            # 045e:028e
         )),

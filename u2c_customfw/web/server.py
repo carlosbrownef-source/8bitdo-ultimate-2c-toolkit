@@ -98,9 +98,9 @@ def make_server(store: Path, port: int = 0):
             if len(ours) > 1:
                 return self.send(200, json.dumps({"error": "More than one device: unplug all but one controller."}))
             if not ours:
-                note = "No controller by cable or in boot mode."
+                note = "Connect it by cable, or put it in update mode."
                 if any(f.mode.startswith("bluetooth") for f in found):
-                    note = "Only seen over Bluetooth: connect it by cable (or boot mode) to read its firmware."
+                    note = "Connected over Bluetooth only: connect it by cable to read its firmware."
                 return self.send(200, json.dumps({"note": note}))
             f = ours[0]
             if f.mode == "dongle":

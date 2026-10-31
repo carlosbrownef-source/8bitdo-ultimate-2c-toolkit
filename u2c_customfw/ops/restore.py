@@ -19,16 +19,15 @@ def plan_restore(ch, backup, source: str, stock, force_unknown: bool = False) ->
     if source == "stock":
         v, _ = detect_version(ch, "boot", cur)
         if v is None and not force_unknown:
-            raise OpError("cannot tell which firmware version this controller has (the update record is blank and neither "
-                          "bank is a known 1.09): nothing written. Restoring your own backup is still possible, or use "
-                          "\"Force install\" if you accept the risk.")
+            raise OpError("this controller's firmware version can't be identified, so nothing was written. Restoring your "
+                          "own backup still works, or use \"Install firmware 1.09 anyway\" if you accept the risk.")
         if v is not None and abs(v - image.SUPPORTED_VERSION) > 1e-6:
             raise OpError(f"this controller has firmware {v:.2f}, and this app only supports {image.SUPPORTED_VERSION:.2f}: "
-                          "update it with 8BitDo's own updater first (restoring your own backup is still possible)")
+                          "update it with 8BitDo's own updater first (restoring your own backup still works)")
     target = bytearray(backup.data)
     if source == "stock":
         if stock is None or len(stock) != image.BANK_A_SIZE:
-            raise OpError("no stock v1.09 image to restore")
+            raise OpError("no original firmware 1.09 to restore")
         target[image.BASE:image.BANK_A_END] = stock
     target[image.BANK_A_END:image.BANK_A_ERASE_END] = b"\xff" * (image.BANK_A_ERASE_END - image.BANK_A_END)
     want = bytes(target[image.BASE:image.BANK_A_END])
@@ -43,4 +42,4 @@ def plan_restore(ch, backup, source: str, stock, force_unknown: bool = False) ->
             if now[o:o + image.SECTOR] != bytes(target[a:a + image.SECTOR]):
                 others.append(a)
     diff = sum(x != y for x, y in zip(cur, want))
-    return Plan(bytes(target), cur != want, others, diff, f"{diff} bytes of bank A differ; {len(others)} other sector(s) differ")
+    return Plan(bytes(target), cur != want, others, diff, f"{diff} bytes of the firmware differ; {len(others)} other 4 KB block(s) differ")

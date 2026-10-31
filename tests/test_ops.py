@@ -128,7 +128,7 @@ class PatchTest(Base):
         dev = SimBoot(bytes(other))
         with self.assertRaises(OpError) as e:
             patch.plan_patch(dev, self.backup, STOCK_A, ["cable_360"])
-        self.assertIn("another unit", str(e.exception))
+        self.assertIn("another controller", str(e.exception))
         self.assertEqual(dev.ops, [])
 
     def test_wrong_size_backup_is_refused(self):
@@ -272,7 +272,7 @@ class VersionTest(Base):
         dev = self.device(0xFF, bank_a=odd, bank_b=odd, boot_mode=True)
         with self.assertRaises(OpError) as e:
             restore.plan_restore(dev, self.backup, "stock", STOCK_A)
-        self.assertIn("cannot tell", str(e.exception))
+        self.assertIn("can't be identified", str(e.exception))
 
     def test_force_install_only_overrides_an_unknown_version(self):
         odd = bytes(random.Random(8).randbytes(0x12400))
@@ -292,7 +292,7 @@ class VersionTest(Base):
         dev = SimBoot(bytes(other)); dev.f[0x3F00C] = 0xFF; dev.f[0x6000:0x18400] = odd; dev.f[0x40000:0x52400] = odd
         with self.assertRaises(OpError) as e:
             restore.plan_restore(dev, self.backup, "stock", STOCK_A, force_unknown=True)
-        self.assertIn("another unit", str(e.exception))
+        self.assertIn("another controller", str(e.exception))
         dongle = bytearray(b"\xff" * 0x20000); dongle[:0x5000] = random.Random(1).randbytes(0x5000)
         with self.assertRaises(OpError):
             restore.plan_restore(SimBoot(bytes(dongle)), self.backup, "stock", STOCK_A, force_unknown=True)

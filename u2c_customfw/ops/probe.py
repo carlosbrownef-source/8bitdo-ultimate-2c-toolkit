@@ -32,7 +32,7 @@ def _read(ch, mode: str, addr: int, n: int) -> bytes:
 def _check_device(ch, mode: str) -> None:
     if mode == "boot":
         if boot.kind(ch) != "controller":
-            raise OpError("the device in boot mode is not a controller (the dongle is not supported)")
+            raise OpError("the device in update mode is not a controller (the 2.4 GHz dongle is not supported)")
         return
     if app.open_session(ch) is None:
         raise OpError("the controller does not answer reads: unplug it, plug it back in and try again")
