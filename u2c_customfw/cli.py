@@ -137,7 +137,14 @@ def cmd_restore(args, store):
 def cmd_report(args, store):
     log = store / "u2c-customfw.log"
     tail = "\n".join(log.read_text().splitlines()[-30:]) if log.exists() else ""
-    args.say(report.report(find(), None, tail))
+    backups = sorted(Path(store).glob("controller-*.bin"))
+    st = None
+    if backups:
+        try:
+            st = bkp.load(backups[-1]).state   # the state at the newest backup, not a live read
+        except OpError:
+            pass
+    args.say(report.report(find(), st, tail) + ("(firmware state is from the newest backup)\n" if st else ""))
 
 
 def main(argv=None) -> int:

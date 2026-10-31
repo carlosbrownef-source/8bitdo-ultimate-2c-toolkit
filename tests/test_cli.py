@@ -20,7 +20,7 @@ def found(mode, product=0x310A, page=0xFF7A):
 
 def run(argv, listing, channel=None):
     out = io.StringIO()
-    with mock.patch.object(cli, "find", lambda: listing), mock.patch.object(cli, "open_channel", lambda info, rid: channel), \
+    with mock.patch.object(state, "default_store", lambda: Path(tempfile.mkdtemp())), mock.patch.object(cli, "find", lambda: listing), mock.patch.object(cli, "open_channel", lambda info, rid: channel), \
             mock.patch.object(recipes, "_constants", lambda a=None, b=None, c=None: (K["stock_sha256"], K["region_sha256"], K["remainder_sha256"])), \
             contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
         code = cli.main(argv)
@@ -81,6 +81,12 @@ class CliTest(unittest.TestCase):
         code, text = run(["patch", "--tweaks", "cable_360", "--write", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], dev)
         self.assertEqual(code, 0, text)
         self.assertEqual(recipes.identify(bytes(dev.f[0x6000:0x18400]), **K).recipes, ("cable_360",))
+
+    def test_report_uses_the_newest_backups_firmware_state(self):
+        code, text = run(["report", "--store", str(self.tmp)], [found("cable")])
+        self.assertEqual(code, 0)
+        self.assertIn("Firmware: stock v1.09", text)
+        self.assertNotIn("not read", text)
 
     def test_no_device(self):
         code, text = run(["backup", "--store", str(self.tmp)], [])
