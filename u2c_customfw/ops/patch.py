@@ -42,4 +42,4 @@ def plan_patch(ch, backup, stock: bytes, keys) -> Plan:
     target[image.BASE:image.BANK_A_END] = new
     target[image.BANK_A_END:image.BANK_A_ERASE_END] = b"\xff" * (image.BANK_A_ERASE_END - image.BANK_A_END)
     diff = sum(x != y for x, y in zip(cur, new))
-    return Plan(bytes(target), diff > 0, [], diff, f"{diff} bytes of the firmware change; tweaks: {', '.join(keys) or 'none'}")
+    return Plan(bytes(target), diff > 0, [], diff, f"{diff} bytes of the firmware change; tweaks: {', '.join(recipes.RECIPES[k].title for k in keys) or 'none'}")
