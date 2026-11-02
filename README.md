@@ -59,6 +59,16 @@ Each tweak is a hash-checked set of byte edits to the stock v1.09 image; nothing
 2. Open the app once. macOS will block it because it is not signed: open **System Settings → Privacy & Security**, scroll to the message about u2c-customfw and click **Open Anyway** (right-click → Open no longer works on current macOS). You can also remove it from Quarantine with xattr.
 3. When asked, allow **Input Monitoring** (System Settings → Privacy & Security → Input Monitoring). The app needs it to talk to the controller.
 
+Or with [Homebrew](https://github.com/carlosbrownef-source/homebrew-tap), which replaces step 1:
+
+```sh
+# the app
+brew trust --cask carlosbrownef-source/tap/u2c-customfw
+brew install --cask carlosbrownef-source/tap/u2c-customfw
+# the command line only
+brew install carlosbrownef-source/tap/u2c-customfw
+```
+
 Or from source, with Python 3.12+: `python3 -m u2c_customfw.web` prints a local address to open in a browser; `python3 -m u2c_customfw --help` is the command line.
 
 ## Use
