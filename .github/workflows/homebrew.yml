@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# On each release, point the formula and cask in carlosbrownef-source/homebrew-tap at it.
+name: homebrew
+on:
+  release:
+    types: [released]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (default: the latest release)"
+        required: false
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: carlosbrownef-source/homebrew-tap
+          ssh-key: ${{ secrets.TAP_DEPLOY_KEY }}
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          tag=${TAG:-$(gh release view --repo "$REPO" --json tagName -q .tagName)}
+          v=${tag#v}
+          tar=$(curl -fsSL "https://github.com/$REPO/archive/refs/tags/$tag.tar.gz" | shasum -a 256 | cut -d' ' -f1)
+          for i in $(seq 10); do  # the zip may be attached shortly after the release is published
+            curl -fsSL -o app.zip "https://github.com/$REPO/releases/download/$tag/u2c-customfw-$v-macos-arm64.zip" && break
+            [ "$i" = 10 ] && exit 1; sleep 30
+          done
+          zip=$(shasum -a 256 app.zip | cut -d' ' -f1); rm app.zip
+          perl -pi -e "s|/tags/v[^/]+\.tar\.gz|/tags/$tag.tar.gz|; s|sha256 \"\w+\"|sha256 \"$tar\"|" Formula/u2c-customfw.rb
+          perl -pi -e "s|version \"[^\"]+\"|version \"$v\"|; s|sha256 \"\w+\"|sha256 \"$zip\"|" Casks/u2c-customfw.rb
+          git diff --quiet && { echo "Tap already at $tag"; exit 0; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "u2c-customfw $v"
+          git push
