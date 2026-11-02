@@ -90,6 +90,7 @@ The only OS-specific part is `u2c_customfw/transport/`. See [docs/porting.md](do
 - [docs/firmware-notes.md](docs/firmware-notes.md): flash layout, update and bootloader protocols, RAM code.
 - [docs/bluetooth-and-rumble.md](docs/bluetooth-and-rumble.md): how the Bluetooth Xbox identity and rumble work.
 - [firmware-src/README.md](firmware-src/README.md): the C and assembly we add, and how to rebuild it.
+- [docs/releasing.md](docs/releasing.md): publishing a new version, and how the Homebrew tap follows it.
 
 ## License
 
