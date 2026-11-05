@@ -250,6 +250,16 @@ class ControllerTestCard(PageCase):
         dom, _, _ = self.body("boot&scenario=report")
         self.assertIn("Firmware: Original 1.09", dom.find("report-text").all_text())
 
+    def test_battery_row(self):
+        for query, want in (("bt&battery=0.8,discharging", "80 %"), ("bt&battery=0.42,charging", "42 %, charging"), ("bt&battery=1,full", "Full"),
+                            ("bt", "macOS doesn't report the battery for this controller"), ("bt&battery=-1,unknown", "macOS doesn't report the battery for this controller")):
+            self.assertIn(want, self.body(query)[2], query)
+
+    def test_a_battery_change_keeps_the_list_of_checked_controls(self):
+        _, _, text = self.body("bt&scenario=batterychange")
+        self.assertIn("55 %", text)
+        self.assertIn("1 of 19", text)
+
     def test_vibration_result_lines(self):
         self.assertIn("Sent. Did you feel it?", self.body("bt&scenario=vibrateok")[2])
         self.assertIn("Sent. You'll only feel it if Rumble over Bluetooth is installed.", self.body("bt&scenario=direct")[2])

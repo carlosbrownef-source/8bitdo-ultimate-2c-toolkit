@@ -74,6 +74,17 @@ const directLine = () => directAvailable() ? IDLE_LINE
   : st && st.devices.some((d) => d.mode === "bluetooth") ? "The direct report needs the Xbox Series X|S controller tweak."
   : "The direct report only works over Bluetooth.";
 
+function batteryText(b) {  // macOS defaults to level 0 and an unknown state when it has nothing to report
+  if (!b || b.level < 0 || (b.state === "unknown" && b.level === 0)) return "macOS doesn't report the battery for this controller";
+  if (b.state === "full") return "Full";
+  return `${Math.round(b.level * 100)} %${b.state === "charging" ? ", charging" : ""}`;
+}
+
+function paintBattery() {
+  const row = $("test-battery");
+  if (row && testState) row.textContent = batteryText(testState.battery);
+}
+
 function vibrationText(localities) {
   if (!localities.length) return "Not available";
   return localities.includes("left") && localities.includes("right") ? "Available, also on the left and right sides separately" : "Available";
@@ -83,7 +94,7 @@ function mountLive(body) {
   const s = testState, has = (l) => s.localities.includes(l), direct = directAvailable();
   const button = (op, label, ok) => `<button class="sec small" data-op="${op}" data-was="${ok ? "" : "1"}"${ok && !testPending ? "" : " disabled"}>${label}</button>`;
   body.innerHTML = `<div class="test"><div class="test-pic" id="test-pic">${pad(ACCENT, false, "test-g")}</div><div>
-    <dl class="rows"><dt>macOS sees</dt><dd id="test-name"></dd><dt>Category</dt><dd id="test-category"></dd><dt>Vibration</dt><dd id="test-vibration"></dd></dl>
+    <dl class="rows"><dt>macOS sees</dt><dd id="test-name"></dd><dt>Category</dt><dd id="test-category"></dd><dt>Vibration</dt><dd id="test-vibration"></dd><dt>Battery</dt><dd id="test-battery"></dd></dl>
     <div class="rum">${button("default", "Vibrate like a game", has("default"))}${button("left", "Left", has("left"))}${button("right", "Right", has("right"))}${button("direct", "Direct report", direct)}</div>
     <p class="res" id="test-res"></p></div></div>
     <p class="count" id="test-count"></p>
@@ -93,6 +104,7 @@ function mountLive(body) {
   $("test-category").textContent = `${s.category}, with an extended gamepad`;
   $("test-vibration").textContent = vibrationText(s.localities);
   $("test-res").textContent = directLine();
+  paintBattery();
   body.querySelectorAll("[data-op]").forEach((b) => (b.onclick = () => vibrate(b.dataset.op)));
   body.querySelectorAll("#test-pic [data-k]").forEach((e) => { e.dataset.off = e.getAttribute(e.tagName === "path" ? "stroke" : "fill") || ""; });
   paintSeen();
@@ -147,6 +159,7 @@ window.u2cDiagnostics = (e) => {
     if (testConnected !== null && testConnected !== !!e.connected && !busy) refresh();
     testConnected = !!e.connected;
     diagnosticsRender();
+    paintBattery();
   } else if (e.type === "input" && testMode() === "live" && $("test-lt")) {
     for (const p of e.pressed || []) testSeen.add(p);
     if (Math.hypot(e.lx, e.ly) > STICK_SEEN) testSeen.add("LS");

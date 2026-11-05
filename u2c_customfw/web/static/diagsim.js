@@ -18,6 +18,7 @@
   };
 
   const PAD = { type: "state", connected: true, name: "8BitDo Ultimate 2C (X/S)", category: "Xbox One", extended: true, localities: ["default", "left", "right"], transport: "Bluetooth Low Energy", foreground: true };
+  if (query.get("battery")) { const [level, state] = query.get("battery").split(","); PAD.battery = { level: +level, state }; }
   const STATES = { bt: PAD, btstock: PAD, busy: PAD, boot: PAD, cable: { ...PAD, name: "Xbox 360 Controller", category: "Xbox 360", transport: "USB" }, none: { type: "state", connected: false },
     background: { ...PAD, foreground: false }, noext: { ...PAD, extended: false } };
   const REST = { lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, pressed: [] };
@@ -28,6 +29,7 @@
   const UNANSWERED = ["vibrate", "vibrateleave", "vibratestate", "lateresult"];
   const SCRIPTS = {
     press,
+    batterychange: () => { input({ pressed: ["A"] }); window.u2cDiagnostics({ ...PAD, battery: { level: 0.55, state: "discharging" } }); },
     leave: () => { press(); showTab("firmware"); showTab("diagnostics"); },
     disconnect: () => { press(); window.u2cDiagnostics({ type: "state", connected: false }); snap(); window.u2cDiagnostics({ ...PAD, name: "Another Pad" }); },
     late: () => { input({ pressed: ["A"] }); showTab("firmware"); input({ pressed: ["B"] }); },

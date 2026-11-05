@@ -9,7 +9,7 @@ Everything your **8BitDo Ultimate 2C Wireless** needs on a Mac, in one app. Firm
 - **Works as a native controller.** Over Bluetooth it presents itself as an Xbox Series X|S controller, and by cable as an Xbox 360 controller, so macOS and its games recognise it.
 - **Rumble over Bluetooth.** The original firmware doesn't vibrate over Bluetooth, and this makes it respond to games.
 - **Adjustable light.** Choose how bright the ring around the Home button is, or turn it off, and dim the other lights.
-- **Tests the controller.** See what macOS reports, check every button, stick and trigger, and try the vibration.
+- **Tests the controller.** See what macOS reports, including the battery, check every button, stick and trigger, and try the vibration.
 - **Backs up and restores.** Save a full copy of the controller's memory first, and go back to it or to 8BitDo's original firmware at any time.
 
 It works with the Ultimate 2C Wireless on firmware 1.09, on Macs with Apple silicon. It doesn't work with the 2.4 GHz dongle or other models.
@@ -48,7 +48,7 @@ Safeguards, enforced in the code: nothing is written below `0x6000` (bootloader)
 
 The Diagnostics tab helps you check how macOS sees the controller after installing tweaks, and gather information if something goes wrong.
 
-- **Controller test:** shows what macOS's GameController reports, which is what a game gets. Press each button, stick and trigger to see it light up, and make the controller vibrate either the way a native game would or by sending the report straight to the controller. If only the direct report vibrates, the firmware isn't the problem.
+- **Controller test:** shows what macOS's GameController reports, which is what a game gets, including the battery when macOS provides it. Press each button, stick and trigger to see it light up, and make the controller vibrate either the way a native game would or by sending the report straight to the controller. If only the direct report vibrates, the firmware isn't the problem.
 - **Firmware details:** what the app read from the controller, including where the version came from, whether a firmware update is pending, and how the bootloader identifies itself.
 - **Problem report:** a text you can attach to a bug report.
 - **Install firmware 1.09 anyway:** the last resort for a controller whose firmware can't be identified.
@@ -98,6 +98,8 @@ Other people reached the same goal on their own, and these are worth a look:
 
 - **[vomba/8bitdo-ultimate-2c-apple](https://github.com/vomba/8bitdo-ultimate-2c-apple)** changes just six bytes of firmware 1.09 so Apple uses its SN30 Pro+ profile: the smallest possible patch, without rumble. Its owner reports that it also works on Apple TV.
 - **[Crazyawk/8bitdo-ultimate2c-macos-rumble](https://github.com/Crazyawk/8bitdo-ultimate2c-macos-rumble)** brings Bluetooth rumble to CrossOver games, with patched firmware and an SDL shim.
+- **[lodo4nik/8bitdo-sdl-macos-fix](https://github.com/lodo4nik/8bitdo-sdl-macos-fix)** helps SDL games and CrossOver recognise the controller on macOS without touching its firmware, by changing one setting each time you log in.
+- **[amirreza225/8bitdo-ultimate-2c-mac](https://github.com/amirreza225/8bitdo-ultimate-2c-mac)** makes the Ultimate 2C **Wired** work in Chrome and Amazon Luna, with a browser extension. This app doesn't support that model.
 
 ## Credits
 
@@ -107,6 +109,7 @@ Other people reached the same goal on their own, and these are worth a look:
 - **[supercypok/ultimate2c-ring](https://github.com/supercypok/ultimate2c-ring)** (MIT): how to drive the Home ring with PWM (registers, the LED task's call for the ring, its startup state) and the idea of keeping it dim while the controller runs. The Home ring tweak here is my own reimplementation of that method, placed differently and keeping the blink while pairing.
 - **[Crazyawk/8bitdo-ultimate2c-macos-rumble](https://github.com/Crazyawk/8bitdo-ultimate2c-macos-rumble)** (MIT): the earliest public use I found of the bootloader's identity query, used here as an extra check that the device in update mode is the controller, and the idea of testing vibration both through CoreHaptics and directly.
 - **[vomba/8bitdo-ultimate-2c-apple](https://github.com/vomba/8bitdo-ultimate-2c-apple)** (MIT): notes on that query and on the update record's pending-update fields, checked here before patching.
+- **[MoridaDE/8bitdo-2c-battery-tray](https://github.com/MoridaDE/8bitdo-2c-battery-tray)** (MIT): the idea of showing the battery, and notes on where it can be read.
 - **8BitDo**: the hardware, and the update server the app downloads firmware 1.09 from (only on request).
 - **Telink**: the tc32 toolchain ([flyskywhy/tc32](https://github.com/flyskywhy/tc32)) used to build `firmware-src/`.
 

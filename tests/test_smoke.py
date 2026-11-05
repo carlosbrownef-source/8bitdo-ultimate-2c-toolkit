@@ -44,6 +44,12 @@ class DisclaimerTest(unittest.TestCase):
                        "it won't let you continue", "the controller reports itself differently", "Not affiliated with or endorsed by 8BitDo"):
             self.assertIn(phrase, text)
 
+    def test_readme_gives_credit_to_the_other_projects(self):
+        text = (ROOT / "README.md").read_text()
+        for project in ("lodo4nik/8bitdo-sdl-macos-fix", "amirreza225/8bitdo-ultimate-2c-mac", "MoridaDE/8bitdo-2c-battery-tray"):
+            self.assertIn(project, text)
+        self.assertIn("MoridaDE/8bitdo-2c-battery-tray", (ROOT / "CREDITS.md").read_text())
+
     def test_readme_leads_with_the_app_and_a_short_warning(self):
         text = (ROOT / "README.md").read_text()
         self.assertTrue(text.startswith("# 8BitDo Ultimate 2C Firmware Toolkit"))

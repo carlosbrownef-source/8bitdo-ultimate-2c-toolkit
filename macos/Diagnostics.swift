@@ -10,6 +10,8 @@ import WebKit
 final class Diagnostics: NSObject, WKScriptMessageHandler {
     weak var web: WKWebView?
     private var timer: Timer?
+    private var batteryTimer: Timer?
+    private var lastState = ""
     private var observers: [NSObjectProtocol] = []
     private var lastInput = ""
     private var home: GCControllerButtonInput?
@@ -43,12 +45,16 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
         }
         sendState()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in self?.sendInput() }
+        batteryTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in self?.sendState() }
     }
 
     /// Also runs when the app quits, so the Home button never stays captured.
     func stop() {
         timer?.invalidate()
         timer = nil
+        batteryTimer?.invalidate()
+        batteryTimer = nil
+        lastState = ""
         observers.forEach(NotificationCenter.default.removeObserver)
         observers = []
         releaseHome()
@@ -72,11 +78,28 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
     private func sendState() {
         guard let pad = pad else {
             releaseHome()
-            return send(["type": "state", "connected": false])
+            return sendStateIfChanged(["type": "state", "connected": false])
         }
         captureHome(pad.physicalInputProfile.buttons[GCInputButtonHome])
-        send(["type": "state", "connected": true, "name": pad.vendorName ?? "Unknown controller", "category": pad.productCategory,
-              "extended": pad.extendedGamepad != nil, "localities": localities(pad), "foreground": NSApp.isActive])
+        var state: [String: Any] = ["type": "state", "connected": true, "name": pad.vendorName ?? "Unknown controller", "category": pad.productCategory,
+                                    "extended": pad.extendedGamepad != nil, "localities": localities(pad), "foreground": NSApp.isActive]
+        if let battery = pad.battery { state["battery"] = ["level": battery.batteryLevel, "state": batteryState(battery)] }
+        sendStateIfChanged(state)
+    }
+
+    private func sendStateIfChanged(_ state: [String: Any]) {
+        guard let text = json(state), text != lastState else { return }
+        lastState = text
+        deliver(text)
+    }
+
+    private func batteryState(_ battery: GCDeviceBattery) -> String {
+        switch battery.batteryState {
+        case .charging: return "charging"
+        case .discharging: return "discharging"
+        case .full: return "full"
+        default: return "unknown"
+        }
     }
 
     private func localities(_ pad: GCController) -> [String] {
