@@ -80,6 +80,16 @@ class WebTest(unittest.TestCase):
         self.assertEqual([e["type"] for e in ev], ["log", "progress", "progress", "done"])
         self.assertEqual(ev[2], {"type": "progress", "label": "write", "done": 100, "total": 100})
 
+    def test_command_line_hints_stay_out_of_the_app(self):
+        def fake(args, store):
+            args.say("The check passed.")
+            args.hint("Add --write to install.")
+        jobs.ACTIONS["backup"] = fake
+        self.assertEqual(self.call("POST", "/api/backup", {})[0], 202)
+        ev = self.events()
+        self.assertEqual(ev[-1]["type"], "done")
+        self.assertEqual([e["text"] for e in ev if e["type"] == "log"], ["The check passed."])
+
     def test_patch_and_restore_pass_their_parameters_to_the_job(self):
         seen = {}
 

@@ -117,7 +117,8 @@ def cmd_patch(args, store):
         plan = patch.plan_patch(ch, b, stock_for(args, b, store), [k for k in args.tweaks.split(",") if k])
         args.say(plan.summary)
         if not args.write:
-            args.say("The check passed. This was a dry run, so nothing was written. Add --write to install.")
+            args.say("The check passed. This was a dry run, so nothing was written.")
+            args.hint("Add --write to install.")
             return
         patch.apply(ch, plan, args.progress)
         args.say("Done. Unplug the controller and plug it back in. If a Bluetooth tweak changed, remove the controller from Bluetooth settings and pair it again.")
@@ -135,7 +136,8 @@ def cmd_restore(args, store):
         plan = restore.plan_restore(ch, b, args.source, stock, args.force_unknown)
         args.say(plan.summary)
         if not args.write:
-            args.say("The check passed. This was a dry run, so nothing was written. Add --write to restore.")
+            args.say("The check passed. This was a dry run, so nothing was written.")
+            args.hint("Add --write to restore.")
             return
         patch.apply(ch, plan, args.progress)
         args.say("Done. Unplug the controller and plug it back in.")
@@ -176,7 +178,7 @@ def main(argv=None) -> int:
         if p.prog.endswith(("patch", "restore")):
             p.add_argument("--write", action="store_true"); p.add_argument("--accept-disclaimer", action="store_true")
     args = ap.parse_args(argv)
-    args.say, args.progress = print, Bar()
+    args.say, args.hint, args.progress = print, print, Bar()
     store = args.store or state.default_store()
     get_logger(store).info("command %s", args.cmd)
     try:

@@ -71,6 +71,7 @@ class CliTest(unittest.TestCase):
         code, text = run(["patch", "--tweaks", "cable_360", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], dev)
         self.assertEqual(code, 0, text)
         self.assertIn("dry run", text.lower())
+        self.assertIn("--write", text)
         self.assertEqual([o for o in dev.ops if o[0] != "read"], [])
 
     def test_write_needs_the_disclaimer_accepted(self):
