@@ -209,6 +209,16 @@ class ControllerTestCard(PageCase):
         self.assertIn("macOS sees: 8BitDo Ultimate 2C (One) (Xbox One)", dom.find("report-text").all_text())
 
 
+class HelpTest(PageCase):
+    def test_help_describes_diagnostics(self):
+        text = self.server.dom().find("help").all_text()
+        self.assertIn("Diagnostics", text)
+        after = text[text.index("Diagnostics"):]
+        for moved in ("Controller test", "Firmware details", "Create a problem report", "Install firmware 1.09 anyway"):
+            self.assertIn(moved, after)
+        self.assertNotIn("Install firmware 1.09 anyway", text[:text.index("Diagnostics")])
+
+
 class UnknownFirmwareTest(PageCase):
     sim = "unknown"
 

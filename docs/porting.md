@@ -3,6 +3,8 @@
 Everything outside `u2c_customfw/transport/` is portable Python (standard library only). A port adds
 `u2c_customfw/transport/hidraw.py` and selects it in `transport/__init__.py::_backend`.
 
+The controller test in the Diagnostics tab uses macOS's GameController through the Mac app's Swift code (`macos/Diagnostics.swift`), so a port doesn't get it. The page explains that where the test would be, and the rest of the tab keeps working.
+
 It must provide:
 
 - `list_devices() -> list[DeviceInfo]`: every HID device with `vendor`, `product`, `usage_page` (the primary usage page of its report descriptor), `transport` (a string; `"Bluetooth"` in it for Bluetooth) and `name`, plus an opaque `handle`.

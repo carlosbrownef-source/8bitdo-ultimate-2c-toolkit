@@ -177,7 +177,7 @@ class PatchTest(Base):
         plan = patch.plan_patch(dev, self.backup, STOCK_A, ["bt_xbox"])
         with self.assertRaises(OpError) as e:
             patch.apply(dev, plan, noprogress)
-        self.assertIn("Interrupted", str(e.exception))
+        self.assertIn("interrupted", str(e.exception))
         self.assertIn("Restore", str(e.exception))
         dev.fail_after = None
         patch.apply(dev, plan, noprogress)
@@ -239,6 +239,15 @@ class ReportTest(Base):
         self.assertIn("last log line", text)
         for secret in (mac, bonds):
             self.assertNotIn(secret.hex(), text)
+
+
+class WordingTest(unittest.TestCase):
+    def test_messages_are_full_sentences(self):
+        sources = Path(recipes.__file__).parent.parent
+        for path in sources.rglob("*.py"):
+            text = path.read_text()
+            for telegraphic in ("; nothing written", "; nothing was saved", "(dry run):", "refusing to", "Not accepted yet"):
+                self.assertNotIn(telegraphic, text, path.name)
 
 
 class DiagnosticsDataTest(Base):

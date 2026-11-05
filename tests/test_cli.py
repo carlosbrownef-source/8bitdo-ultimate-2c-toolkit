@@ -50,7 +50,7 @@ class CliTest(unittest.TestCase):
     def test_two_devices_exit_2(self):
         code, text = run(["backup", "--store", str(self.tmp)], [found("cable"), found("dongle", 0x301C, 0xFFA0)])
         self.assertEqual(code, 2)
-        self.assertIn("More than one device: unplug all but one controller.", text)
+        self.assertIn("More than one device is connected. Unplug all but one controller.", text)
 
     def test_two_units_in_the_same_mode_exit_2(self):
         a = found("boot", 0x3208, 0x8C)

@@ -15,8 +15,8 @@ from .transport import PermissionDenied, open_channel
 
 CONTROLLER_MODES = ("cable", "cable_360", "boot", "dongle")
 BOOT_HELP = "Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white."
-DISCLAIMER_HELP = ("Read DISCLAIMER.md first (no warranty; voids the controller's warranty; Ultimate 2C firmware 1.09 only). "
-                   "Writing needs --accept-disclaimer once.")
+DISCLAIMER_HELP = ("Read DISCLAIMER.md first. There's no warranty, using this voids the controller's warranty, and it only works with the Ultimate 2C on firmware 1.09. "
+                   "To write to the controller, add --accept-disclaimer once.")
 
 
 def find():
@@ -42,7 +42,7 @@ class Exit(Exception):
 def pick(modes=CONTROLLER_MODES):
     present = [f for f in find() if f.mode in CONTROLLER_MODES]
     if len(present) > 1:
-        raise Exit(2, "More than one device: unplug all but one controller.")
+        raise Exit(2, "More than one device is connected. Unplug all but one controller.")
     if not present or present[0].mode not in modes:
         if present and present[0].mode == "dongle":
             raise Exit(2, "That is the 2.4 GHz dongle, which this app does not support.")
@@ -56,13 +56,13 @@ def stock_for(args, backup):
         return fetch.fetch_stock()
     if backup.state.known and not backup.state.recipes:
         return backup.data[image.BASE:image.BANK_A_END]
-    raise Exit(2, "Your backup doesn't hold the original firmware 1.09: download it from 8BitDo instead (--download).")
+    raise Exit(2, "Your backup doesn't contain the original firmware 1.09. Download it from 8BitDo instead (--download).")
 
 
 def need_accept(args, store):
     if args.write and not state.accepted(store):
         if not args.accept_disclaimer:
-            raise Exit(2, "Not accepted yet. " + DISCLAIMER_HELP)
+            raise Exit(2, "You haven't accepted the disclaimer yet. " + DISCLAIMER_HELP)
         state.accept(store)
 
 
@@ -103,7 +103,7 @@ def _backup_for(args, ch, store):
         return bkp.load(Path(args.backup))
     found = bkp.find_backups(store, boot.read(ch, 0, image.BOOT_END), boot.read(ch, image.MAC_SECTOR, image.SECTOR))
     if not found:
-        raise Exit(2, "No backup of this controller: back it up first, connected by cable.")
+        raise Exit(2, "There's no backup of this controller. Back it up first, connected by cable.")
     return found[0]
 
 
@@ -116,7 +116,7 @@ def cmd_patch(args, store):
         plan = patch.plan_patch(ch, b, stock_for(args, b), [k for k in args.tweaks.split(",") if k])
         args.say(plan.summary)
         if not args.write:
-            args.say("Check passed (dry run): nothing was written; add --write to install.")
+            args.say("The check passed. This was a dry run, so nothing was written. Add --write to install.")
             return
         patch.apply(ch, plan, args.progress)
         args.say("Done. Unplug the controller and plug it back in. If a Bluetooth tweak changed, remove the controller from Bluetooth settings and pair it again.")
@@ -134,7 +134,7 @@ def cmd_restore(args, store):
         plan = restore.plan_restore(ch, b, args.source, stock, args.force_unknown)
         args.say(plan.summary)
         if not args.write:
-            args.say("Check passed (dry run): nothing was written; add --write to restore.")
+            args.say("The check passed. This was a dry run, so nothing was written. Add --write to restore.")
             return
         patch.apply(ch, plan, args.progress)
         args.say("Done. Unplug the controller and plug it back in.")

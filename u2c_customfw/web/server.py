@@ -86,7 +86,7 @@ def make_server(store: Path, port: int = 0):
             if not self.auth():
                 return
             if not runner.claim():   # one user of the device at a time: no job may start during this read
-                return self.send(409, json.dumps({"error": "another operation is running"}))
+                return self.send(409, json.dumps({"error": "Another task is running."}))
             try:
                 self.firmware_report()
             finally:
@@ -96,7 +96,7 @@ def make_server(store: Path, port: int = 0):
             found = cli.find()
             ours = [f for f in found if f.mode in cli.CONTROLLER_MODES]
             if len(ours) > 1:
-                return self.send(200, json.dumps({"error": "More than one device: unplug all but one controller."}))
+                return self.send(200, json.dumps({"error": "More than one device is connected. Unplug all but one controller."}))
             if not ours:
                 note = "Connect it by cable, or put it in update mode."
                 if any(f.mode.startswith("bluetooth") for f in found):
@@ -171,7 +171,7 @@ def make_server(store: Path, port: int = 0):
             if params is None:
                 return self.send(404, json.dumps({"error": "unknown call"}))
             if not runner.start(params[0], **params[1]):
-                return self.send(409, json.dumps({"error": "another operation is running"}))
+                return self.send(409, json.dumps({"error": "Another task is running."}))
             self.send(202, json.dumps({"started": params[0]}))
 
     return ThreadingHTTPServer(("127.0.0.1", port), Handler), token

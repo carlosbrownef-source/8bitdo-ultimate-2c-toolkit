@@ -83,10 +83,10 @@ class IOKitChannel:
         self.cb = REPORT_CB(self._on_report)
         r = iok.IOHIDDeviceOpen(self.dev, 0) & 0xFFFFFFFF
         if r == NOT_PERMITTED:
-            raise PermissionDenied("macOS refused access to the controller: allow Input Monitoring for this app "
-                                   "in System Settings > Privacy & Security > Input Monitoring, then try again")
+            raise PermissionDenied("macOS refused access to the controller. Allow Input Monitoring for this app "
+                                   "in System Settings > Privacy & Security > Input Monitoring, then try again.")
         if r:
-            raise OSError(f"cannot open the device: IOReturn {r:#x}")
+            raise OSError(f"The device couldn't be opened (IOReturn {r:#x}).")
         self.loop = cf.CFRunLoopGetCurrent()
         iok.IOHIDDeviceScheduleWithRunLoop(self.dev, self.loop, MODE)
         iok.IOHIDDeviceRegisterInputReportCallback(self.dev, self.buf, 64, self.cb, None)

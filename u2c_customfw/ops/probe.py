@@ -26,7 +26,7 @@ def _read(ch, mode: str, addr: int, n: int) -> bytes:
     for a in range(addr, addr + n, boot.CHUNK):
         c = app.read(ch, a, min(boot.CHUNK, addr + n - a))
         if c is None:
-            raise OpError(f"the controller did not answer at {a:#x}")
+            raise OpError(f"The controller didn't answer at {a:#x}.")
         out += c
     return bytes(out)
 
@@ -34,12 +34,12 @@ def _read(ch, mode: str, addr: int, n: int) -> bytes:
 def _check_device(ch, mode: str) -> None:
     if mode == "boot":
         if boot.kind(ch) != "controller":
-            raise OpError("the device in update mode is not a controller (the 2.4 GHz dongle is not supported)")
+            raise OpError("The device in update mode isn't a controller. The 2.4 GHz dongle isn't supported.")
         return
     if app.open_session(ch) is None:
-        raise OpError("the controller does not answer reads: unplug it, plug it back in and try again")
+        raise OpError("The controller isn't answering. Unplug it, plug it back in and try again.")
     if app.read(ch, 0x10000, 16) == b"\xff" * 16:
-        raise OpError("this looks like the 2.4 GHz dongle, which this app does not support")
+        raise OpError("This looks like the 2.4 GHz dongle, which this app doesn't support.")
 
 
 def pending_update(ch, mode: str) -> bool:

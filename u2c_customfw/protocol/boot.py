@@ -47,7 +47,7 @@ def read(ch, addr: int, n: int, progress=None) -> bytes:
         k = min(CHUNK, n - len(out))
         a = _call(ch, request(5, addr + len(out), k, datalen=k))
         if a is None:
-            raise ProtocolError(f"no valid reply reading {addr + len(out):#x}")
+            raise ProtocolError(f"The controller gave no valid reply while reading {addr + len(out):#x}")
         out += a[18:18 + k]
         if progress:
             progress(len(out), n)
@@ -56,12 +56,12 @@ def read(ch, addr: int, n: int, progress=None) -> bytes:
 
 def erase(ch, addr: int, n: int) -> None:
     if _call(ch, request(4, addr, n), timeout=10.0, tries=1) is None:
-        raise ProtocolError(f"erase of {addr:#x}-{addr + n:#x} failed")
+        raise ProtocolError(f"Erasing {addr:#x}-{addr + n:#x} failed")
 
 
 def write_chunk(ch, addr: int, param: int, data: bytes) -> None:
     if _call(ch, request(3, addr, param, data)) is None:
-        raise ProtocolError(f"write at {addr:#x} rejected")
+        raise ProtocolError(f"The controller rejected the write at {addr:#x}")
 
 
 def identify(ch) -> int | None:

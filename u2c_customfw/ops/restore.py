@@ -19,15 +19,15 @@ def plan_restore(ch, backup, source: str, stock, force_unknown: bool = False) ->
     if source == "stock":
         v, _ = detect_version(ch, "boot", cur)
         if v is None and not force_unknown:
-            raise OpError("this controller's firmware version can't be identified, so nothing was written. Restoring your "
-                          "own backup still works, or use \"Install firmware 1.09 anyway\" in the Diagnostics tab if you accept the risk.")
+            raise OpError("This controller's firmware version can't be identified, so nothing was written. Restoring your "
+                          "own backup still works, or you can use \"Install firmware 1.09 anyway\" in the Diagnostics tab if you accept the risk.")
         if v is not None and abs(v - image.SUPPORTED_VERSION) > 1e-6:
-            raise OpError(f"this controller has firmware {v:.2f}, and this app only supports {image.SUPPORTED_VERSION:.2f}: "
-                          "update it with 8BitDo's own updater first (restoring your own backup still works)")
+            raise OpError(f"This controller has firmware {v:.2f}, and this app only supports {image.SUPPORTED_VERSION:.2f}. "
+                          "Update it with 8BitDo's own updater first. Restoring your own backup still works.")
     target = bytearray(backup.data)
     if source == "stock":
         if stock is None or len(stock) != image.BANK_A_SIZE:
-            raise OpError("no original firmware 1.09 to restore")
+            raise OpError("There's no original firmware 1.09 to restore.")
         target[image.BASE:image.BANK_A_END] = stock
     target[image.BANK_A_END:image.BANK_A_ERASE_END] = b"\xff" * (image.BANK_A_ERASE_END - image.BANK_A_END)
     want = bytes(target[image.BASE:image.BANK_A_END])
@@ -36,10 +36,10 @@ def plan_restore(ch, backup, source: str, stock, force_unknown: bool = False) ->
         try:
             now = boot.read(ch, image.BANK_A_ERASE_END, image.CONFIG_START - image.BANK_A_ERASE_END)
         except protocol.ProtocolError as e:
-            raise OpError(f"{e}; nothing written") from e
+            raise OpError(f"{e}. Nothing was written.") from e
         for a in range(image.BANK_A_ERASE_END, image.CONFIG_START, image.SECTOR):
             o = a - image.BANK_A_ERASE_END
             if now[o:o + image.SECTOR] != bytes(target[a:a + image.SECTOR]):
                 others.append(a)
     diff = sum(x != y for x, y in zip(cur, want))
-    return Plan(bytes(target), cur != want, others, diff, f"{diff} bytes of the firmware differ; {len(others)} other 4 KB block(s) differ")
+    return Plan(bytes(target), cur != want, others, diff, f"{diff} bytes of the firmware are different, and so are {len(others)} other 4 KB blocks.")

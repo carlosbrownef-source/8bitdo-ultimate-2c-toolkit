@@ -6,7 +6,7 @@ from .. import protocol
 from ..firmware import image
 from ..protocol import boot
 
-INTERRUPTED = "Interrupted: the controller may not start until this is finished. Use Restore (your backup or 8BitDo's original firmware 1.09); update mode is not affected."
+INTERRUPTED = "The task was interrupted, and the controller may not start until it's finished. Use Restore to install your backup or 8BitDo's original firmware 1.09. Update mode isn't affected."
 
 
 class OpError(Exception):
@@ -25,7 +25,7 @@ class Plan:
 def check_ranges(plan: Plan) -> None:
     for a in plan.other_sectors:
         if not (image.BANK_A_ERASE_END <= a < image.CONFIG_START) or a % image.SECTOR:
-            raise OpError(f"refusing to write the sector at {a:#x}")
+            raise OpError(f"The app won't write to the memory at {a:#x}.")
 
 
 def _runs(sectors):
@@ -51,7 +51,7 @@ def apply(ch, plan: Plan, progress) -> None:
                 done += len(blk)
                 progress("write", done, total)
             if boot.read(ch, image.BASE, image.BANK_A_ERASE_END - image.BASE) != plan.image[image.BASE:image.BANK_A_ERASE_END]:
-                raise OpError("the firmware read back differs from what was written. " + INTERRUPTED)
+                raise OpError("The firmware read back from the controller doesn't match what was written. " + INTERRUPTED)
         for lo, hi in _runs(plan.other_sectors):
             boot.erase(ch, lo, hi - lo)
             for a in range(lo, hi, boot.CHUNK):
@@ -61,6 +61,6 @@ def apply(ch, plan: Plan, progress) -> None:
                 done += len(blk)
                 progress("write", done, total)
             if boot.read(ch, lo, hi - lo) != plan.image[lo:hi]:
-                raise OpError(f"the memory read back at {lo:#x}-{hi:#x} differs from what was written. " + INTERRUPTED)
+                raise OpError(f"The memory read back at {lo:#x}-{hi:#x} doesn't match what was written. " + INTERRUPTED)
     except protocol.ProtocolError as e:
         raise OpError(f"{e}. {INTERRUPTED}") from e

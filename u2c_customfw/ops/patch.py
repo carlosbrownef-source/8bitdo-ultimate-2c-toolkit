@@ -10,17 +10,17 @@ from .plan import OpError, Plan, apply  # noqa: F401  (apply is part of this mod
 def check_unit(ch, backup) -> None:
     """The device in boot mode must be a controller with this backup's bootloader and MAC sector."""
     if len(backup.data) != image.FLASH_SIZE:
-        raise OpError("the backup is not a full controller backup")
+        raise OpError("This isn't a full backup of the controller.")
     try:
         if boot.kind(ch) != "controller":
-            raise OpError("the device in update mode is not a controller (the 2.4 GHz dongle is not supported)")
+            raise OpError("The device in update mode isn't a controller. The 2.4 GHz dongle isn't supported.")
         if boot.read(ch, 0, image.BOOT_END) != backup.data[:image.BOOT_END]:
-            raise OpError("this device doesn't match the backup (its update-mode code differs); nothing written")
+            raise OpError("This device doesn't match the backup, because its update-mode code is different. Nothing was written.")
         mac = image.MAC_SECTOR
         if boot.read(ch, mac, image.SECTOR) != backup.data[mac:mac + image.SECTOR]:
-            raise OpError("the backup is from another controller (its address differs); nothing written")
+            raise OpError("This backup is from another controller, because the address is different. Nothing was written.")
     except protocol.ProtocolError as e:
-        raise OpError(f"{e}; nothing written") from e
+        raise OpError(f"{e}. Nothing was written.") from e
 
 
 def check_no_pending_update(ch) -> None:
@@ -28,7 +28,7 @@ def check_no_pending_update(ch) -> None:
     try:
         pending = probe.pending_update(ch, "boot")
     except protocol.ProtocolError as e:
-        raise OpError(f"{e}; nothing written") from e
+        raise OpError(f"{e}. Nothing was written.") from e
     if pending:
         raise OpError("A firmware update is pending on this controller, and it could replace the tweaks the next time the controller starts. Nothing was written. Start the controller normally once, then check again.")
 
@@ -37,7 +37,7 @@ def current_bank_a(ch) -> bytes:
     try:
         return boot.read(ch, image.BASE, image.BANK_A_SIZE)
     except protocol.ProtocolError as e:
-        raise OpError(f"{e}; nothing written") from e
+        raise OpError(f"{e}. Nothing was written.") from e
 
 
 def plan_patch(ch, backup, stock: bytes, keys) -> Plan:
@@ -45,7 +45,7 @@ def plan_patch(ch, backup, stock: bytes, keys) -> Plan:
     check_no_pending_update(ch)
     cur = current_bank_a(ch)
     if not recipes.identify(cur).known:
-        raise OpError("this controller's firmware isn't the original 1.09, with or without the tweaks: use Restore first; nothing written")
+        raise OpError("This controller's firmware isn't the original 1.09, with or without the tweaks. Use Restore first. Nothing was written.")
     try:
         new = recipes.build(stock, keys)
     except recipes.RecipeError as e:
@@ -54,4 +54,4 @@ def plan_patch(ch, backup, stock: bytes, keys) -> Plan:
     target[image.BASE:image.BANK_A_END] = new
     target[image.BANK_A_END:image.BANK_A_ERASE_END] = b"\xff" * (image.BANK_A_ERASE_END - image.BANK_A_END)
     diff = sum(x != y for x, y in zip(cur, new))
-    return Plan(bytes(target), diff > 0, [], diff, f"{diff} bytes of the firmware change; tweaks: {', '.join(recipes.RECIPES[k].title for k in keys) or 'none'}")
+    return Plan(bytes(target), diff > 0, [], diff, f"{diff} bytes of the firmware will change. Tweaks: {', '.join(recipes.RECIPES[k].title for k in keys) or 'none'}.")
