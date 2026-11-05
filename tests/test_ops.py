@@ -241,6 +241,71 @@ class ReportTest(Base):
             self.assertNotIn(secret.hex(), text)
 
 
+class DiagnosticsDataTest(Base):
+    def record(self, off, value):
+        f = bytearray(controller_flash())
+        f[off:off + 4] = value
+        return bytes(f)
+
+    def test_pending_update_reads_both_fields(self):
+        for dev, mode in ((SimBoot, "boot"), (SimApp, "cable")):
+            self.assertFalse(probe.pending_update(dev(controller_flash()), mode))
+            self.assertTrue(probe.pending_update(dev(self.record(0x3F018, b"\x01\0\0\0")), mode))
+            self.assertTrue(probe.pending_update(dev(self.record(0x3F020, b"\x01\0\0\0")), mode))
+            self.assertFalse(probe.pending_update(dev(self.record(0x3F018, b"\xff" * 4)), mode))
+
+    def test_firmware_reports_identity_in_update_mode(self):
+        self.assertEqual(probe.read_firmware(SimBoot(controller_flash()), "boot").boot_identity, 0x301B)
+        self.assertIsNone(probe.read_firmware(SimApp(controller_flash()), "cable").boot_identity)
+
+    def test_firmware_reports_a_pending_update(self):
+        self.assertFalse(probe.read_firmware(SimBoot(controller_flash()), "boot").pending)
+        self.assertTrue(probe.read_firmware(SimBoot(self.record(0x3F020, b"\x01\0\0\0")), "boot").pending)
+
+    def test_firmware_identity_unanswered(self):
+        fw = probe.read_firmware(SimBoot(controller_flash(), identity=None), "boot")
+        self.assertIsNone(fw.boot_identity)
+        self.assertTrue(fw.state.known)
+
+    def test_refusal_says_where_install_anyway_is(self):
+        f = bytearray(controller_flash())
+        f[0x3F00C] = 0xFF
+        f[0x6000:0x18400] = bytes(image.BANK_A_SIZE)
+        f[0x40000:0x40000 + image.BANK_A_SIZE] = bytes(image.BANK_A_SIZE)
+        f = bytes(f)
+        with self.assertRaises(OpError) as e:
+            restore.plan_restore(SimBoot(f), self.backup_like(f), "stock", STOCK_A)
+        self.assertIn("in the Diagnostics tab", str(e.exception))
+
+    def backup_like(self, f):
+        return self.backup_of(f)
+
+    def test_report_includes_extras(self):
+        extras = report.clean_extras({"macos": {"name": "8BitDo Ultimate 2C (One)", "category": "Xbox One", "localities": ["default", "left"]},
+                                      "boot_identity": 0x301B, "pending": False})
+        text = report.report([], None, "", extras)
+        for want in ("8BitDo Ultimate 2C (One)", "Xbox One", "default, left", "0x301b", "Pending update: no"):
+            self.assertIn(want, text)
+
+    def test_report_without_extras_is_unchanged(self):
+        self.assertEqual(report.report([], None, "x"), report.report([], None, "x", {}))
+        self.assertNotIn("macOS sees", report.report([], None, "x"))
+
+    def test_report_ignores_bad_extras(self):
+        for bad in ("x", [], None, 5, {"macos": 5}, {"macos": "x"}, {"boot_identity": "x"}, {"boot_identity": True}, {"pending": "yes"}):
+            self.assertEqual(report.clean_extras(bad), {}, bad)
+        kept = report.clean_extras({"macos": {"name": "n" * 5000, "category": 7, "localities": ["a" * 99] + [1] + ["b"] * 20}})
+        self.assertEqual(len(kept["macos"]["name"]), 80)
+        self.assertNotIn("category", kept["macos"])
+        self.assertEqual(len(kept["macos"]["localities"]), 8)
+        self.assertEqual(len(kept["macos"]["localities"][0]), 40)
+        self.assertNotIn(1, kept["macos"]["localities"])
+
+    def test_report_keeps_only_the_known_fields(self):
+        kept = report.clean_extras({"mac": "aa:bb", "macos": {"name": "n", "address": "aa:bb"}})
+        self.assertEqual(kept, {"macos": {"name": "n"}})
+
+
 class ProbeTest(Base):
     def test_cable_stock_and_patched(self):
         self.assertEqual(probe.read_state(SimApp(controller_flash()), "cable"), recipes.State(True, ()))

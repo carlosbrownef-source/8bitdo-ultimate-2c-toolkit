@@ -3,6 +3,7 @@
 from .. import protocol
 from ..firmware import image, recipes
 from ..protocol import boot
+from . import probe
 from .plan import OpError, Plan, apply  # noqa: F401  (apply is part of this module's interface)
 
 
@@ -23,14 +24,13 @@ def check_unit(ch, backup) -> None:
 
 
 def check_no_pending_update(ch) -> None:
-    """A staged update (record +0x18 magic, +0x20 length, as in vomba/8bitdo-ultimate-2c-apple) could replace the tweaks at the next start."""
+    """A staged update could replace the tweaks at the next start (fields as in vomba/8bitdo-ultimate-2c-apple)."""
     try:
-        record = boot.read(ch, image.UPDATE_RECORD, 0x24)
+        pending = probe.pending_update(ch, "boot")
     except protocol.ProtocolError as e:
         raise OpError(f"{e}; nothing written") from e
-    for field in (record[0x18:0x1C], record[0x20:0x24]):
-        if field not in (bytes(4), b"\xff" * 4):
-            raise OpError("a firmware update is pending on this controller, and it could replace the tweaks at its next start. Start the controller normally once, then check again; nothing written")
+    if pending:
+        raise OpError("A firmware update is pending on this controller, and it could replace the tweaks the next time the controller starts. Nothing was written. Start the controller normally once, then check again.")
 
 
 def current_bank_a(ch) -> bytes:

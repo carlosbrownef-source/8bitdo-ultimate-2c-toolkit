@@ -6,7 +6,27 @@ import platform
 from .. import __version__
 
 
-def report(found, state, log_tail: str) -> str:
+def clean_extras(raw) -> dict:
+    """What the page may add to the report: only these fields, of these types, limited in length."""
+    if not isinstance(raw, dict):
+        return {}
+    out, macos, seen = {}, {}, raw.get("macos")
+    if isinstance(seen, dict):
+        for key in ("name", "category"):
+            if isinstance(seen.get(key), str):
+                macos[key] = seen[key][:80]
+        if isinstance(seen.get("localities"), list):
+            macos["localities"] = [x[:40] for x in seen["localities"] if isinstance(x, str)][:8]
+    if macos:
+        out["macos"] = macos
+    if isinstance(raw.get("boot_identity"), int) and not isinstance(raw["boot_identity"], bool):
+        out["boot_identity"] = raw["boot_identity"]
+    if isinstance(raw.get("pending"), bool):
+        out["pending"] = raw["pending"]
+    return out
+
+
+def report(found, state, log_tail: str, extras: dict | None = None) -> str:
     lines = [f"u2c-customfw {__version__}", f"python {platform.python_version()} on {platform.platform()}", "", "Devices:"]
     for f in found:
         i = f.info
@@ -19,5 +39,15 @@ def report(found, state, log_tail: str) -> str:
         lines.append("Firmware: original 1.09" + (f" with tweaks: {', '.join(state.recipes)}" if state.recipes else ""))
     else:
         lines.append("Firmware: unknown (not the original 1.09, with or without the tweaks)")
+    extras = extras or {}
+    if "macos" in extras:
+        m = extras["macos"]
+        category = f" ({m['category']})" if m.get("category") else ""
+        vibration = f", vibration: {', '.join(m['localities'])}" if m.get("localities") else ""
+        lines.append(f"macOS sees: {m.get('name', 'a controller')}{category}{vibration}")
+    if "boot_identity" in extras:
+        lines.append(f"Update-mode identity: {extras['boot_identity']:#06x}")
+    if "pending" in extras:
+        lines.append(f"Pending update: {'yes' if extras['pending'] else 'no'}")
     lines += ["", "Last log lines:", log_tail.strip() or "  (empty)"]
     return "\n".join(lines) + "\n"

@@ -20,7 +20,7 @@ def plan_restore(ch, backup, source: str, stock, force_unknown: bool = False) ->
         v, _ = detect_version(ch, "boot", cur)
         if v is None and not force_unknown:
             raise OpError("this controller's firmware version can't be identified, so nothing was written. Restoring your "
-                          "own backup still works, or use \"Install firmware 1.09 anyway\" if you accept the risk.")
+                          "own backup still works, or use \"Install firmware 1.09 anyway\" in the Diagnostics tab if you accept the risk.")
         if v is not None and abs(v - image.SUPPORTED_VERSION) > 1e-6:
             raise OpError(f"this controller has firmware {v:.2f}, and this app only supports {image.SUPPORTED_VERSION:.2f}: "
                           "update it with 8BitDo's own updater first (restoring your own backup still works)")

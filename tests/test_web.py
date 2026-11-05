@@ -44,6 +44,15 @@ class WebTest(unittest.TestCase):
         self.assertEqual(status, 200)
         return [json.loads(l[6:]) for l in text.splitlines() if l.startswith("data: ")]
 
+    def test_report_endpoint_with_a_bad_body(self):
+        for body in ({"macos": "x"}, {"boot_identity": "x"}, {"macos": {"name": 5}}):
+            self.assertEqual(self.call("POST", "/api/report", body)[0], 200)
+
+    def test_report_endpoint_uses_the_extras(self):
+        text = json.loads(self.call("POST", "/api/report", {"macos": {"name": "Pad"}, "pending": True})[1])["text"]
+        self.assertIn("Pad", text)
+        self.assertIn("Pending update: yes", text)
+
     def test_token_required(self):
         self.assertEqual(self.call("GET", "/api/state", token=None)[0], 403)
         self.assertEqual(self.call("GET", "/api/state", token="wrong")[0], 403)
@@ -120,6 +129,7 @@ class WebTest(unittest.TestCase):
         self.assertEqual(data["recipes"], ["bt_xbox", "cable_360"])
         self.assertIn("Xbox Series X|S controller over Bluetooth", " ".join(data["titles"]))
         self.assertEqual((data["version"], data["version_from"]), (1.09, "update record"))
+        self.assertEqual((data["pending"], data["boot_identity"]), (False, None))
         self.assertEqual([(t["key"], t["on"]) for t in data["tweaks"]],
                          [("bt_xbox", True), ("bt_rumble", False), ("cable_360", True), ("dim_leds", False), ("ring", False)])
 
@@ -127,7 +137,7 @@ class WebTest(unittest.TestCase):
         info = transport.DeviceInfo(0x045E, 0x0B13, 1, "Bluetooth Low Energy", "x", None)
         with mock.patch.object(cli, "find", lambda: [devices.Found(info, "bluetooth_xbox")]):
             data = json.loads(self.call("GET", "/api/firmware")[1])
-        self.assertIn("cable", data["note"])
+        self.assertEqual(data["note"], "The controller firmware cannot be read over Bluetooth. Connect the controller by cable for firmware diagnostics.")
 
     def test_firmware_endpoint_is_refused_while_a_job_runs(self):
         release = threading.Event()

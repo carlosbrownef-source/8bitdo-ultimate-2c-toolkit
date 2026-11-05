@@ -100,7 +100,7 @@ def make_server(store: Path, port: int = 0):
             if not ours:
                 note = "Connect it by cable, or put it in update mode."
                 if any(f.mode.startswith("bluetooth") for f in found):
-                    note = "Connected over Bluetooth only: connect it by cable to read its firmware."
+                    note = "The controller firmware cannot be read over Bluetooth. Connect the controller by cable for firmware diagnostics."
                 return self.send(200, json.dumps({"note": note}))
             f = ours[0]
             if f.mode == "dongle":
@@ -116,6 +116,7 @@ def make_server(store: Path, port: int = 0):
                 return self.send(200, json.dumps({"error": str(e)}))
             ring = [recipes.RECIPES[k].title for k in st.recipes if recipes.RECIPES[k].group == "ring"]
             self.send(200, json.dumps({"mode": f.mode, "known": st.known, "recipes": list(st.recipes), "version": version, "version_from": fw.version_from,
+                                       "pending": fw.pending, "boot_identity": fw.boot_identity,
                                        "titles": [recipes.RECIPES[k].title for k in st.recipes],
                                        "tweaks": [{"key": k, "title": r.title, "on": k in st.recipes}
                                                   for k, r in recipes.RECIPES.items() if not r.group]
@@ -158,7 +159,7 @@ def make_server(store: Path, port: int = 0):
             if route == "/api/report":
                 log = Path(store) / "u2c-customfw.log"
                 tail = "\n".join(log.read_text().splitlines()[-30:]) if log.exists() else ""
-                return self.send(200, json.dumps({"text": report_mod.report(cli.find(), None, tail)}))
+                return self.send(200, json.dumps({"text": report_mod.report(cli.find(), None, tail, report_mod.clean_extras(req))}))
             if route in ("/api/patch", "/api/restore") and not state.accepted(store):
                 return self.send(403, json.dumps({"error": "Accept the disclaimer first."}))
             params = {"/api/backup": ("backup", {}),

@@ -15,6 +15,8 @@ class Firmware:
     state: recipes.State
     version: float | None
     version_from: str   # "update record", "bank A hash", "bank B hash" or "unknown"
+    pending: bool = False
+    boot_identity: int | None = None   # only in update mode; None if the bootloader doesn't answer
 
 
 def _read(ch, mode: str, addr: int, n: int) -> bytes:
@@ -38,6 +40,12 @@ def _check_device(ch, mode: str) -> None:
         raise OpError("the controller does not answer reads: unplug it, plug it back in and try again")
     if app.read(ch, 0x10000, 16) == b"\xff" * 16:
         raise OpError("this looks like the 2.4 GHz dongle, which this app does not support")
+
+
+def pending_update(ch, mode: str) -> bool:
+    """Whether the update record holds a staged update (+0x18 magic, +0x20 length; zero or blank means none)."""
+    record = _read(ch, mode, image.UPDATE_RECORD, 0x24)
+    return any(f not in (bytes(4), b"\xff" * 4) for f in (record[0x18:0x1C], record[0x20:0x24]))
 
 
 def parse_version(record: bytes) -> float | None:
@@ -68,10 +76,11 @@ def read_firmware(ch, mode: str) -> Firmware:
     try:
         _check_device(ch, mode)
         bank_a = _read(ch, mode, image.BASE, image.BANK_A_SIZE)
+        pending = pending_update(ch, mode)
     except protocol.ProtocolError as e:
         raise OpError(str(e)) from e
     version, how = detect_version(ch, mode, bank_a)
-    return Firmware(recipes.identify(bank_a), version, how)
+    return Firmware(recipes.identify(bank_a), version, how, pending, boot.identify(ch) if mode == "boot" else None)
 
 
 def read_state(ch, mode: str) -> recipes.State:
