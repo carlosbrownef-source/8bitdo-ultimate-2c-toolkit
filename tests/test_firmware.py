@@ -96,6 +96,26 @@ class ControllerNameTest(unittest.TestCase):
         bad[self.GATT:self.GATT + 3] = b"XXX"
         self.assertFalse(recipes.identify(bytes(bad), **self.k).known)
 
+    def test_every_combination_installed_with_the_old_name_is_still_recognised(self):
+        for keys in VALID + [k + [r] for k in VALID for r in RING]:
+            if "bt_xbox" not in keys:
+                continue
+            st = recipes.identify(self.with_old_name(recipes.build(self.stock, keys, **self.k), self.GATT, self.SCAN), **self.k)
+            self.assertEqual((st.known, st.recipes), (True, tuple(sorted(keys))), keys)
+
+    def test_the_published_tweaks_keep_their_bytes(self):
+        """Firmware installed by 0.1.x is only recognised while these match: changing a blob needs an `accepts` for the old one."""
+        published = {
+        "packer.bin": "1ba223dee721be22c4a64575784013bedebb0e5706b5bd4a93cd760b985424e9",
+        "noop.bin": "7817034cdd42530d23894be6e9dd41a777ec2a407cc73c69ac0665fc047e4d1e",
+        "rumble.bin": "7948fb82193d6e9f033d83fe4efe015adebc5fe33b3570b6aff6344f11ae0426",
+        "led.bin": "7876889cb9c2981ee4e78338f2eca0589f431d509f361f6b5d029f5eeb7eecd1",
+        "hook.bin": "012f37b995249381906e85cb32b127cfebd08f92ed34253b1d93ffe690b8a28e",
+        "report-map.bin": "a681e2cb8b5d9466f258e2f07f0fcc518ec438231af1b61b125c213d2c62e165",
+        }
+        for name, sha in published.items():
+            self.assertEqual(hashlib.sha256((recipes.BLOBS / name).read_bytes()).hexdigest(), sha, name)
+
     def test_the_old_name_alone_does_not_count_as_the_tweak(self):
         bad = bytearray(self.stock)
         bad[self.GATT:self.GATT + len(self.OLD)] = self.OLD
