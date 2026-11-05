@@ -10,7 +10,7 @@ from unittest import mock
 
 from u2c_customfw import cli, transport
 from u2c_customfw.firmware import image, recipes
-from u2c_customfw.ops import backup as bkp, devices, patch, probe, report, restore
+from u2c_customfw.ops import backup as bkp, devices, patch, plan, probe, report, restore
 from u2c_customfw.ops.plan import OpError
 from u2c_customfw.sim import SimApp, SimBoot
 
@@ -306,6 +306,11 @@ class ReportTest(Base):
 
 
 class WordingTest(unittest.TestCase):
+    def test_one_byte_and_one_block_are_singular(self):
+        self.assertEqual(plan.count(1, "byte"), "1 byte")
+        self.assertEqual(plan.count(2, "byte"), "2 bytes")
+        self.assertEqual(plan.count(0, "other 4 KB block"), "0 other 4 KB blocks")
+
     def test_messages_are_full_sentences(self):
         sources = Path(recipes.__file__).parent.parent
         for path in sources.rglob("*.py"):

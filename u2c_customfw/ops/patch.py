@@ -4,7 +4,7 @@ from .. import protocol
 from ..firmware import image, recipes
 from ..protocol import boot
 from . import probe
-from .plan import OpError, Plan, apply  # noqa: F401  (apply is part of this module's interface)
+from .plan import OpError, Plan, apply, count  # noqa: F401  (apply is part of this module's interface)
 
 
 def check_unit(ch, backup) -> None:
@@ -54,4 +54,4 @@ def plan_patch(ch, backup, stock: bytes, keys) -> Plan:
     target[image.BASE:image.BANK_A_END] = new
     target[image.BANK_A_END:image.BANK_A_ERASE_END] = b"\xff" * (image.BANK_A_ERASE_END - image.BANK_A_END)
     diff = sum(x != y for x, y in zip(cur, new))
-    return Plan(bytes(target), diff > 0, [], diff, f"{diff} bytes of the firmware will change. Tweaks: {', '.join(recipes.RECIPES[k].title for k in keys) or 'none'}.")
+    return Plan(bytes(target), diff > 0, [], diff, f"{count(diff, 'byte')} of the firmware will change. Tweaks: {', '.join(recipes.RECIPES[k].title for k in keys) or 'none'}.")

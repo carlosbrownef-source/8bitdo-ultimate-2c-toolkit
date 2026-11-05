@@ -5,7 +5,7 @@ from ..firmware import image
 from ..protocol import boot
 from .patch import check_unit, current_bank_a
 from .probe import detect_version
-from .plan import OpError, Plan
+from .plan import OpError, Plan, count
 
 
 def plan_restore(ch, backup, source: str, stock, force_unknown: bool = False) -> Plan:
@@ -42,4 +42,4 @@ def plan_restore(ch, backup, source: str, stock, force_unknown: bool = False) ->
             if now[o:o + image.SECTOR] != bytes(target[a:a + image.SECTOR]):
                 others.append(a)
     diff = sum(x != y for x, y in zip(cur, want))
-    return Plan(bytes(target), cur != want, others, diff, f"{diff} bytes of the firmware are different, and so are {len(others)} other 4 KB blocks.")
+    return Plan(bytes(target), cur != want, others, diff, f"This changes {count(diff, 'byte')} of the firmware and {count(len(others), 'other 4 KB block')}.")

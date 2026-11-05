@@ -9,6 +9,10 @@ from ..protocol import boot
 INTERRUPTED = "The task was interrupted, and the controller may not start until it's finished. Use Restore to install your backup or 8BitDo's original firmware 1.09. Update mode isn't affected."
 
 
+def count(n: int, noun: str) -> str:
+    return f"{n} {noun}" + ("" if n == 1 else "s")
+
+
 class OpError(Exception):
     """An operation refused or failed; the message says why and what to do."""
 
