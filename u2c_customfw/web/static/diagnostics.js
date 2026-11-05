@@ -5,10 +5,16 @@ const CONTROLS = ["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "L3", "R3", "View"
 const STICK_SEEN = 0.5, TRIGGER_SEEN = 0.1, STICK_TRAVEL = 7, RESULT_TIMEOUT_MS = 3000, ACCENT = "#3fc8b4";
 const IDLE_LINE = "Vibrates for under a second. Nothing is written to the controller.";
 
-let testVisible = false, testConnected = null, testState = null, testSeen = new Set(), testName = null, testMounted = null, testPending = null, testTimer = null;
+let testVisible = false, testConnected = null, testState = null, testSeen = new Set(), testName = null, testMounted = null, testPending = null, testTimer = null, testId = 0;
 const bridge = () => window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.diagnostics;
 
+function clearPending() {
+  clearTimeout(testTimer);
+  testPending = null;
+}
+
 function diagnosticsShow() {
+  clearPending();
   testVisible = true; testState = null; testConnected = null; testName = null; testMounted = null; testSeen = new Set();
   const b = bridge();
   if (b) b.postMessage({ op: "start" });
@@ -17,6 +23,7 @@ function diagnosticsShow() {
 }
 
 function diagnosticsHide() {
+  clearPending();
   testVisible = false;
   const b = bridge();
   if (b) b.postMessage({ op: "stop" });
@@ -50,7 +57,7 @@ function diagnosticsRender() {
   const body = $("test-body");
   if (!body || !testVisible) return;
   const mode = testMode();
-  const key = mode === "live" ? `live:${testState.name}:${testState.category}:${testState.localities.join()}:${directAvailable()}` : mode;
+  const key = mode === "live" ? `live:${testState.name}:${testState.category}:${testState.localities.join()}:${directLine()}` : mode;
   if (key === testMounted) return;
   testMounted = key;
   if (mode !== "live") {
@@ -63,6 +70,10 @@ function diagnosticsRender() {
 
 const directAvailable = () => !!st && st.devices.some((d) => d.mode === "bluetooth_xbox");
 
+const directLine = () => directAvailable() ? IDLE_LINE
+  : st && st.devices.some((d) => d.mode === "bluetooth") ? "The direct report needs the Xbox Series X|S controller tweak."
+  : "The direct report only works over Bluetooth.";
+
 function vibrationText(localities) {
   if (!localities.length) return "Not available";
   return localities.includes("left") && localities.includes("right") ? "Available, also on the left and right sides separately" : "Available";
@@ -70,7 +81,7 @@ function vibrationText(localities) {
 
 function mountLive(body) {
   const s = testState, has = (l) => s.localities.includes(l), direct = directAvailable();
-  const button = (op, label, ok) => `<button class="sec small" data-op="${op}"${ok ? "" : " disabled"}>${label}</button>`;
+  const button = (op, label, ok) => `<button class="sec small" data-op="${op}" data-was="${ok ? "" : "1"}"${ok && !testPending ? "" : " disabled"}>${label}</button>`;
   body.innerHTML = `<div class="test"><div class="test-pic" id="test-pic">${pad(ACCENT, false, "test-g")}</div><div>
     <dl class="rows"><dt>macOS sees</dt><dd id="test-name"></dd><dt>Category</dt><dd id="test-category"></dd><dt>Vibration</dt><dd id="test-vibration"></dd></dl>
     <div class="rum">${button("default", "Vibrate like a game", has("default"))}${button("left", "Left", has("left"))}${button("right", "Right", has("right"))}${button("direct", "Direct report", direct)}</div>
@@ -81,7 +92,7 @@ function mountLive(body) {
   $("test-name").textContent = s.name;
   $("test-category").textContent = `${s.category}, with an extended gamepad`;
   $("test-vibration").textContent = vibrationText(s.localities);
-  $("test-res").textContent = direct ? IDLE_LINE : "The direct report only works over Bluetooth.";
+  $("test-res").textContent = directLine();
   body.querySelectorAll("[data-op]").forEach((b) => (b.onclick = () => vibrate(b.dataset.op)));
   body.querySelectorAll("#test-pic [data-k]").forEach((e) => { e.dataset.off = e.getAttribute(e.tagName === "path" ? "stroke" : "fill") || ""; });
   paintSeen();
@@ -113,9 +124,10 @@ function paintInput(e) {
 function vibrate(op) {
   if (testPending || !bridge()) return;
   testPending = op;
+  const id = ++testId;
   document.querySelectorAll("[data-op]").forEach((b) => { b.dataset.was = b.disabled ? "1" : ""; b.disabled = true; });
   testTimer = setTimeout(() => finishVibrate("No answer from the app."), RESULT_TIMEOUT_MS);
-  bridge().postMessage(op === "direct" ? { op: "direct" } : { op: "vibrate", locality: op });
+  bridge().postMessage(op === "direct" ? { op: "direct", id } : { op: "vibrate", locality: op, id });
 }
 
 function finishVibrate(line) {
@@ -135,7 +147,7 @@ window.u2cDiagnostics = (e) => {
     if (testConnected !== null && testConnected !== !!e.connected && !busy) refresh();
     testConnected = !!e.connected;
     diagnosticsRender();
-  } else if (e.type === "input" && testMode() === "live") {
+  } else if (e.type === "input" && testMode() === "live" && $("test-lt")) {
     for (const p of e.pressed || []) testSeen.add(p);
     if (Math.hypot(e.lx, e.ly) > STICK_SEEN) testSeen.add("LS");
     if (Math.hypot(e.rx, e.ry) > STICK_SEEN) testSeen.add("RS");
@@ -143,7 +155,7 @@ window.u2cDiagnostics = (e) => {
     if (e.rt > TRIGGER_SEEN) testSeen.add("RT");
     paintInput(e);
     paintSeen();
-  } else if (e.type === "result" && testPending) {
+  } else if (e.type === "result" && testPending && e.id === testId) {
     const direct = testPending === "direct";
     finishVibrate(!e.ok ? e.error || "It couldn't be sent." : direct ? "Sent. You'll only feel it if Rumble over Bluetooth is installed." : "Sent. Did you feel it?");
   }

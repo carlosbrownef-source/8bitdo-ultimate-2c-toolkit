@@ -21,8 +21,8 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
         switch op {
         case "start": start()
         case "stop": stop()
-        case "vibrate": vibrate(body["locality"] as? String ?? "default")
-        case "direct": direct()
+        case "vibrate": vibrate(body["locality"] as? String ?? "default", body["id"])
+        case "direct": direct(body["id"])
         default: break
         }
     }
@@ -100,10 +100,10 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
         deliver(text)
     }
 
-    private func vibrate(_ locality: String) {
+    private func vibrate(_ locality: String, _ id: Any?) {
         let where_: GCHapticsLocality = locality == "left" ? .leftHandle : locality == "right" ? .rightHandle : .default
-        guard let haptics = pad?.haptics else { return result("vibrate", "This controller doesn't offer vibration.") }
-        guard let engine = haptics.createEngine(withLocality: where_) else { return result("vibrate", "The vibration couldn't be started.") }
+        guard let haptics = pad?.haptics else { return result("vibrate", "This controller doesn't offer vibration.", id) }
+        guard let engine = haptics.createEngine(withLocality: where_) else { return result("vibrate", "The vibration couldn't be started.", id) }
         do {
             try engine.start()
             let strength = CHHapticEventParameter(parameterID: .hapticIntensity, value: 1)
@@ -114,14 +114,14 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
                 engine.stop()
                 self?.engines.removeAll { $0 === engine }
             }
-            result("vibrate", nil)
+            result("vibrate", nil, id)
         } catch {
-            result("vibrate", error.localizedDescription)
+            result("vibrate", error.localizedDescription, id)
         }
     }
 
     /// Xbox's rumble report straight to the controller, skipping GameController: both main motors, level 100, 0.7 s.
-    private func direct() {
+    private func direct(_ id: Any?) {
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
         IOHIDManagerSetDeviceMatching(manager, [kIOHIDVendorIDKey: 0x045E, kIOHIDProductIDKey: 0x0B13] as CFDictionary)
         IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
@@ -131,15 +131,16 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
             (IOHIDDeviceGetProperty($0, kIOHIDTransportKey as CFString) as? String)?.contains("Bluetooth") == true
                 && (IOHIDDeviceGetProperty($0, kIOHIDMaxOutputReportSizeKey as CFString) as? Int ?? 0) >= 8
         }
-        guard let device = bluetooth else { return result("direct", "No controller was found over Bluetooth.") }
+        guard let device = bluetooth else { return result("direct", "No controller was found over Bluetooth.", id) }
         let report: [UInt8] = [0x03, 0x03, 0, 0, 100, 100, 70, 0, 0]  // report ID, then mask, LT, RT, strong, weak, duration, delay, loop
         let status = IOHIDDeviceSetReport(device, kIOHIDReportTypeOutput, 3, report, report.count)
-        result("direct", status == kIOReturnSuccess ? nil : "The report couldn't be sent (IOReturn \(String(UInt32(bitPattern: status), radix: 16))).")
+        result("direct", status == kIOReturnSuccess ? nil : "The report couldn't be sent (IOReturn \(String(UInt32(bitPattern: status), radix: 16))).", id)
     }
 
-    private func result(_ op: String, _ error: String?) {
+    private func result(_ op: String, _ error: String?, _ id: Any?) {
         var event: [String: Any] = ["type": "result", "op": op, "ok": error == nil]
         if let error = error { event["error"] = error }
+        if let id = id { event["id"] = id }
         send(event)
     }
 
