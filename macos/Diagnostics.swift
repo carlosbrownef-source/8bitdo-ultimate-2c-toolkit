@@ -83,7 +83,11 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
         captureHome(pad.physicalInputProfile.buttons[GCInputButtonHome])
         var state: [String: Any] = ["type": "state", "connected": true, "name": pad.vendorName ?? "Unknown controller", "category": pad.productCategory,
                                     "extended": pad.extendedGamepad != nil, "localities": localities(pad), "foreground": NSApp.isActive]
-        if let battery = pad.battery { state["battery"] = ["level": battery.batteryLevel, "state": batteryState(battery)] }
+        if let battery = pad.battery, battery.batteryState != .unknown || battery.batteryLevel > 0 {
+            state["battery"] = ["level": battery.batteryLevel, "state": batteryState(battery)]
+        } else if let name = pad.vendorName, let percent = systemBatteryPercent(of: name) {
+            state["battery"] = ["level": Double(percent) / 100, "state": "unknown"]
+        }
         sendStateIfChanged(state)
     }
 
@@ -91,6 +95,23 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
         guard let text = json(state), text != lastState else { return }
         lastState = text
         deliver(text)
+    }
+
+    /// GameController may not report the battery of a Bluetooth pad even when macOS knows it. The public power source
+    /// API only lists the Mac's own battery, so this reads `pmset`, which lists accessories too.
+    private func systemBatteryPercent(of name: String) -> Int? {
+        let process = Process(), pipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
+        process.arguments = ["-g", "accps"]
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        guard (try? process.run()) != nil else { return nil }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard let text = String(data: data, encoding: .utf8),
+              let line = text.split(separator: "\n").first(where: { $0.contains(name) }),
+              let found = line.range(of: #"\d+(?=%)"#, options: .regularExpression) else { return nil }
+        return Int(line[found])
     }
 
     private func batteryState(_ battery: GCDeviceBattery) -> String {

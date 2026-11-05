@@ -251,7 +251,7 @@ class ControllerTestCard(PageCase):
         self.assertIn("Firmware: Original 1.09", dom.find("report-text").all_text())
 
     def test_battery_row(self):
-        for query, want in (("bt&battery=0.8,discharging", "80 %"), ("bt&battery=0.42,charging", "42 %, charging"), ("bt&battery=1,full", "Full"),
+        for query, want in (("bt&battery=0.8,discharging", "80 %"), ("bt&battery=0.42,charging", "42 %, charging"), ("bt&battery=1,full", "Full"), ("bt&battery=0.9,unknown", "90 %"),
                             ("bt", "macOS doesn't report the battery for this controller"), ("bt&battery=-1,unknown", "macOS doesn't report the battery for this controller")):
             self.assertIn(want, self.body(query)[2], query)
 
@@ -278,6 +278,7 @@ class ControllerTestCard(PageCase):
 class HelpTest(PageCase):
     def test_help_describes_diagnostics(self):
         text = self.server.dom().find("help").all_text()
+        self.assertIn("macOS may ask for your permission", text)
         self.assertIn("Diagnostics", text)
         after = text[text.index("Diagnostics"):]
         for moved in ("Controller test", "Firmware details", "Create a problem report", "Install firmware 1.09 anyway"):
