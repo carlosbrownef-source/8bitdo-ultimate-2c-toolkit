@@ -21,7 +21,7 @@ rsync -a --exclude __pycache__ u2c_customfw "$app/Contents/Resources/app/"
 cp DISCLAIMER.md LICENSE "$app/Contents/Resources/app/"
 cp macos/AppIcon.icns "$app/Contents/Resources/"  # rendered from macos/icon.svg
 sed "s/@VERSION@/$version/g" macos/Info.plist > "$app/Contents/Info.plist"
-swiftc -O -o "$app/Contents/MacOS/u2c-customfw" macos/App.swift -framework AppKit -framework WebKit -framework IOKit
+swiftc -O -o "$app/Contents/MacOS/u2c-customfw" macos/main.swift macos/Diagnostics.swift -framework AppKit -framework WebKit -framework IOKit -framework GameController -framework CoreHaptics
 codesign --force --deep -s - "$app"
 (cd dist && rm -f "u2c-customfw-$version-macos-arm64.zip" && ditto -c -k --keepParent u2c-customfw.app "u2c-customfw-$version-macos-arm64.zip")
 ls -lh "dist/u2c-customfw-$version-macos-arm64.zip"

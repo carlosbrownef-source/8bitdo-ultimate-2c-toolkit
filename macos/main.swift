@@ -7,6 +7,7 @@ import WebKit
 final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
     var window: NSWindow!
     var web: WKWebView!
+    let diagnostics = Diagnostics()
     var core: Process?
     var buffer = Data()
 
@@ -17,7 +18,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
             _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
         }
         let background = NSColor(srgbRed: 0x10 / 255.0, green: 0x12 / 255.0, blue: 0x15 / 255.0, alpha: 1)  // the page's --bg
-        web = WKWebView(frame: .zero)
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.add(diagnostics, name: "diagnostics")
+        web = WKWebView(frame: .zero, configuration: configuration)
+        diagnostics.web = web
         web.underPageBackgroundColor = background
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 860),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -126,7 +130,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         }
         return .terminateLater
     }
-    func applicationWillTerminate(_ note: Notification) { core?.terminate() }
+    func applicationWillTerminate(_ note: Notification) {
+        diagnostics.stop()
+        core?.terminate()
+    }
 }
 
 let app = NSApplication.shared
