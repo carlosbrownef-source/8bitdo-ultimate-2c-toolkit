@@ -45,7 +45,7 @@ def plan_patch(ch, backup, stock: bytes, keys) -> Plan:
     check_no_pending_update(ch)
     cur = current_bank_a(ch)
     if not recipes.identify(cur).known:
-        raise OpError("This controller's firmware isn't the original 1.09, with or without the tweaks. Use Restore first. Nothing was written.")
+        raise OpError("This controller's firmware isn't the original 1.09, with or without this app's tweaks, so nothing was written. It may be another firmware version, which you can update with 8BitDo's own updater, or firmware modified outside this app, which you can replace with Restore.")
     try:
         new = recipes.build(stock, keys)
     except recipes.RecipeError as e:

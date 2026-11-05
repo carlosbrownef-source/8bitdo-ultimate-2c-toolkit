@@ -64,7 +64,7 @@ function hero(devs, ctrl, boot) {
     chips = fw.tweaks;
   } else if (fw && fw.version && fw.version.toFixed(2) !== "1.09")
     [cls, title, note] = ["bad", `Firmware ${fw.version.toFixed(2)} isn't supported`, "This app only works with firmware 1.09. Update the controller with 8BitDo's own updater first, or restore your backup."];
-  else if (fw) [cls, title, note] = ["bad", "Unknown firmware", "It doesn't match the original firmware 1.09, with or without the tweaks. Restore can repair it."];
+  else if (fw) [cls, title, note] = ["bad", "Unknown firmware", "It doesn't match the original firmware 1.09, with or without this app's tweaks. The controller may have another firmware version, which you can update with 8BitDo's own updater, or firmware modified outside this app, which you can replace with Restore."];
 
   const badge = ctrl ? `${boot ? "Update mode" : "Connected by cable"} · 8BitDo Ultimate 2C Wireless`
     : dongle ? "2.4 GHz dongle" : bt ? "Connected over Bluetooth · 8BitDo Ultimate 2C Wireless" : "Not connected";

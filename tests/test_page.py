@@ -278,6 +278,11 @@ class HelpTest(PageCase):
 class UnknownFirmwareTest(PageCase):
     sim = "unknown"
 
+    def test_unknown_firmware_explains_the_two_likely_causes(self):
+        text = self.server.dom().find("fw-note").all_text()
+        self.assertIn("another firmware version, which you can update with 8BitDo's own updater", text)
+        self.assertIn("firmware modified outside this app, which you can replace with Restore", text)
+
     def test_unknown_firmware_points_to_diagnostics(self):
         dom = self.server.dom()
         hint = dom.find("force-hint")

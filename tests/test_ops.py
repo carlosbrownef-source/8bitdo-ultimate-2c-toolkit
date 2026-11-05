@@ -250,6 +250,17 @@ class WordingTest(unittest.TestCase):
                 self.assertNotIn(telegraphic, text, path.name)
 
 
+class UnknownFirmwareMessageTest(Base):
+    def test_patch_refusal_explains_the_two_likely_causes(self):
+        f = bytearray(controller_flash())
+        f[0x6000:0x6010] = bytes(16)
+        f = bytes(f)
+        with self.assertRaises(OpError) as e:
+            patch.plan_patch(SimBoot(f), self.backup_of(f), STOCK_A, ["dim_leds"])
+        for part in ("another firmware version", "8BitDo's own updater", "modified outside this app", "Restore", "nothing was written"):
+            self.assertIn(part, str(e.exception))
+
+
 class DiagnosticsDataTest(Base):
     def record(self, off, value):
         f = bytearray(controller_flash())
