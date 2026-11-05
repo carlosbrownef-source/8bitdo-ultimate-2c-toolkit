@@ -8,28 +8,34 @@
   window.fetch = async (url, options) => {
     const path = String(url);
     document.getElementById("diag-fetch").textContent += path + " ";
-    const device = window.simReplugged ? "bluetooth_xbox" : { bt: "bluetooth_xbox", cable: "cable", web: "cable", none: "bluetooth_xbox", background: "bluetooth_xbox", noext: "bluetooth_xbox", busy: "bluetooth_xbox" }[mode];
+    const device = window.simReplugged ? "bluetooth_xbox" : { bt: "bluetooth_xbox", btstock: "bluetooth", cable: "cable", web: "cable", none: "bluetooth_xbox", background: "bluetooth_xbox", noext: "bluetooth_xbox", busy: "bluetooth_xbox" }[mode];
     if (path.startsWith("/api/firmware") && device === "bluetooth_xbox") return json({ note: "The controller firmware cannot be read over Bluetooth. Connect the controller by cable for firmware diagnostics." });
     const answer = await realFetch(url, options);
+    if (path.startsWith("/api/firmware") && query.get("tweaks")) return json({ ...(await answer.json()), recipes: ["dim", "ring"], titles: ["Dimmer LEDs", "Home ring: 5 %"] });
     if (path.startsWith("/api/firmware") && query.get("identity") === "none") return json({ ...(await answer.json()), boot_identity: null });
     if (path.startsWith("/api/state") && device) return json({ ...(await answer.json()), devices: [{ mode: device, name: "simulated" }] });
     return answer;
   };
 
   const PAD = { type: "state", connected: true, name: "8BitDo Ultimate 2C (One)", category: "Xbox One", extended: true, localities: ["default", "left", "right"], transport: "Bluetooth Low Energy", foreground: true };
-  const STATES = { bt: PAD, busy: PAD, boot: PAD, cable: { ...PAD, name: "Xbox 360 Controller", category: "Xbox 360", transport: "USB" }, none: { type: "state", connected: false },
+  const STATES = { bt: PAD, btstock: PAD, busy: PAD, boot: PAD, cable: { ...PAD, name: "Xbox 360 Controller", category: "Xbox 360", transport: "USB" }, none: { type: "state", connected: false },
     background: { ...PAD, foreground: false }, noext: { ...PAD, extended: false } };
   const REST = { lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, pressed: [] };
   const input = (e) => window.u2cDiagnostics({ type: "input", ...REST, ...e });
   const snap = () => { document.getElementById("diag-snap").textContent += document.getElementById("test-body").innerHTML.includes("disabled") ? " disabled " : ""; document.getElementById("diag-snap").textContent += document.getElementById("test-body").textContent; };
   const clickOp = (op) => document.querySelector(`[data-op="${op}"]`).click();
   const press = () => { input({ pressed: ["A"] }); input({ lx: 0.8, ly: 0.6 }); input({ lx: 0.8, ly: 0.6, lt: 0.5 }); };
+  const UNANSWERED = ["vibrate", "vibrateleave", "vibratestate", "lateresult"];
   const SCRIPTS = {
     press,
     leave: () => { press(); showTab("firmware"); showTab("diagnostics"); },
     disconnect: () => { press(); window.u2cDiagnostics({ type: "state", connected: false }); snap(); window.u2cDiagnostics({ ...PAD, name: "Another Pad" }); },
     late: () => { input({ pressed: ["A"] }); showTab("firmware"); input({ pressed: ["B"] }); },
     vibrate: () => { clickOp("default"); clickOp("default"); snap(); },
+    vibrateleave: () => { clickOp("default"); showTab("firmware"); showTab("diagnostics"); setTimeout(() => { clickOp("default"); snap(); }, 100); },
+    vibratestate: () => { clickOp("default"); window.u2cDiagnostics({ ...STATES[mode], name: "Another Pad", localities: ["default"] }); },
+    lateresult: () => { clickOp("left"); setTimeout(() => { clickOp("default"); window.u2cDiagnostics({ type: "result", op: "vibrate", id: 1, ok: true }); snap(); }, 3300); },
+    inputafterjob: () => { busy = true; render(); busy = false; input({ pressed: ["A"] }); render(); },
     vibrateok: () => clickOp("default"),
     vibrateerror: () => clickOp("default"),
     direct: () => clickOp("direct"),
@@ -44,8 +50,8 @@
     window.webkit = { messageHandlers: { diagnostics: { postMessage(m) {
       document.getElementById("diag-sent").textContent += JSON.stringify(m) + " ";
       if (m.op === "start") window.u2cDiagnostics(STATES[mode]);
-      if ((m.op === "vibrate" || m.op === "direct") && scenario !== "vibrate")
-        window.u2cDiagnostics(scenario === "vibrateerror" ? { type: "result", op: m.op, ok: false, error: "The engine failed" } : { type: "result", op: m.op, ok: true });
+      if ((m.op === "vibrate" || m.op === "direct") && !UNANSWERED.includes(scenario))
+        window.u2cDiagnostics(scenario === "vibrateerror" ? { type: "result", op: m.op, id: m.id, ok: false, error: "The engine failed" } : { type: "result", op: m.op, id: m.id, ok: true });
     } } } };
   }
   for (const id of ["diag-sent", "diag-snap", "diag-fetch"]) { const p = document.createElement("pre"); p.id = id; p.hidden = true; document.body.append(p); }

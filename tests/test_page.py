@@ -194,6 +194,41 @@ class ControllerTestCard(PageCase):
         self.assertIn("No answer from the app.", text)
         self.assertNotIn("disabled", next(n for n in body.walk() if n.attrs.get("data-op") == "default").attrs)
 
+    def direct_button(self, body):
+        return next(n for n in body.walk() if n.attrs.get("data-op") == "direct")
+
+    def test_leaving_during_a_vibration_wait_starts_clean(self):
+        dom, body, text = self.body("cable&scenario=vibrateleave", 6000)
+        self.assertEqual(self.sent(dom).count('"op":"vibrate"'), 2)  # the click after coming back did something
+        self.assertIn("disabled", self.direct_button(body).attrs)
+        self.assertNotIn("disabled", next(n for n in body.walk() if n.attrs.get("data-op") == "default").attrs)
+
+    def test_a_remount_during_a_vibration_wait_keeps_each_button_right(self):
+        _, body, _ = self.body("cable&scenario=vibratestate", 6000)
+        self.assertIn("disabled", self.direct_button(body).attrs)
+        self.assertIn("disabled", next(n for n in body.walk() if n.attrs.get("data-op") == "left").attrs)
+        self.assertNotIn("disabled", next(n for n in body.walk() if n.attrs.get("data-op") == "default").attrs)
+
+    def test_a_result_after_its_timeout_does_not_finish_the_next_press(self):
+        dom, _, _ = self.body("bt&scenario=lateresult", 6000)
+        snap = dom.find("diag-snap").all_text()
+        self.assertIn("disabled", snap)
+        self.assertNotIn("Sent.", snap)
+
+    def test_input_is_ignored_while_the_message_view_is_mounted(self):
+        _, _, text = self.body("bt&scenario=inputafterjob")
+        self.assertIn("0 of 19", text)
+
+    def test_direct_report_line_on_bluetooth_with_the_stock_identity(self):
+        _, body, text = self.body("btstock")
+        self.assertIn("The direct report needs the Xbox Series X|S controller tweak.", text)
+        self.assertNotIn("only works over Bluetooth", text)
+        self.assertIn("disabled", self.direct_button(body).attrs)
+
+    def test_firmware_details_name_the_tweaks(self):
+        text = self.server.dom("&diagsim=boot&tweaks=1").find("firmware-details").all_text()
+        self.assertIn("1.09 with 2 tweaks: Dimmer LEDs, Home ring: 5 %", text)
+
     def test_opening_the_tab_rereads_the_devices(self):
         _, _, text = self.body("boot&scenario=replugged")
         self.assertNotIn("can't run in update mode", text)

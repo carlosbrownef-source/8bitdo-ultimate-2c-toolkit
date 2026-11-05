@@ -127,7 +127,7 @@ function showTab(name) {
 
 const VERSION_FROM = { "update record": "The controller's update record", "bank A hash": "The installed firmware", "bank B hash": "The second copy of the firmware", unknown: "It couldn't be determined" };
 const WHO = { 0x301b: "controller", 0x301c: "2.4 GHz dongle" };
-const firmwareName = () => !fw.known ? "Unknown" : fw.recipes.length ? `1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}` : "Original 1.09";
+const firmwareName = () => !fw.known ? "Unknown" : fw.recipes.length ? `1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}${fw.titles && fw.titles.length ? `: ${fw.titles.join(", ")}` : ""}` : "Original 1.09";
 function details() {
   const box = $("details-body"), inUpdateMode = !!st && st.devices.some((d) => d.mode === "boot");
   const say = (text) => { box.innerHTML = ""; const p = document.createElement("p"); p.style.marginBottom = 0; p.textContent = text; box.append(p); };

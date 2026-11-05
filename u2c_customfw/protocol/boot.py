@@ -74,9 +74,13 @@ def identify(ch) -> int | None:
 
 
 def kind(ch) -> str | None:
-    """Controller or dongle. The identity can only rule out the controller, since the dongle's answer is not known yet.
+    return kind_from(ch, identify(ch))
+
+
+def kind_from(ch, who: int | None) -> str | None:
+    """Controller or dongle, given the identity already asked with identify(). The identity can only rule out the
+    controller, since the dongle's answer is not known yet.
     The dongle's 128 KB flash reads back aliased above 0x20000; the controller's 0x20000 is erased."""
-    who = identify(ch)
     if who == DONGLE_ID:
         return "dongle"
     if who not in (None, CONTROLLER_ID):
