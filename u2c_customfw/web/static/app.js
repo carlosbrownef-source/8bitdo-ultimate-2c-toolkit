@@ -19,16 +19,17 @@ const ICON = {
 };
 
 /* Ultimate 2C, drawn from scratch: offset sticks, d-pad lower left, ABXY upper right, home button with its LED ring. */
-const stick = (x, y) => `<circle cx="${x}" cy="${y}" r="19" fill="#1c2026"/><circle cx="${x}" cy="${y}" r="13.5" fill="#4b525c"/><circle cx="${x}" cy="${y}" r="9" fill="#424851"/>`;
-const face = (x, y, t) => `<circle cx="${x}" cy="${y}" r="8.6" fill="#4b525c"/><text x="${x}" y="${y + 2.9}" text-anchor="middle" font-size="8.5" font-weight="600" fill="#b9c0c9" font-family="-apple-system,sans-serif">${t}</text>`;
+const stick = (x, y, k) => `<circle cx="${x}" cy="${y}" r="19" fill="#1c2026"/><g data-k="${k}"><circle cx="${x}" cy="${y}" r="13.5" fill="#4b525c"/><circle cx="${x}" cy="${y}" r="9" fill="#424851"/></g>`;
+const face = (x, y, t) => `<circle data-k="${t}" cx="${x}" cy="${y}" r="8.6" fill="#4b525c"/><text x="${x}" y="${y + 2.9}" text-anchor="middle" font-size="8.5" font-weight="600" fill="#b9c0c9" font-family="-apple-system,sans-serif">${t}</text>`;
 const pad = (led, dim) => `<svg viewBox="0 0 300 172" fill="none" role="img" aria-label="Controller"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4049"/><stop offset="1" stop-color="#2a2f36"/></linearGradient></defs>
-<path d="M66 32c7-11 29-14 41-9M234 32c-7-11-29-14-41-9" stroke="#454b54" stroke-width="9" stroke-linecap="round"/>
+<path data-k="LB" d="M66 32c7-11 29-14 41-9" stroke="#454b54" stroke-width="9" stroke-linecap="round"/><path data-k="RB" d="M234 32c-7-11-29-14-41-9" stroke="#454b54" stroke-width="9" stroke-linecap="round"/>
 <path d="M105 24L195 24C217.5 22 235.5 26 245.4 36C259.8 52 267 92 265.2 128C263.4 160 241.8 170 231 156C223.8 146 216.6 132 198.6 128L101.4 128C83.4 132 76.2 146 69 156C58.2 170 36.6 160 34.8 128C33 92 40.2 52 54.6 36C64.5 26 82.5 22 105 24Z" fill="url(#g)" stroke="#4d545e" stroke-width="1.5" ${dim ? 'stroke-dasharray="5 4"' : ""}/>
-${stick(81, 62)}${stick(182, 100)}
+${stick(81, 62, "LS")}${stick(182, 100, "RS")}
 <circle cx="118" cy="100" r="20" fill="#30353d"/><path d="M112.5 85h11v9.5h9.5v11h-9.5v9.5h-11v-9.5h-9.5v-11h9.5z" fill="#4b525c"/>
+<rect data-k="Up" x="112.5" y="85" width="11" height="9.5" fill="transparent"/><rect data-k="Down" x="112.5" y="105.5" width="11" height="9.5" fill="transparent"/><rect data-k="Left" x="103" y="94.5" width="9.5" height="11" fill="transparent"/><rect data-k="Right" x="123.5" y="94.5" width="9.5" height="11" fill="transparent"/>
 ${face(215, 43, "Y")}${face(198, 60, "X")}${face(232, 60, "B")}${face(215, 77, "A")}
-<circle cx="120" cy="40" r="4.5" fill="#454b54"/><circle cx="180" cy="40" r="4.5" fill="#454b54"/><circle cx="135" cy="59" r="4.5" fill="#454b54"/><circle cx="165" cy="59" r="4.5" fill="#454b54"/><circle cx="150" cy="59" r="1.6" fill="#1c2026"/>
-<circle cx="150" cy="40" r="8" fill="#30353d" stroke="${led || "#4d545e"}" stroke-width="2.4"/>${led ? `<circle cx="150" cy="40" r="13" stroke="${led}" stroke-width="5" opacity=".18"/>` : ""}
+<circle data-k="View" cx="120" cy="40" r="4.5" fill="#454b54"/><circle data-k="Menu" cx="180" cy="40" r="4.5" fill="#454b54"/><circle cx="135" cy="59" r="4.5" fill="#454b54"/><circle cx="165" cy="59" r="4.5" fill="#454b54"/><circle cx="150" cy="59" r="1.6" fill="#1c2026"/>
+<circle data-k="Home" cx="150" cy="40" r="8" fill="#30353d" stroke="${led || "#4d545e"}" stroke-width="2.4"/>${led ? `<circle cx="150" cy="40" r="13" stroke="${led}" stroke-width="5" opacity=".18"/>` : ""}
 </svg>`;
 
 const CONTROLLER = ["cable", "cable_360", "boot"];
@@ -58,11 +59,11 @@ function hero(devs, ctrl, boot) {
   else if (fw && fw.error) [cls, title, note] = ["bad", "Can't read the firmware", fw.error];
   else if (fw && fw.note) note = fw.note;
   else if (fw && fw.known) {
-    title = `Firmware 1.09 — ${fw.recipes.length ? "modified" : "unmodified"}`;
+    title = fw.recipes.length ? "Firmware 1.09 with tweaks" : "Original firmware 1.09";
     note = fw.version_from && fw.version_from !== "unknown" ? "Version read from the controller" : "";
     chips = fw.tweaks;
   } else if (fw && fw.version && fw.version.toFixed(2) !== "1.09")
-    [cls, title, note] = ["bad", `Firmware ${fw.version.toFixed(2)} — not supported`, "This app only works with firmware 1.09. Update the controller with 8BitDo's own updater first, or restore your backup."];
+    [cls, title, note] = ["bad", `Firmware ${fw.version.toFixed(2)} isn't supported`, "This app only works with firmware 1.09. Update the controller with 8BitDo's own updater first, or restore your backup."];
   else if (fw) [cls, title, note] = ["bad", "Unknown firmware", "It doesn't match the original firmware 1.09, with or without the tweaks. Restore can repair it."];
 
   const badge = ctrl ? `${boot ? "Update mode" : "Connected by cable"} · 8BitDo Ultimate 2C Wireless`
@@ -105,7 +106,40 @@ function render() {
     "restore-backup-dry": boot && backed, "restore-backup": boot && backed, "restore-stock-dry": boot && backed, "restore-stock": boot && backed,
     "force-open": boot && backed, "report-open": true, refresh: true };
   for (const [id, ok] of Object.entries(can)) $(id).disabled = off || !ok;
-  $("force-zone").classList.toggle("hot", !!fw && fw.known === false && !fw.version && !fw.error);
+  const hot = !!fw && fw.known === false && !fw.version && !fw.error;
+  $("force-zone").classList.toggle("hot", hot);
+  $("force-hint").hidden = !hot;
+  $("strip-alert").hidden = !(hot && tab === "firmware");
+  details();
+}
+
+let tab = "firmware";
+function showTab(name) {
+  tab = name;
+  $("tab-firmware").hidden = name !== "firmware";
+  $("tab-diagnostics").hidden = name !== "diagnostics";
+  $("strip-firmware").classList.toggle("on", name === "firmware");
+  $("strip-diagnostics").classList.toggle("on", name === "diagnostics");
+  render();
+}
+
+const VERSION_FROM = { "update record": "The controller's update record", "bank A hash": "The installed firmware", "bank B hash": "The second copy of the firmware", unknown: "It couldn't be determined" };
+const WHO = { 0x301b: "controller", 0x301c: "2.4 GHz dongle" };
+function details() {
+  const box = $("details-body"), inUpdateMode = !!st && st.devices.some((d) => d.mode === "boot");
+  const say = (text) => { box.innerHTML = ""; const p = document.createElement("p"); p.style.marginBottom = 0; p.textContent = text; box.append(p); };
+  if (reading) return say("Reading the firmware…");
+  if (!fw) return say("Connect the controller by cable, or put it in update mode, to read its firmware.");
+  if (fw.error) return say(fw.error);
+  if (fw.note) return say(fw.note);
+  const name = !fw.known ? "Unknown" : fw.recipes.length ? `1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}` : "Original 1.09";
+  const id = fw.boot_identity;
+  const rows = [["Firmware", name], ["Version read from", VERSION_FROM[fw.version_from] || fw.version_from],
+    ["Pending update", fw.pending ? "Yes. It could replace the tweaks the next time the controller starts." : "None"],
+    ["Update-mode identity", !inUpdateMode ? "Only available in update mode" : id == null ? "No answer" : `0x${id.toString(16)} · ${WHO[id] || "unknown device"}`]];
+  const dl = document.createElement("dl"); dl.className = "rows";
+  for (const [k, v] of rows) { const t = document.createElement("dt"), d = document.createElement("dd"); t.textContent = k; d.textContent = v; dl.append(t, d); }
+  box.innerHTML = ""; box.append(dl);
 }
 
 const STEPS = { "pass 1": [0, 50], "pass 2": [50, 50], write: [0, 100] };  // progress labels from the core
@@ -194,6 +228,9 @@ document.querySelectorAll("[data-icon]").forEach((e) => (e.innerHTML = ICON[e.da
 $("disclaimer").oncancel = (e) => e.preventDefault();
 $("accept").onclick = async () => { await api("POST", "/api/accept"); $("disclaimer").close(); refresh(); };
 $("refresh").onclick = refresh;
+$("strip-firmware").onclick = () => showTab("firmware");
+$("strip-diagnostics").onclick = () => showTab("diagnostics");
+$("force-go").onclick = () => showTab("diagnostics");
 $("help-open").onclick = () => $("help").showModal();
 $("help-close").onclick = () => $("help").close();
 tweakBoxes().forEach((x) => (x.onchange = render));
@@ -237,3 +274,4 @@ $("report-copy").onclick = async () => {
 };
 $("report-close").onclick = () => { $("report").close(); $("report-copy").textContent = "Copy"; };
 render(); refresh();
+if (new URLSearchParams(location.search).has("diagsim")) showTab("diagnostics");

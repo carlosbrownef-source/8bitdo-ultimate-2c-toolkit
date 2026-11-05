@@ -13,11 +13,18 @@
   <div class="barr"><span class="only">8BitDo Ultimate 2C Wireless · firmware 1.09 only</span><button id="help-open" class="sec small">Help</button></div>
 </header>
 
+<nav class="strip"><button class="t on" id="strip-firmware">Firmware</button><button class="t" id="strip-diagnostics">Diagnostics<span class="alert" id="strip-alert" hidden></span></button>
+  <span class="badge" id="badge"><i></i><span id="badge-text">Not connected</span></span></nav>
+
 <main><div class="wrap">
+  <div id="tab-firmware">
+  <section class="danger-zone hot hint" id="force-hint" hidden>
+    <div><h2>This firmware can't be identified</h2><p>If Restore can't repair it, there's a last-resort option in Diagnostics.</p></div>
+    <button id="force-go" class="wtxt">Open Diagnostics</button>
+  </section>
   <section class="hero none" id="hero">
     <div class="pic" id="pic"></div>
     <div>
-      <span class="badge" id="badge"><i></i><span id="badge-text">Not connected</span></span>
       <h1 id="fw-title">No controller found</h1>
       <p class="src" id="fw-note"></p>
       <div class="chips" id="chips"></div>
@@ -28,24 +35,23 @@
   <div class="cols">
     <div class="stack">
       <section class="cd">
-        <h2><span class="no">1</span>Back up<span class="tag">Doesn't change the controller</span></h2>
-        <p>Saves a full copy of the controller's memory on this Mac, so it can always be restored. Required before the first change. Connect the controller by cable.</p>
+        <h2><span class="no">1</span>Back up<span class="tag">Nothing is written to the controller</span></h2>
+        <p>Saves a full copy of the controller's memory on this Mac, so you can always go back to it. You need a backup before installing anything. Connect the controller by cable to start.</p>
         <div class="btns"><button id="backup" class="job">Back up</button><span class="hint" id="last-backup"></span></div>
       </section>
 
       <section class="cd">
-        <h2><span class="no">3</span>Restore<span class="tag">Changes the controller</span></h2>
-        <p>Restores your backup, or 8BitDo's original firmware 1.09. The controller must be in update mode.</p>
+        <h2><span class="no">3</span>Restore<span class="tag">Replaces the firmware</span></h2>
+        <p>Restores your backup or 8BitDo's original firmware 1.09. The controller needs to be in update mode.</p>
         <div class="rest">
           <div><h3>Your backup</h3><button id="restore-backup-dry" class="sec small job">Check first</button><button id="restore-backup" class="sec small job">Restore…</button></div>
           <div><h3>Original firmware 1.09</h3><button id="restore-stock-dry" class="sec small job">Check first</button><button id="restore-stock" class="sec small job">Restore…</button></div>
         </div>
-        <div class="rep"><button id="report-open" class="sec small job">Create a problem report</button></div>
       </section>
     </div>
 
     <section class="cd">
-      <h2><span class="no">2</span>Tweaks<span class="tag">Changes the controller</span></h2>
+      <h2><span class="no">2</span>Tweaks<span class="tag">Installs new firmware</span></h2>
       <ul class="pre"><li id="pre-backup"></li><li id="pre-boot"></li></ul>
       <label class="tw"><input type="checkbox" class="tweak" value="bt_xbox" checked><span class="sw"></span><span>Xbox Series X|S controller over Bluetooth</span></label>
       <label class="tw"><input type="checkbox" class="tweak" value="bt_rumble" checked><span class="sw"></span><span>Rumble over Bluetooth<em>(needs the Xbox tweak)</em></span></label>
@@ -53,19 +59,33 @@
       <label class="tw"><input type="checkbox" class="tweak" value="dim_leds" checked><span class="sw"></span><span>Dimmer LEDs</span></label>
       <div class="base"><span>Home ring brightness:</span>
         <div class="seg" id="ring"><button data-ring="" class="on">Normal</button><button data-ring="ring_25">25 %</button><button data-ring="ring_5">5 %</button><button data-ring="ring_1">1 %</button><button data-ring="ring_0_1">0.1 %</button><button data-ring="ring_off">Off</button></div></div>
-      <div class="base"><span>Start from the original firmware 1.09:</span>
-        <div class="seg"><button data-base="backup" class="on">in your backup</button><button data-base="download">download from 8BitDo</button></div></div>
+      <div class="base"><span>Take the original firmware 1.09 from:</span>
+        <div class="seg"><button data-base="backup" class="on">your backup</button><button data-base="download">8BitDo's server</button></div></div>
       <div class="boot" id="boot-box"><span id="boot-icon"></span><div><b id="boot-title">Update mode</b>Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white.</div></div>
       <div class="btns"><button id="patch-dry" class="sec job">Check first</button><button id="patch-write" class="job">Install tweaks…</button></div>
       <p style="margin:10px 0 0;font-size:13px"><span id="choose-one" hidden>Choose at least one tweak. </span>Changing the firmware voids the controller's warranty.</p>
     </section>
   </div>
 
-  <section class="danger-zone" id="force-zone">
-    <div><h2>WARNING: only for firmware that can't be identified</h2>
-      <p>If the firmware version is unknown, you can still install 8BitDo's original firmware 1.09. It can't be checked beforehand, and the controller may not start afterwards. Your backup can always be restored.</p></div>
-    <button id="force-open" class="wtxt job">Install firmware 1.09 anyway…</button>
-  </section>
+  </div>
+
+  <div id="tab-diagnostics" hidden>
+    <section class="cd" id="test-card">
+      <h2>Controller test<span class="tag">Nothing is written to the controller</span></h2>
+      <div id="test-body"></div>
+    </section>
+    <div class="cols even">
+      <section class="cd" id="firmware-details"><h2>Firmware details</h2><div id="details-body"></div></section>
+      <section class="cd"><h2>Problem report</h2>
+        <p>Creates a text you can attach to a bug report, with the device IDs, the firmware's state and the latest log lines. It never includes your controller's address or its Bluetooth pairings.</p>
+        <button id="report-open" class="sec small job">Create a problem report</button></section>
+    </div>
+    <section class="danger-zone" id="force-zone">
+      <div><h2>WARNING: only for firmware that can't be identified</h2>
+        <p>Erases the firmware on the controller and replaces it with 8BitDo's original firmware 1.09, without any tweaks. Use it only if the firmware can't be identified and Restore doesn't work. There's no way to check beforehand that 1.09 is right for this controller, so it may not start afterwards. Your backup can always be restored.</p></div>
+      <button id="force-open" class="wtxt job">Install firmware 1.09 anyway…</button>
+    </section>
+  </div>
 </div></main>
 
 <footer class="dock" id="dock">
@@ -136,6 +156,7 @@
   <p>Unplug the controller. If you changed a Bluetooth tweak, remove the controller from Bluetooth settings and pair it again: macOS remembers how a device introduced itself the first time.</p>
   <menu><button id="help-close">Close</button></menu>
 </dialog>
+<script>if (new URLSearchParams(location.search).has("diagsim")) document.write('<script src="/static/diagsim.js"><\/script>');</script>
 <script src="/static/app.js"></script>
 </body>
 </html>
