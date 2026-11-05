@@ -271,6 +271,18 @@ class DiagnosticsDataTest(Base):
         self.assertFalse(probe.read_firmware(SimBoot(controller_flash()), "boot").pending)
         self.assertTrue(probe.read_firmware(SimBoot(self.record(0x3F020, b"\x01\0\0\0")), "boot").pending)
 
+    def test_firmware_asks_the_identity_once_in_update_mode(self):
+        class Counting(SimBoot):
+            asked = 0
+
+            def xfer(self, r, timeout=0.5):
+                self.asked += int.from_bytes(r[1:3], "little") == 8
+                return super().xfer(r, timeout)
+        for identity in ("auto", None):
+            ch = Counting(controller_flash(), identity=identity)
+            probe.read_firmware(ch, "boot")
+            self.assertEqual(ch.asked, 1, identity)
+
     def test_firmware_identity_unanswered(self):
         fw = probe.read_firmware(SimBoot(controller_flash(), identity=None), "boot")
         self.assertIsNone(fw.boot_identity)

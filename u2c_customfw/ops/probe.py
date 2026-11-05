@@ -31,9 +31,9 @@ def _read(ch, mode: str, addr: int, n: int) -> bytes:
     return bytes(out)
 
 
-def _check_device(ch, mode: str) -> None:
+def _check_device(ch, mode: str, identity: int | None) -> None:
     if mode == "boot":
-        if boot.kind(ch) != "controller":
+        if boot.kind_from(ch, identity) != "controller":
             raise OpError("The device in update mode isn't a controller. The 2.4 GHz dongle isn't supported.")
         return
     if app.open_session(ch) is None:
@@ -73,14 +73,15 @@ def detect_version(ch, mode: str, bank_a: bytes | None = None) -> tuple[float | 
 
 
 def read_firmware(ch, mode: str) -> Firmware:
+    identity = boot.identify(ch) if mode == "boot" else None
     try:
-        _check_device(ch, mode)
+        _check_device(ch, mode, identity)
         bank_a = _read(ch, mode, image.BASE, image.BANK_A_SIZE)
         pending = pending_update(ch, mode)
     except protocol.ProtocolError as e:
         raise OpError(str(e)) from e
     version, how = detect_version(ch, mode, bank_a)
-    return Firmware(recipes.identify(bank_a), version, how, pending, boot.identify(ch) if mode == "boot" else None)
+    return Firmware(recipes.identify(bank_a), version, how, pending, identity)
 
 
 def read_state(ch, mode: str) -> recipes.State:
