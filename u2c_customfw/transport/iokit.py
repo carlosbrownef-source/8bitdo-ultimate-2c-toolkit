@@ -26,6 +26,8 @@ for f, res, args in [
     (iok.IOHIDManagerCreate, P, [P, C.c_uint32]),
     (iok.IOHIDManagerSetDeviceMatching, None, [P, P]),
     (iok.IOHIDManagerOpen, I32, [P, C.c_uint32]),
+    (iok.IOHIDManagerClose, I32, [P, C.c_uint32]),
+    (cf.CFRelease, None, [P]),
     (iok.IOHIDManagerCopyDevices, P, [P]),
     (iok.IOHIDDeviceGetProperty, P, [P, P]),
     (iok.IOHIDDeviceOpen, I32, [P, C.c_uint32]),
@@ -40,6 +42,21 @@ MODE = P.in_dll(cf, "kCFRunLoopDefaultMode")
 REPORT_CB = C.CFUNCTYPE(None, P, I32, P, C.c_int, C.c_uint32, C.POINTER(C.c_uint8), L)
 NOT_PERMITTED = 0xE00002E2
 _managers = []  # devices stay valid while their manager is alive
+_open_channels = 0
+KEEP_MANAGERS = 4
+
+
+def _release_old(managers, open_channels, keep, release):
+    """The page lists devices every few seconds, so old managers must go, but never under an open channel."""
+    if open_channels:
+        return
+    while len(managers) > keep:
+        release(managers.pop(0))
+
+
+def _release_manager(mgr):
+    iok.IOHIDManagerClose(mgr, 0)
+    cf.CFRelease(mgr)
 
 
 def _cfstr(s):
@@ -65,6 +82,7 @@ def list_devices():
     iok.IOHIDManagerSetDeviceMatching(mgr, None)  # every HID device
     iok.IOHIDManagerOpen(mgr, 0)
     _managers.append(mgr)
+    _release_old(_managers, _open_channels, KEEP_MANAGERS, _release_manager)
     devs = iok.IOHIDManagerCopyDevices(mgr)
     if not devs:
         return []
@@ -78,6 +96,7 @@ def list_devices():
 
 class IOKitChannel:
     def __init__(self, dev: DeviceInfo, report_id: int):
+        global _open_channels
         self.dev, self.rid, self.replies = dev.handle, report_id, []
         self.buf = (C.c_uint8 * 64)()
         self.cb = REPORT_CB(self._on_report)
@@ -90,6 +109,7 @@ class IOKitChannel:
         self.loop = cf.CFRunLoopGetCurrent()
         iok.IOHIDDeviceScheduleWithRunLoop(self.dev, self.loop, MODE)
         iok.IOHIDDeviceRegisterInputReportCallback(self.dev, self.buf, 64, self.cb, None)
+        _open_channels += 1
 
     def _on_report(self, ctx, result, sender, rtype, rid, report, length):
         data = bytes(report[:length])
@@ -108,8 +128,10 @@ class IOKitChannel:
         return self.replies[0] if self.replies else None
 
     def close(self) -> None:
+        global _open_channels
         iok.IOHIDDeviceUnscheduleFromRunLoop(self.dev, self.loop, MODE)
         iok.IOHIDDeviceClose(self.dev, 0)
+        _open_channels -= 1
 
 
 def open_channel(dev: DeviceInfo, report_id: int) -> IOKitChannel:

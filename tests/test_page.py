@@ -260,6 +260,20 @@ class ControllerTestCard(PageCase):
         self.assertIn("55 %", text)
         self.assertIn("1 of 19", text)
 
+    def test_a_change_of_device_is_noticed_without_refresh(self):
+        dom = self.server.dom("&diagsim=boot&scenario=plugged", 7000)
+        self.assertIn("Connected over Bluetooth", dom.find("badge-text").all_text())
+
+    def test_the_firmware_is_not_reread_when_nothing_changes(self):
+        dom = self.server.dom("&diagsim=boot", 9000)
+        fetched = dom.find("diag-fetch").all_text()
+        self.assertEqual(fetched.count("/api/firmware"), 1)
+        self.assertGreater(fetched.count("/api/state"), 1)
+
+    def test_nothing_is_polled_during_a_task(self):
+        dom = self.server.dom("&diagsim=busy", 9000)
+        self.assertLessEqual(dom.find("diag-fetch").all_text().count("/api/state"), 2)
+
     def test_vibration_result_lines(self):
         self.assertIn("Sent. Did you feel it?", self.body("bt&scenario=vibrateok")[2])
         self.assertIn("Sent. You'll only feel it if Rumble over Bluetooth is installed.", self.body("bt&scenario=direct")[2])

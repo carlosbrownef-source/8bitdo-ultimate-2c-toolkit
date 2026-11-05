@@ -285,4 +285,14 @@ $("report-copy").onclick = async () => {
 };
 $("report-close").onclick = () => { $("report").close(); $("report-copy").textContent = "Copy"; };
 render(); refresh();
+
+// Notice a controller being connected, disconnected or put in update mode, without pressing Refresh.
+const deviceKey = (state) => state ? state.devices.map((d) => `${d.mode}:${d.vendor}:${d.product}`).sort().join() : "";
+const WATCH_MS = 2500;
+setInterval(async () => {
+  if (busy || reading || refreshing || document.hidden) return;
+  let now;
+  try { now = await api("GET", "/api/state"); } catch (e) { return; }
+  if (!busy && !reading && !refreshing && deviceKey(now) !== deviceKey(st)) refresh();
+}, WATCH_MS);
 if (new URLSearchParams(location.search).has("diagsim")) showTab("diagnostics");
