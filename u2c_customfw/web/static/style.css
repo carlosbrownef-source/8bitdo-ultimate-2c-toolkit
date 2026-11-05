@@ -41,8 +41,8 @@ main{flex:1;overflow:auto;padding:18px 22px 22px}
 .chip svg{width:14px;flex:none}.chip.on{color:var(--fg)}.chip.on svg{color:var(--accent)}
 .herob{margin-top:14px}
 
-.cols{display:grid;grid-template-columns:1fr 1.1fr;gap:16px;margin-top:16px;align-items:start}
-.stack{display:flex;flex-direction:column;gap:16px}
+.wide{margin-top:16px}
+.cols{display:grid;grid-template-columns:1.1fr 1fr;gap:16px;margin-top:16px;align-items:start}
 .cd{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
 .cd h2{font-size:16px;margin:0;display:flex;align-items:center;gap:10px}
 .cd h2 .no{display:grid;place-items:center;width:24px;height:24px;border-radius:7px;background:var(--card2);font-size:13px;color:var(--dim)}

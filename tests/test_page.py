@@ -118,6 +118,14 @@ class TabsTest(PageCase):
     def test_details_no_answer(self):
         self.assertIn("No answer", self.server.dom("&diagsim=boot&identity=none").find("firmware-details").all_text())
 
+    def test_back_up_comes_first_across_the_whole_width(self):
+        tab = self.server.dom().find("tab-firmware")
+        cols = next(n for n in tab.walk() if n.attrs.get("class") == "cols").all_text()
+        self.assertNotIn("Back up", cols)
+        self.assertLess(cols.index("Tweaks"), cols.index("Restore"))
+        text = tab.all_text()
+        self.assertLess(text.index("Back up"), text.index("Tweaks"))
+
     def test_tags_say_what_happens(self):
         text = self.server.dom().find("tab-firmware").all_text()
         self.assertNotIn("Changes the controller", text)
