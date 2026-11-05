@@ -16,7 +16,7 @@ What was established by disassembling 8BitDo's v1.09 image. Addresses are image 
 | `0x6000-0x18400` | app bank A (the running firmware) |
 | `0x3f000` | update record (52 bytes: version at `+0x0c`, pending magic at `+0x18`, staging address `0x40000` at `+0x1c`, pending length at `+0x20`, CRC at `+0x30`). A patch is refused while a pending field is set. |
 | `0x40000-0x52400` | app bank B (normal-mode updates are staged here and applied by the bootloader) |
-| `0x73000-0x77000`, `0x79000`, `0x7c000`, `0x7f000` | configuration, MAC (`0x76000`), calibration, Bluetooth pairings (`0x7c000`, 64-byte records) |
+| `0x73000-0x77000`, `0x79000`, `0x7c000`, `0x7f000` | configuration, Bluetooth address (`0x76000`), edition (`0x77000`: 2 means WUKONG), Bluetooth pairings (`0x7c000`, 64-byte records) |
 
 ## Update channel (running controller)
 
