@@ -7,7 +7,6 @@ from ..firmware import image, recipes
 from ..protocol import app, boot
 from .plan import OpError
 
-BANK_B = 0x40000
 
 
 @dataclass
@@ -65,7 +64,7 @@ def detect_version(ch, mode: str, bank_a: bytes | None = None) -> tuple[float | 
             bank_a = _read(ch, mode, image.BASE, image.BANK_A_SIZE)
         if recipes.identify(bank_a).known:
             return image.SUPPORTED_VERSION, "bank A hash"
-        if recipes.identify(_read(ch, mode, BANK_B, image.BANK_A_SIZE)).known:
+        if recipes.identify(_read(ch, mode, image.BANK_B, image.BANK_A_SIZE)).known:
             return image.SUPPORTED_VERSION, "bank B hash"
     except protocol.ProtocolError as e:
         raise OpError(str(e)) from e

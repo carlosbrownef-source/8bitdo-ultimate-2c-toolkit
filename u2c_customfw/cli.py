@@ -51,12 +51,13 @@ def pick(modes=CONTROLLER_MODES):
     return present[0]
 
 
-def stock_for(args, backup):
+def stock_for(args, backup, store):
     if args.download:
         return fetch.fetch_stock()
-    if backup.state.known and not backup.state.recipes:
-        return backup.data[image.BASE:image.BANK_A_END]
-    raise Exit(2, "Your backup doesn't contain the original firmware 1.09. Download it from 8BitDo instead (--download).")
+    stock = bkp.find_original(backup, store)
+    if stock is None:
+        raise Exit(2, "None of your backups contains the original firmware 1.09. Download it from 8BitDo's server instead (--download on the command line).")
+    return stock
 
 
 def need_accept(args, store):
@@ -113,7 +114,7 @@ def cmd_patch(args, store):
     ch = open_channel(f.info, 0)
     try:
         b = _backup_for(args, ch, store)
-        plan = patch.plan_patch(ch, b, stock_for(args, b), [k for k in args.tweaks.split(",") if k])
+        plan = patch.plan_patch(ch, b, stock_for(args, b, store), [k for k in args.tweaks.split(",") if k])
         args.say(plan.summary)
         if not args.write:
             args.say("The check passed. This was a dry run, so nothing was written. Add --write to install.")

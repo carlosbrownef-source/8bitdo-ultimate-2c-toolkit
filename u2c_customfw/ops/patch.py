@@ -8,7 +8,7 @@ from .plan import OpError, Plan, apply  # noqa: F401  (apply is part of this mod
 
 
 def check_unit(ch, backup) -> None:
-    """The device in boot mode must be a controller with this backup's bootloader and MAC sector."""
+    """The device in boot mode must be a controller with this backup's bootloader and address."""
     if len(backup.data) != image.FLASH_SIZE:
         raise OpError("This isn't a full backup of the controller.")
     try:
@@ -17,7 +17,7 @@ def check_unit(ch, backup) -> None:
         if boot.read(ch, 0, image.BOOT_END) != backup.data[:image.BOOT_END]:
             raise OpError("This device doesn't match the backup, because its update-mode code is different. Nothing was written.")
         mac = image.MAC_SECTOR
-        if boot.read(ch, mac, image.SECTOR) != backup.data[mac:mac + image.SECTOR]:
+        if not image.same_unit(boot.read(ch, mac, image.SECTOR), backup.data[mac:mac + image.SECTOR]):
             raise OpError("This backup is from another controller, because the address is different. Nothing was written.")
     except protocol.ProtocolError as e:
         raise OpError(f"{e}. Nothing was written.") from e

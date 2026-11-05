@@ -5,9 +5,10 @@ import random
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
-from u2c_customfw import transport
+from u2c_customfw import cli, transport
 from u2c_customfw.firmware import image, recipes
 from u2c_customfw.ops import backup as bkp, devices, patch, probe, report, restore
 from u2c_customfw.ops.plan import OpError
@@ -97,6 +98,69 @@ class BackupTest(Base):
         self.assertEqual([x.path for x in bkp.find_backups(self.tmp, f[:0x6000], f[image.MAC_SECTOR:image.MAC_SECTOR + 0x1000])], [b.path])
         other = bytearray(f[image.MAC_SECTOR:image.MAC_SECTOR + 0x1000]); other[3] ^= 1
         self.assertEqual(bkp.find_backups(self.tmp, f[:0x6000], bytes(other)), [])
+
+
+class SameUnitTest(Base):
+    """Pairing again adds one to the address at the start of the sector, so a controller's older backups must still count."""
+
+    def moved(self, flash, by):
+        f = bytearray(flash)
+        n = int.from_bytes(f[image.MAC_SECTOR:image.MAC_SECTOR + 3], "little") + by
+        f[image.MAC_SECTOR:image.MAC_SECTOR + 3] = (n % 0x1000000).to_bytes(3, "little")
+        return bytes(f)
+
+    def test_a_backup_from_before_pairing_again_still_works(self):
+        f = controller_flash()
+        b = self.backup_of(f)
+        dev = SimBoot(self.moved(f, 2))
+        self.assertTrue(patch.plan_patch(dev, b, STOCK_A, ["cable_360"]).bank_a)
+        restore.plan_restore(dev, b, "backup", None)
+
+    def test_the_new_address_can_carry_into_the_next_byte(self):
+        f = bytearray(controller_flash()); f[image.MAC_SECTOR:image.MAC_SECTOR + 3] = b"\xff\x10\x20"
+        now = self.moved(bytes(f), 2)
+        self.assertEqual(now[image.MAC_SECTOR:image.MAC_SECTOR + 3], b"\x01\x11\x20")
+        self.assertTrue(image.same_unit(bytes(f[image.MAC_SECTOR:image.MAC_SECTOR + 16]), now[image.MAC_SECTOR:image.MAC_SECTOR + 16]))
+
+    def test_find_backups_finds_it_after_pairing_again(self):
+        f = controller_flash()
+        b = self.backup_of(f)
+        now = self.moved(f, 2)
+        self.assertEqual([x.path for x in bkp.find_backups(self.tmp, f[:0x6000], now[image.MAC_SECTOR:image.MAC_SECTOR + 0x1000])], [b.path])
+
+    def test_the_pairing_flag_doesnt_matter(self):
+        f = bytearray(controller_flash())
+        a = bytes(f[image.MAC_SECTOR:image.MAC_SECTOR + 0x1000])
+        f[image.MAC_SECTOR + 6] ^= 1
+        self.assertTrue(image.same_unit(a, bytes(f[image.MAC_SECTOR:image.MAC_SECTOR + 0x1000])))
+
+    def test_a_distant_address_is_another_controller(self):
+        f = controller_flash()
+        b = self.backup_of(f)
+        with self.assertRaises(OpError) as e:
+            patch.plan_patch(SimBoot(self.moved(f, 0x10000)), b, STOCK_A, ["cable_360"])
+        self.assertIn("another controller", str(e.exception))
+
+
+class OriginalFirmwareTest(Base):
+    """Installing from "your backup" needs the original firmware, which the newest backup's bank A may no longer hold."""
+    args = SimpleNamespace(download=False)
+
+    def test_bank_b_holds_it_when_bank_a_has_tweaks(self):
+        f = bytearray(controller_flash(recipes.build(STOCK_A, ["cable_360"])))
+        f[0x40000:0x40000 + image.BANK_A_SIZE] = STOCK_A
+        self.assertEqual(cli.stock_for(self.args, self.backup_of(bytes(f)), self.tmp), STOCK_A)
+
+    def test_an_older_backup_holds_it(self):
+        self.backup_of(controller_flash())
+        newest = self.backup_of(controller_flash(recipes.build(STOCK_A, ["cable_360"])))
+        self.assertEqual(cli.stock_for(self.args, newest, self.tmp), STOCK_A)
+
+    def test_no_backup_holds_it(self):
+        newest = self.backup_of(controller_flash(recipes.build(STOCK_A, ["cable_360"])))
+        with self.assertRaises(cli.Exit) as e:
+            cli.stock_for(self.args, newest, self.tmp)
+        self.assertIn("8BitDo", str(e.exception))
 
 
 class PatchTest(Base):

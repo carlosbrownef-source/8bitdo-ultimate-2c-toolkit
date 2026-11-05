@@ -78,14 +78,26 @@ def load(path: Path) -> Backup:
     return Backup(Path(path), hashlib.sha256(data).hexdigest(), _state(data), data)
 
 
-def find_backups(store: Path, bootloader: bytes, mac: bytes) -> list[Backup]:
-    """Backups in the store taken from this unit (same bootloader and MAC sector), newest first."""
-    out = []
+def _stored(store: Path):
     for p in sorted(Path(store).glob("controller-*.bin"), reverse=True):
         try:
-            b = load(p)
+            yield load(p)
         except (OSError, OpError):
             continue
-        if b.data[:image.BOOT_END] == bootloader and b.data[image.MAC_SECTOR:image.MAC_SECTOR + image.SECTOR] == mac:
-            out.append(b)
-    return out
+
+
+def find_backups(store: Path, bootloader: bytes, mac: bytes) -> list[Backup]:
+    """Backups in the store taken from this unit (same bootloader and address), newest first."""
+    return [b for b in _stored(store) if b.data[:image.BOOT_END] == bootloader
+            and image.same_unit(b.data[image.MAC_SECTOR:image.MAC_SECTOR + image.SECTOR], mac)]
+
+
+def find_original(backup: Backup, store: Path) -> bytes | None:
+    """The original firmware from this backup or any other, in bank A or in bank B. It's the same for every controller."""
+    for b in (backup, *_stored(store)):
+        for start in (image.BASE, image.BANK_B):
+            bank = b.data[start:start + image.BANK_A_SIZE]
+            s = recipes.identify(bank)
+            if s.known and not s.recipes:
+                return bank
+    return None
