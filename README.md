@@ -42,9 +42,12 @@ firmware. Each tweak here is a small, hash-checked edit to that image.
 - **8BitDo**: the hardware, and the update server the app downloads firmware 1.09 from (only on request).
 - **Telink**: the tc32 toolchain ([flyskywhy/tc32](https://github.com/flyskywhy/tc32)) used to build `firmware-src/`.
 
-## Shout-out
+## Other projects
 
-**[Alan-Gomes/8bitdo-macos](https://github.com/Alan-Gomes/8bitdo-macos)** reached the same goal on its own: it patches a different firmware (a 1.06 beta) so the Ultimate 2C works as a native Xbox controller on macOS over Bluetooth. The two projects were built independently, and I only found it after publishing this one, so nothing here comes from it. Its docs explain in detail how that patch was reverse engineered, and they're worth a read.
+Other people reached the same goal on their own, and these are worth a look:
+
+- **[vomba/8bitdo-ultimate-2c-apple](https://github.com/vomba/8bitdo-ultimate-2c-apple)** changes just six bytes of firmware 1.09 so Apple uses its SN30 Pro+ profile: the smallest possible patch, without rumble. Its owner reports that it also works on Apple TV.
+- **[Crazyawk/8bitdo-ultimate2c-macos-rumble](https://github.com/Crazyawk/8bitdo-ultimate2c-macos-rumble)** brings Bluetooth rumble to CrossOver games, with patched firmware and an SDL shim.
 
 ## What the tweaks do
 
