@@ -138,7 +138,7 @@ class ControllerTestCard(PageCase):
 
     def test_live_view(self):
         dom, body, text = self.body("bt&scenario=press")
-        for want in ("8BitDo Ultimate 2C (One)", "Xbox One", "3 of 19"):
+        for want in ("8BitDo Ultimate 2C (X/S)", "Xbox One", "3 of 19"):
             self.assertIn(want, text)
         self.assertIn("s", self.chip(dom, "A").classes())
         self.assertNotIn("s", self.chip(dom, "B").classes())
@@ -232,7 +232,7 @@ class ControllerTestCard(PageCase):
     def test_opening_the_tab_rereads_the_devices(self):
         _, _, text = self.body("boot&scenario=replugged")
         self.assertNotIn("can't run in update mode", text)
-        self.assertIn("8BitDo Ultimate 2C (One)", text)
+        self.assertIn("8BitDo Ultimate 2C (X/S)", text)
 
     def test_a_connection_rereads_the_devices(self):
         _, body, _ = self.body("cable&scenario=latebt")
@@ -262,7 +262,7 @@ class ControllerTestCard(PageCase):
 
     def test_report_includes_what_macos_sees(self):
         dom, _, _ = self.body("bt&scenario=report")
-        self.assertIn("macOS sees: 8BitDo Ultimate 2C (One) (Xbox One)", dom.find("report-text").all_text())
+        self.assertIn("macOS sees: 8BitDo Ultimate 2C (X/S) (Xbox One)", dom.find("report-text").all_text())
 
 
 class HelpTest(PageCase):

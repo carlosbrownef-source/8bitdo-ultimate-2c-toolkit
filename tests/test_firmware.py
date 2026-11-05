@@ -69,6 +69,39 @@ class RecipeTest(unittest.TestCase):
         self.assertEqual((st.known, st.recipes), (True, ()))
 
 
+class ControllerNameTest(unittest.TestCase):
+    NEW, OLD = b"8BitDo Ultimate 2C (X/S)", b"8BitDo Ultimate 2C (One)"
+    GATT, SCAN = 0x172DC - image.BASE, 0x17254 - image.BASE + 2
+
+    def setUp(self):
+        self.stock, self.k = synthetic()
+        self.built = recipes.build(self.stock, ["bt_xbox"], **self.k)
+
+    def with_old_name(self, img, *at):
+        out = bytearray(img)
+        for a in at:
+            out[a:a + len(self.OLD)] = self.OLD
+        return bytes(out)
+
+    def test_new_installs_use_the_new_name(self):
+        self.assertEqual(self.built[self.GATT:self.GATT + len(self.NEW)], self.NEW)
+        self.assertEqual(self.built[self.SCAN:self.SCAN + len(self.NEW)], self.NEW)
+
+    def test_a_controller_with_the_old_name_is_still_recognised(self):
+        st = recipes.identify(self.with_old_name(self.built, self.GATT, self.SCAN), **self.k)
+        self.assertEqual((st.known, st.recipes), (True, ("bt_xbox",)))
+
+    def test_any_other_name_is_unknown(self):
+        bad = bytearray(self.built)
+        bad[self.GATT:self.GATT + 3] = b"XXX"
+        self.assertFalse(recipes.identify(bytes(bad), **self.k).known)
+
+    def test_the_old_name_alone_does_not_count_as_the_tweak(self):
+        bad = bytearray(self.stock)
+        bad[self.GATT:self.GATT + len(self.OLD)] = self.OLD
+        self.assertFalse(recipes.identify(bytes(bad), **self.k).known)
+
+
 class RingTest(unittest.TestCase):
     def setUp(self):
         self.stock, self.k = synthetic()

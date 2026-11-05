@@ -31,10 +31,10 @@ jobs:
             [ "$i" = 10 ] && exit 1; sleep 30
           done
           zip=$(shasum -a 256 app.zip | cut -d' ' -f1); rm app.zip
-          perl -pi -e "s|/tags/v[^/]+\.tar\.gz|/tags/$tag.tar.gz|; s|sha256 \"\w+\"|sha256 \"$tar\"|" Formula/u2c-customfw.rb
-          perl -pi -e "s|version \"[^\"]+\"|version \"$v\"|; s|sha256 \"\w+\"|sha256 \"$zip\"|" Casks/u2c-customfw.rb
+          perl -pi -e "s|/tags/v[^/]+\.tar\.gz|/tags/$tag.tar.gz|; s|sha256 \"\w+\"|sha256 \"$tar\"|" Formula/firmware-toolkit.rb
+          perl -pi -e "s|version \"[^\"]+\"|version \"$v\"|; s|sha256 \"\w+\"|sha256 \"$zip\"|" Casks/firmware-toolkit.rb
           git diff --quiet && { echo "Tap already at $tag"; exit 0; }
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "u2c-customfw $v"
+          git commit -am "firmware-toolkit $v"
           git push

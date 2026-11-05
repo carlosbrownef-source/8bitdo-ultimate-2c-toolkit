@@ -6,7 +6,7 @@
 
 ## Changes
 
-- PnP ID, report map pointer and length, output report ID 3, GAP appearance (gamepad `0x03c4`) and the name "8BitDo Ultimate 2C (One)" (the name fits in place, scan response included).
+- PnP ID, report map pointer and length, output report ID 3, GAP appearance (gamepad `0x03c4`) and the name "8BitDo Ultimate 2C (X/S)" (the name fits in place, scan response included).
 - New input packer: the 16-byte Xbox report 1 (4 sticks as u16, two 10-bit triggers, hat 1-8, 15 buttons, Share) built from the controller's state. The controller's L4/R4 and digital L2/R2 are not reported (a real Xbox pad has no such buttons).
 - The output report gets a write callback (stock has none and rejects the write).
 

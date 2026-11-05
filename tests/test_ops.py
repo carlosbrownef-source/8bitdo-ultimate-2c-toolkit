@@ -302,10 +302,10 @@ class DiagnosticsDataTest(Base):
         return self.backup_of(f)
 
     def test_report_includes_extras(self):
-        extras = report.clean_extras({"macos": {"name": "8BitDo Ultimate 2C (One)", "category": "Xbox One", "localities": ["default", "left"]},
+        extras = report.clean_extras({"macos": {"name": "8BitDo Ultimate 2C (X/S)", "category": "Xbox One", "localities": ["default", "left"]},
                                       "boot_identity": 0x301B, "pending": False})
         text = report.report([], None, "", extras)
-        for want in ("8BitDo Ultimate 2C (One)", "Xbox One", "default, left", "0x301b", "Pending update: no"):
+        for want in ("8BitDo Ultimate 2C (X/S)", "Xbox One", "default, left", "0x301b", "Pending update: no"):
             self.assertIn(want, text)
 
     def test_report_uses_the_firmware_the_page_read(self):

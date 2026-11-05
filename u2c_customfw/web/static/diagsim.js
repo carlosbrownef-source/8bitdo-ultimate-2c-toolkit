@@ -17,7 +17,7 @@
     return answer;
   };
 
-  const PAD = { type: "state", connected: true, name: "8BitDo Ultimate 2C (One)", category: "Xbox One", extended: true, localities: ["default", "left", "right"], transport: "Bluetooth Low Energy", foreground: true };
+  const PAD = { type: "state", connected: true, name: "8BitDo Ultimate 2C (X/S)", category: "Xbox One", extended: true, localities: ["default", "left", "right"], transport: "Bluetooth Low Energy", foreground: true };
   const STATES = { bt: PAD, btstock: PAD, busy: PAD, boot: PAD, cable: { ...PAD, name: "Xbox 360 Controller", category: "Xbox 360", transport: "USB" }, none: { type: "state", connected: false },
     background: { ...PAD, foreground: false }, noext: { ...PAD, extended: false } };
   const REST = { lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, pressed: [] };

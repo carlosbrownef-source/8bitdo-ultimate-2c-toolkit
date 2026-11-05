@@ -14,7 +14,7 @@ Everything your **8BitDo Ultimate 2C Wireless** needs on a Mac, in one app. Firm
 
 It works with the Ultimate 2C Wireless on firmware 1.09, on Macs with Apple silicon. It doesn't work with the 2.4 GHz dongle or other models.
 
-> **There's no warranty, and you use this at your own risk.** Installing modified firmware probably voids your controller's warranty. Please read the [full disclaimer](DISCLAIMER.md) before using it. Not affiliated with or endorsed by 8BitDo.
+> **This is a vibe-coded project, written with an AI assistant (Opus 5.5). There's no warranty, and you use it at your own risk.** Installing modified firmware probably voids your controller's warranty. Please read the [full disclaimer](DISCLAIMER.md) before using it. Not affiliated with or endorsed by 8BitDo.
 
 ## Install (macOS, Apple silicon)
 
@@ -26,10 +26,10 @@ Or with [Homebrew](https://github.com/carlosbrownef-source/homebrew-tap), which 
 
 ```sh
 # the app
-brew trust --cask carlosbrownef-source/tap/u2c-customfw
-brew install --cask carlosbrownef-source/tap/u2c-customfw
+brew trust --cask carlosbrownef-source/tap/firmware-toolkit
+brew install --cask carlosbrownef-source/tap/firmware-toolkit
 # the command line only
-brew install carlosbrownef-source/tap/u2c-customfw
+brew install carlosbrownef-source/tap/firmware-toolkit
 ```
 
 Or from source, with Python 3.12+: `python3 -m u2c_customfw.web` prints a local address to open in a browser; `python3 -m u2c_customfw --help` is the command line.
@@ -59,7 +59,7 @@ The controller test is only available in the Mac app for now, because it uses ma
 
 | Tweak | Effect |
 | --- | --- |
-| Xbox Series X\|S controller over Bluetooth | Over Bluetooth the controller presents as an Xbox Series X\|S pad (`045e:0b13`), so macOS's GameController framework handles it natively (name "8BitDo Ultimate 2C (One)"). Needs a re-pair afterwards (or macOS may still detect it as a HID device). |
+| Xbox Series X\|S controller over Bluetooth | Over Bluetooth the controller presents as an Xbox Series X\|S pad (`045e:0b13`), so macOS's GameController framework handles it natively (name "8BitDo Ultimate 2C (X/S)"). Needs a re-pair afterwards (or macOS may still detect it as a HID device). |
 | Rumble over Bluetooth | Rumble works over Bluetooth (the original firmware switches the motors off in that mode). Needs the Xbox tweak as it uses it's profile. May hang the controller, though I haven't seen it happen. |
 | Xbox 360 controller over cable | Plugged in by cable it presents as a wired Xbox 360 pad (`045e:028e`), which Apple's own driver takes. This is the simplest tweak if you want to avoid modding too much of the controller's code |
 | Dimmer LEDs | The three LEDs use weak drive strength: a little dimmer. The effect is barely noticable, but the LEDs are so bright everything helps IMO. |
@@ -112,4 +112,4 @@ Other people reached the same goal on their own, and these are worth a look:
 
 ## License
 
-GPL-3.0-or-later; see `LICENSE`. Credits are [above](#credits) and in [CREDITS.md](CREDITS.md). 8BitDo firmware is not included in this repository. Not affiliated with or endorsed by 8BitDo. The command-line tool and the Homebrew packages keep the name `u2c-customfw`.
+GPL-3.0-or-later; see `LICENSE`. Credits are [above](#credits) and in [CREDITS.md](CREDITS.md). 8BitDo firmware is not included in this repository. Not affiliated with or endorsed by 8BitDo. The command-line tool is called `u2c-customfw`.

@@ -13,7 +13,8 @@ from . import image
 from .image import BASE, BANK_A_SIZE
 
 BLOBS = Path(__file__).parent / "blobs"
-NAME = b"8BitDo Ultimate 2C (One)"
+NAME = b"8BitDo Ultimate 2C (X/S)"
+OLD_NAME = b"8BitDo Ultimate 2C (One)"  # what versions before 0.2 installed: still recognised, never written
 OLD_NAME_LEN = 27
 PACKER_SLOT = (0xB908, 0xBAD4)
 RING_LEVELS = (("ring_off", "Home ring: off", 0), ("ring_0_1", "Home ring: 0.1 %", 1), ("ring_1", "Home ring: 1 %", 10),
@@ -29,6 +30,7 @@ class Edit:
     addr: int
     new: bytes
     superseded_by: str | None = None  # recipe whose edit takes over this region when it is present
+    accepts: tuple[bytes, ...] = ()   # earlier contents of this edit that still count as installed
 
     @property
     def size(self) -> int:
@@ -72,9 +74,10 @@ def _make() -> dict[str, Recipe]:
             Edit(0x173C0, bytes.fromhex("025e04130b0905")),      # PnP ID: USB-IF, 045e:0b13, v0509
             Edit(0x18098, bytes.fromhex("0302")),                # output report reference: ID 3, output
             Edit(0x172C0, bytes.fromhex("c403")),                # GAP appearance: gamepad
-            Edit(0x172DC, NAME + pad),                           # GATT device name
+            Edit(0x172DC, NAME + pad, accepts=(OLD_NAME + pad,)),  # GATT device name
             Edit(0x17488, _u32(len(NAME))),                      # ... and its length
-            Edit(0x17254, bytes([len(NAME) + 1, 9]) + NAME + pad),  # scan response name
+            Edit(0x17254, bytes([len(NAME) + 1, 9]) + NAME + pad,
+                 accepts=(bytes([len(OLD_NAME) + 1, 9]) + OLD_NAME + pad,)),  # scan response name
             Edit(0xA214, bytes([len(NAME) + 2, 0xA1])),          # scan response length immediate
         )),
         Recipe("bt_rumble", "Rumble over Bluetooth", ("bt_xbox",), (
@@ -159,7 +162,7 @@ def identify(bank_a: bytes, stock_sha256=None, region_sha256=None, remainder_sha
 
     def edit_state(e):
         got = _region(bank_a, e)
-        if got == e.new:
+        if got == e.new or got in e.accepts:
             return "new"
         if _sha(got) == regions[(e.addr, e.size)]:
             return "stock"

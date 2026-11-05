@@ -24,6 +24,14 @@ class NameTest(unittest.TestCase):
         self.assertIn("firmware-toolkit-$version-macos-arm64.zip", build)
         self.assertIn("firmware-toolkit-$v-macos-arm64.zip", (ROOT / ".github/workflows/homebrew.yml").read_text())
 
+    def test_homebrew_uses_the_new_name(self):
+        workflow = (ROOT / ".github/workflows/homebrew.yml").read_text()
+        self.assertIn("Formula/firmware-toolkit.rb", workflow)
+        self.assertIn("Casks/firmware-toolkit.rb", workflow)
+        readme = (ROOT / "README.md").read_text()
+        self.assertIn("carlosbrownef-source/tap/firmware-toolkit", readme)
+        self.assertNotIn("tap/u2c-customfw", readme)
+
     def test_the_identifiers_macos_and_the_backups_depend_on_stay(self):
         self.assertIn("<string>org.u2c-customfw.app</string>", (ROOT / "macos/Info.plist").read_text())
         self.assertIn('"u2c-customfw"', (ROOT / "u2c_customfw/state.py").read_text())
@@ -41,6 +49,7 @@ class DisclaimerTest(unittest.TestCase):
         self.assertTrue(text.startswith("# 8BitDo Ultimate 2C Firmware Toolkit"))
         self.assertNotIn("READ THIS FIRST", text)
         self.assertIn("no warranty", text[:text.index("## Install")].lower())
+        self.assertIn("written with an AI assistant (Opus 5.5)", text[:text.index("## Install")])
         self.assertIn("(DISCLAIMER.md)", text[:text.index("## Install")])
         self.assertIn("Not affiliated with or endorsed by 8BitDo", text)
         order = [text.index(h) for h in ("## What it does", "## Install", "## Use", "## Diagnostics", "## What the tweaks do", "## Credits", "## License")]
