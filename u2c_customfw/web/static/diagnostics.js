@@ -19,7 +19,6 @@ function diagnosticsShow() {
   const b = bridge();
   if (b) b.postMessage({ op: "start" });
   diagnosticsRender();
-  if (!busy && !refreshing) refresh();  // the controller was probably reconnected since the last look, for example after installing
 }
 
 function diagnosticsHide() {

@@ -229,10 +229,14 @@ class ControllerTestCard(PageCase):
         text = self.server.dom("&diagsim=boot&tweaks=1").find("firmware-details").all_text()
         self.assertIn("1.09 with 2 tweaks: Dimmer LEDs, Home ring: 5 %", text)
 
-    def test_opening_the_tab_rereads_the_devices(self):
-        _, _, text = self.body("boot&scenario=replugged")
+    def test_a_replugged_controller_is_noticed_on_the_tab(self):
+        _, _, text = self.body("boot&scenario=replugged", budget=7000)
         self.assertNotIn("can't run in update mode", text)
         self.assertIn("8BitDo Ultimate 2C (X/S)", text)
+
+    def test_returning_to_the_tab_doesnt_read_the_firmware_again(self):
+        dom, _, _ = self.body("boot&scenario=reopen")
+        self.assertEqual(dom.find("diag-fetch").all_text().count("/api/firmware"), 1)
 
     def test_a_connection_rereads_the_devices(self):
         _, body, _ = self.body("cable&scenario=latebt")

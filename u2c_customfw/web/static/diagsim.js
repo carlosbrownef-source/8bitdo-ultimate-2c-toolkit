@@ -44,7 +44,8 @@
     defaultonly: () => window.u2cDiagnostics({ ...PAD, localities: ["default"] }),
     report: () => document.getElementById("report-open").click(),
     plugged: () => { window.simReplugged = true; },
-    replugged: () => { showTab("firmware"); window.simReplugged = true; showTab("diagnostics"); },
+    replugged: () => { window.simReplugged = true; },
+    reopen: () => { showTab("firmware"); showTab("diagnostics"); },
     latebt: () => { window.simReplugged = true; window.u2cDiagnostics({ type: "state", connected: false }); window.u2cDiagnostics(PAD); },
     refreshbutton: () => { window.simReplugged = true; document.getElementById("details-refresh").click(); },
   };
