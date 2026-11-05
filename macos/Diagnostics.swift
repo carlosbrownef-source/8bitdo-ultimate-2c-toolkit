@@ -108,8 +108,8 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
         guard (try? process.run()) != nil else { return nil }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
-        guard let text = String(data: data, encoding: .utf8),
-              let line = text.split(separator: "\n").first(where: { $0.contains(name) }),
+        let text = String(decoding: data, as: UTF8.self)  // another accessory's name may not be valid UTF-8
+        guard let line = text.split(separator: "\n").first(where: { $0.contains(name) }),
               let found = line.range(of: #"\d+(?=%)"#, options: .regularExpression) else { return nil }
         return Int(line[found])
     }
