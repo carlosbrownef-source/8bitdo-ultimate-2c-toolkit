@@ -296,6 +296,13 @@ class DiagnosticsDataTest(Base):
         for want in ("8BitDo Ultimate 2C (One)", "Xbox One", "default, left", "0x301b", "Pending update: no"):
             self.assertIn(want, text)
 
+    def test_report_uses_the_firmware_the_page_read(self):
+        text = report.report([], None, "", report.clean_extras({"firmware": "1.09 with 2 tweaks"}))
+        self.assertIn("Firmware: 1.09 with 2 tweaks", text)
+        self.assertNotIn("not read", text)
+        self.assertEqual(len(report.clean_extras({"firmware": "x" * 999})["firmware"]), 120)
+        self.assertEqual(report.clean_extras({"firmware": 5}), {})
+
     def test_report_without_extras_is_unchanged(self):
         self.assertEqual(report.report([], None, "x"), report.report([], None, "x", {}))
         self.assertNotIn("macOS sees", report.report([], None, "x"))

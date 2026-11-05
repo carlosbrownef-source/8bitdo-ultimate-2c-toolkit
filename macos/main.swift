@@ -4,7 +4,7 @@ import AppKit
 import IOKit.hid
 import WebKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKNavigationDelegate {
     var window: NSWindow!
     var web: WKWebView!
     let diagnostics = Diagnostics()
@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         configuration.userContentController.add(diagnostics, name: "diagnostics")
         web = WKWebView(frame: .zero, configuration: configuration)
         diagnostics.web = web
+        web.navigationDelegate = self
         web.underPageBackgroundColor = background
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 860),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -55,6 +56,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
         item.action = #selector(showHelp)
         return item
     }
+    // If the page goes away without saying so, the test must not keep the Home button captured.
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { diagnostics.stop() }
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { diagnostics.stop() }
+
     @objc func showHelp() { web.evaluateJavaScript("document.getElementById('help-open').click()") }
 
     func installMenu() {

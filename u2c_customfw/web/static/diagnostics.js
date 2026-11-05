@@ -5,14 +5,15 @@ const CONTROLS = ["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "L3", "R3", "View"
 const STICK_SEEN = 0.5, TRIGGER_SEEN = 0.1, STICK_TRAVEL = 7, RESULT_TIMEOUT_MS = 3000, ACCENT = "#3fc8b4";
 const IDLE_LINE = "Vibrates for under a second. Nothing is written to the controller.";
 
-let testVisible = false, testState = null, testSeen = new Set(), testName = null, testMounted = null, testPending = null, testTimer = null;
+let testVisible = false, testConnected = null, testState = null, testSeen = new Set(), testName = null, testMounted = null, testPending = null, testTimer = null;
 const bridge = () => window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.diagnostics;
 
 function diagnosticsShow() {
-  testVisible = true; testState = null; testName = null; testMounted = null; testSeen = new Set();
+  testVisible = true; testState = null; testConnected = null; testName = null; testMounted = null; testSeen = new Set();
   const b = bridge();
   if (b) b.postMessage({ op: "start" });
   diagnosticsRender();
+  if (!busy && !refreshing) refresh();  // the controller was probably reconnected since the last look, for example after installing
 }
 
 function diagnosticsHide() {
@@ -131,6 +132,8 @@ window.u2cDiagnostics = (e) => {
     if (e.connected && testName && e.name !== testName) testSeen = new Set();
     if (e.connected) testName = e.name;
     testState = e;
+    if (testConnected !== null && testConnected !== !!e.connected && !busy) refresh();
+    testConnected = !!e.connected;
     diagnosticsRender();
   } else if (e.type === "input" && testMode() === "live") {
     for (const p of e.pressed || []) testSeen.add(p);

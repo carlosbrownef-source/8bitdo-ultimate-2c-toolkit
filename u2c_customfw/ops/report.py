@@ -21,6 +21,8 @@ def clean_extras(raw) -> dict:
         out["macos"] = macos
     if isinstance(raw.get("boot_identity"), int) and not isinstance(raw["boot_identity"], bool):
         out["boot_identity"] = raw["boot_identity"]
+    if isinstance(raw.get("firmware"), str):
+        out["firmware"] = raw["firmware"][:120]
     if isinstance(raw.get("pending"), bool):
         out["pending"] = raw["pending"]
     return out
@@ -33,13 +35,13 @@ def report(found, state, log_tail: str, extras: dict | None = None) -> str:
         lines.append(f"  {f.mode}: {i.vendor:04x}:{i.product:04x} page {i.usage_page:#06x} via {i.transport}  {i.name!r}")
     if not found:
         lines.append("  none found")
+    extras = extras or {}
     if state is None:
-        lines.append("Firmware: not read")
+        lines.append(f"Firmware: {extras.get('firmware', 'not read')}")
     elif state.known:
         lines.append("Firmware: original 1.09" + (f" with tweaks: {', '.join(state.recipes)}" if state.recipes else ""))
     else:
         lines.append("Firmware: unknown (not the original 1.09, with or without the tweaks)")
-    extras = extras or {}
     if "macos" in extras:
         m = extras["macos"]
         category = f" ({m['category']})" if m.get("category") else ""

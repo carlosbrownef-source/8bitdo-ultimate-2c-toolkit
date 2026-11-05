@@ -7,7 +7,8 @@
   const json = (data) => new Response(JSON.stringify(data), { status: 200 });
   window.fetch = async (url, options) => {
     const path = String(url);
-    const device = { bt: "bluetooth_xbox", cable: "cable", web: "cable", none: "bluetooth_xbox", background: "bluetooth_xbox", noext: "bluetooth_xbox", busy: "bluetooth_xbox" }[mode];
+    document.getElementById("diag-fetch").textContent += path + " ";
+    const device = window.simReplugged ? "bluetooth_xbox" : { bt: "bluetooth_xbox", cable: "cable", web: "cable", none: "bluetooth_xbox", background: "bluetooth_xbox", noext: "bluetooth_xbox", busy: "bluetooth_xbox" }[mode];
     if (path.startsWith("/api/firmware") && device === "bluetooth_xbox") return json({ note: "The controller firmware cannot be read over Bluetooth. Connect the controller by cable for firmware diagnostics." });
     const answer = await realFetch(url, options);
     if (path.startsWith("/api/firmware") && query.get("identity") === "none") return json({ ...(await answer.json()), boot_identity: null });
@@ -34,6 +35,9 @@
     direct: () => clickOp("direct"),
     defaultonly: () => window.u2cDiagnostics({ ...PAD, localities: ["default"] }),
     report: () => document.getElementById("report-open").click(),
+    replugged: () => { showTab("firmware"); window.simReplugged = true; showTab("diagnostics"); },
+    latebt: () => { window.simReplugged = true; window.u2cDiagnostics({ type: "state", connected: false }); window.u2cDiagnostics(PAD); },
+    refreshbutton: () => { window.simReplugged = true; document.getElementById("details-refresh").click(); },
   };
 
   if (mode !== "web") {
@@ -44,7 +48,7 @@
         window.u2cDiagnostics(scenario === "vibrateerror" ? { type: "result", op: m.op, ok: false, error: "The engine failed" } : { type: "result", op: m.op, ok: true });
     } } } };
   }
-  for (const id of ["diag-sent", "diag-snap"]) { const p = document.createElement("pre"); p.id = id; p.hidden = true; document.body.append(p); }
+  for (const id of ["diag-sent", "diag-snap", "diag-fetch"]) { const p = document.createElement("pre"); p.id = id; p.hidden = true; document.body.append(p); }
   addEventListener("DOMContentLoaded", () => {
     if (mode === "busy") setTimeout(() => { busy = true; render(); }, 300);
     if (SCRIPTS[scenario]) setTimeout(SCRIPTS[scenario], 1000);

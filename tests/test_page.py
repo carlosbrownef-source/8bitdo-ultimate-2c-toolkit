@@ -194,6 +194,27 @@ class ControllerTestCard(PageCase):
         self.assertIn("No answer from the app.", text)
         self.assertNotIn("disabled", next(n for n in body.walk() if n.attrs.get("data-op") == "default").attrs)
 
+    def test_opening_the_tab_rereads_the_devices(self):
+        _, _, text = self.body("boot&scenario=replugged")
+        self.assertNotIn("can't run in update mode", text)
+        self.assertIn("8BitDo Ultimate 2C (One)", text)
+
+    def test_a_connection_rereads_the_devices(self):
+        _, body, _ = self.body("cable&scenario=latebt")
+        self.assertNotIn("disabled", next(n for n in body.walk() if n.attrs.get("data-op") == "direct").attrs)
+
+    def test_details_have_their_own_refresh(self):
+        _, _, text = self.body("boot&scenario=refreshbutton")
+        self.assertNotIn("can't run in update mode", text)
+
+    def test_the_firmware_is_read_once_when_opening_the_tab(self):
+        dom, _, _ = self.body("boot")
+        self.assertEqual(dom.find("diag-fetch").all_text().count("/api/firmware"), 1)
+
+    def test_report_includes_the_firmware(self):
+        dom, _, _ = self.body("boot&scenario=report")
+        self.assertIn("Firmware: Original 1.09", dom.find("report-text").all_text())
+
     def test_vibration_result_lines(self):
         self.assertIn("Sent. Did you feel it?", self.body("bt&scenario=vibrateok")[2])
         self.assertIn("Sent. You'll only feel it if Rumble over Bluetooth is installed.", self.body("bt&scenario=direct")[2])

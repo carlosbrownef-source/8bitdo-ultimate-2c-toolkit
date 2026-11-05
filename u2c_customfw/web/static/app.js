@@ -104,7 +104,7 @@ function render() {
 
   const can = { backup: !!ctrl, "patch-dry": patchable, "patch-write": patchable,
     "restore-backup-dry": boot && backed, "restore-backup": boot && backed, "restore-stock-dry": boot && backed, "restore-stock": boot && backed,
-    "force-open": boot && backed, "report-open": true, refresh: true };
+    "force-open": boot && backed, "report-open": true, refresh: true, "details-refresh": true };
   for (const [id, ok] of Object.entries(can)) $(id).disabled = off || !ok;
   const hot = !!fw && fw.known === false && !fw.version && !fw.error;
   $("force-zone").classList.toggle("hot", hot);
@@ -127,6 +127,7 @@ function showTab(name) {
 
 const VERSION_FROM = { "update record": "The controller's update record", "bank A hash": "The installed firmware", "bank B hash": "The second copy of the firmware", unknown: "It couldn't be determined" };
 const WHO = { 0x301b: "controller", 0x301c: "2.4 GHz dongle" };
+const firmwareName = () => !fw.known ? "Unknown" : fw.recipes.length ? `1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}` : "Original 1.09";
 function details() {
   const box = $("details-body"), inUpdateMode = !!st && st.devices.some((d) => d.mode === "boot");
   const say = (text) => { box.innerHTML = ""; const p = document.createElement("p"); p.style.marginBottom = 0; p.textContent = text; box.append(p); };
@@ -134,9 +135,8 @@ function details() {
   if (!fw) return say("Connect the controller by cable, or put it in update mode, to read its firmware.");
   if (fw.error) return say(fw.error);
   if (fw.note) return say(fw.note);
-  const name = !fw.known ? "Unknown" : fw.recipes.length ? `1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}` : "Original 1.09";
   const id = fw.boot_identity;
-  const rows = [["Firmware", name], ["Version read from", VERSION_FROM[fw.version_from] || fw.version_from],
+  const rows = [["Firmware", firmwareName()], ["Version read from", VERSION_FROM[fw.version_from] || fw.version_from],
     ["Pending update", fw.pending ? "Yes. It could replace the tweaks the next time the controller starts." : "None"],
     ["Update-mode identity", !inUpdateMode ? "Only available in update mode" : id == null ? "No answer" : `0x${id.toString(16)} · ${WHO[id] || "unknown device"}`]];
   const dl = document.createElement("dl"); dl.className = "rows";
@@ -207,13 +207,21 @@ function renderDisclaimer(md) {  // "# title", paragraphs, **bold**: no HTML fro
   }
 }
 
+let refreshing = false, refreshAgain = false;  // one read of the controller at a time; a change during it reads again after
 async function refresh() {
-  try { st = await api("GET", "/api/state"); }
-  catch (e) { st = { devices: [{ mode: "error", name: "Can't reach the app: " + e.message }], backups: [] }; fw = null; return render(); }
-  $("version").textContent = "v" + st.version;
-  renderDisclaimer(st.disclaimer);
-  if (!st.accepted && !$("disclaimer").open) $("disclaimer").showModal();
-  fw = null; render(); readFirmware();
+  if (refreshing) { refreshAgain = true; return; }
+  refreshing = true;
+  try {
+    try { st = await api("GET", "/api/state"); }
+    catch (e) { st = { devices: [{ mode: "error", name: "Can't reach the app: " + e.message }], backups: [] }; fw = null; return render(); }
+    $("version").textContent = "v" + st.version;
+    renderDisclaimer(st.disclaimer);
+    if (!st.accepted && !$("disclaimer").open) $("disclaimer").showModal();
+    fw = null; render(); await readFirmware();
+  } finally {
+    refreshing = false;
+    if (refreshAgain) { refreshAgain = false; refresh(); }
+  }
 }
 
 let fwSeq = 0;
@@ -230,6 +238,7 @@ document.querySelectorAll("[data-icon]").forEach((e) => (e.innerHTML = ICON[e.da
 $("disclaimer").oncancel = (e) => e.preventDefault();
 $("accept").onclick = async () => { await api("POST", "/api/accept"); $("disclaimer").close(); refresh(); };
 $("refresh").onclick = refresh;
+$("details-refresh").onclick = refresh;
 $("strip-firmware").onclick = () => showTab("firmware");
 $("strip-diagnostics").onclick = () => showTab("diagnostics");
 $("force-go").onclick = () => showTab("diagnostics");
@@ -267,7 +276,7 @@ $("force-open").onclick = () => {
   d.showModal();
 };
 $("report-open").onclick = async () => {
-  try { $("report-text").textContent = (await api("POST", "/api/report", { macos: diagnosticsSummary() || undefined, boot_identity: fw && fw.boot_identity != null ? fw.boot_identity : undefined, pending: fw && fw.pending })).text; } catch (e) { $("report-text").textContent = e.message; }
+  try { $("report-text").textContent = (await api("POST", "/api/report", { macos: diagnosticsSummary() || undefined, firmware: fw && fw.known !== undefined ? firmwareName() : undefined, boot_identity: fw && fw.boot_identity != null ? fw.boot_identity : undefined, pending: fw && fw.pending })).text; } catch (e) { $("report-text").textContent = e.message; }
   $("report").showModal();
 };
 $("report-copy").onclick = async () => {

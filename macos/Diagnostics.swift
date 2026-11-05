@@ -27,12 +27,17 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
         }
     }
 
-    private var pad: GCController? { GCController.current ?? GCController.controllers().first }
+    /// The one last used. `current` can outlive a disconnection, so it only counts while macOS still lists it.
+    private var pad: GCController? {
+        let connected = GCController.controllers()
+        if let current = GCController.current, connected.contains(current) { return current }
+        return connected.first
+    }
 
     private func start() {
         stop()
         let center = NotificationCenter.default
-        for name in [Notification.Name.GCControllerDidBecomeCurrent, .GCControllerDidConnect, .GCControllerDidDisconnect,
+        for name in [Notification.Name.GCControllerDidBecomeCurrent, .GCControllerDidStopBeingCurrent, .GCControllerDidConnect, .GCControllerDidDisconnect,
                      NSApplication.didBecomeActiveNotification, NSApplication.didResignActiveNotification] {
             observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in self?.sendState() })
         }
@@ -69,7 +74,7 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
             releaseHome()
             return send(["type": "state", "connected": false])
         }
-        captureHome(pad.extendedGamepad?.buttonHome)
+        captureHome(pad.physicalInputProfile.buttons[GCInputButtonHome])
         send(["type": "state", "connected": true, "name": pad.vendorName ?? "Unknown controller", "category": pad.productCategory,
               "extended": pad.extendedGamepad != nil, "localities": localities(pad), "foreground": NSApp.isActive])
     }
@@ -122,7 +127,10 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
         IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
         defer { IOHIDManagerClose(manager, IOOptionBits(kIOHIDOptionsTypeNone)) }
         let devices = IOHIDManagerCopyDevices(manager) as? Set<IOHIDDevice> ?? []
-        let bluetooth = devices.first { (IOHIDDeviceGetProperty($0, kIOHIDTransportKey as CFString) as? String)?.contains("Bluetooth") == true }
+        let bluetooth = devices.first {  // a Bluetooth pad shows several HID interfaces: the one that takes the 8-byte report
+            (IOHIDDeviceGetProperty($0, kIOHIDTransportKey as CFString) as? String)?.contains("Bluetooth") == true
+                && (IOHIDDeviceGetProperty($0, kIOHIDMaxOutputReportSizeKey as CFString) as? Int ?? 0) >= 8
+        }
         guard let device = bluetooth else { return result("direct", "No controller was found over Bluetooth.") }
         let report: [UInt8] = [0x03, 0x03, 0, 0, 100, 100, 70, 0, 0]  // report ID, then mask, LT, RT, strong, weak, duration, delay, loop
         let status = IOHIDDeviceSetReport(device, kIOHIDReportTypeOutput, 3, report, report.count)
