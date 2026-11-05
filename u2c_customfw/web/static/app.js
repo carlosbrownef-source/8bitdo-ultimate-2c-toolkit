@@ -35,8 +35,11 @@ const CONTROLLER = ["cable", "cable_360", "boot"];
 let st = null, fw = null, reading = false, busy = false, base = "backup";
 
 const tweakBoxes = () => [...document.querySelectorAll(".tweak")];
-const tweaks = () => tweakBoxes().filter((x) => x.checked).map((x) => x.value);
-const tweakTitles = () => tweakBoxes().filter((x) => x.checked).map((x) => x.parentElement.lastElementChild.firstChild.textContent);
+const ringButtons = () => [...document.querySelectorAll("#ring button")];
+const ringChoice = () => ringButtons().find((b) => b.classList.contains("on"));
+const tweaks = () => [...tweakBoxes().filter((x) => x.checked).map((x) => x.value), ...(ringChoice().dataset.ring ? [ringChoice().dataset.ring] : [])];
+const tweakTitles = () => [...tweakBoxes().filter((x) => x.checked).map((x) => x.parentElement.lastElementChild.firstChild.textContent),
+  ...(ringChoice().dataset.ring ? [`Home ring: ${ringChoice().textContent.toLowerCase()}`] : [])];
 
 function lastBackup(names) {  // controller-YYYYMMDD-HHMMSS….bin, oldest first
   const m = names.length && names[names.length - 1].match(/controller-(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)/);
@@ -95,6 +98,7 @@ function render() {
   const xbox = tweakBoxes().find((x) => x.value === "bt_xbox"), rumble = tweakBoxes().find((x) => x.value === "bt_rumble");
   if (!xbox.checked) rumble.checked = false;
   tweakBoxes().forEach((x) => { x.disabled = busy || (x === rumble && !xbox.checked); x.parentElement.classList.toggle("off", x.disabled); });
+  ringButtons().forEach((b) => (b.disabled = busy));
   $("choose-one").hidden = tweaks().length > 0;
 
   const can = { backup: !!ctrl, "patch-dry": patchable, "patch-write": patchable,
@@ -193,6 +197,7 @@ $("refresh").onclick = refresh;
 $("help-open").onclick = () => $("help").showModal();
 $("help-close").onclick = () => $("help").close();
 tweakBoxes().forEach((x) => (x.onchange = render));
+ringButtons().forEach((b) => (b.onclick = () => { ringButtons().forEach((o) => o.classList.toggle("on", o === b)); render(); }));
 document.querySelectorAll("[data-base]").forEach((b) => (b.onclick = () => {
   base = b.dataset.base; document.querySelectorAll("[data-base]").forEach((x) => x.classList.toggle("on", x === b));
 }));

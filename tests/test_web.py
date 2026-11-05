@@ -121,7 +121,7 @@ class WebTest(unittest.TestCase):
         self.assertIn("Xbox Series X|S controller over Bluetooth", " ".join(data["titles"]))
         self.assertEqual((data["version"], data["version_from"]), (1.09, "update record"))
         self.assertEqual([(t["key"], t["on"]) for t in data["tweaks"]],
-                         [("bt_xbox", True), ("bt_rumble", False), ("cable_360", True), ("dim_leds", False)])
+                         [("bt_xbox", True), ("bt_rumble", False), ("cable_360", True), ("dim_leds", False), ("ring", False)])
 
     def test_firmware_endpoint_with_only_bluetooth_explains(self):
         info = transport.DeviceInfo(0x045E, 0x0B13, 1, "Bluetooth Low Energy", "x", None)

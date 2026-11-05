@@ -33,8 +33,9 @@ class SimApp:
 class SimBoot:
     """The bootloader (2dc8:3208): 64-byte reports without report ID; the dongle's flash aliases above its size."""
 
-    def __init__(self, flash: bytes, fail_after=None):
+    def __init__(self, flash: bytes, fail_after=None, identity="auto"):
         self.f, self.size, self.ops, self.params, self.fail_after = bytearray(flash), len(flash), [], [], fail_after
+        self.identity = (0x301B if len(flash) > 0x20000 else 0x301C) if identity == "auto" else identity  # None: no answer
 
     def xfer(self, r: bytes, timeout: float = 0.5):
         cmd, n = int.from_bytes(r[1:3], "little"), int.from_bytes(r[5:7], "little")
@@ -42,6 +43,12 @@ class SimBoot:
         ok = lambda extra=b"": (bytes([0, 5, 0, 0, cmd]) + bytes(13) + extra).ljust(64, b"\0")
         if cmd == 5:
             return ok(bytes(self.f[(addr + i) % self.size] for i in range(param)))
+        if cmd == 8:
+            if self.identity is None:
+                return None
+            a = bytearray(ok(self.identity.to_bytes(2, "little")))
+            a[6:8] = b"\x02\0"
+            return bytes(a)
         if self.fail_after is not None and len(self.ops) >= self.fail_after:
             return None  # unplugged
         if cmd == 4:

@@ -30,6 +30,38 @@ class BootTest(unittest.TestCase):
         self.assertEqual(boot.kind(SimBoot(flash())), "controller")
         self.assertEqual(boot.kind(SimBoot(flash(0x20000)[:0x20000])), "dongle")
 
+    def test_identify_query_matches_what_the_bootloader_expects(self):
+        r = boot.request(8, param=4, datalen=4)
+        self.assertEqual((r[0], r[1], r[5], r[9], r[13:17], r[7:9]), (5, 8, 4, 4, bytes(4), bytes(2)))
+
+    def test_identify_reads_the_bootloader_constant(self):
+        self.assertEqual(boot.identify(SimBoot(flash())), 0x301B)
+        self.assertEqual(boot.identify(SimBoot(flash(), identity=0x301C)), 0x301C)
+
+    def test_identify_without_an_answer_is_none(self):
+        self.assertIsNone(boot.identify(SimBoot(flash(), identity=None)))
+
+    def test_identify_ignores_a_reply_of_the_wrong_length(self):
+        class Odd(SimBoot):
+            def xfer(self, r, timeout=0.5):
+                a = bytearray(super().xfer(r, timeout))
+                a[6:8] = b"\x10\0"
+                return bytes(a)
+        self.assertIsNone(boot.identify(Odd(flash())))
+
+    def test_kind_falls_back_to_the_flash_if_identify_is_not_answered(self):
+        self.assertEqual(boot.kind(SimBoot(flash(), identity=None)), "controller")
+        self.assertEqual(boot.kind(SimBoot(flash(0x20000)[:0x20000], identity=None)), "dongle")
+
+    def test_kind_says_dongle_when_it_identifies_as_one_whatever_the_flash_looks_like(self):
+        self.assertEqual(boot.kind(SimBoot(flash(), identity=0x301C)), "dongle")
+
+    def test_kind_refuses_an_identity_it_does_not_know(self):
+        self.assertIsNone(boot.kind(SimBoot(flash(), identity=0x1234)))
+
+    def test_a_controller_identity_does_not_override_flash_that_looks_like_a_dongle(self):
+        self.assertEqual(boot.kind(SimBoot(flash(0x20000)[:0x20000], identity=0x301B)), "dongle")
+
     def test_rejected_write_raises(self):
         dev = SimBoot(flash())
 

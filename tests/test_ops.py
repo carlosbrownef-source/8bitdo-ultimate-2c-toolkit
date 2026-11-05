@@ -38,6 +38,8 @@ def controller_flash(bank_a=STOCK_A):
     f[0x40000:0x40000 + image.BANK_A_SIZE] = bank_a
     f[0x3F000:0x3F034] = rnd.randbytes(0x34)
     f[0x3F00C] = 0x6D  # update record: firmware version 1.09
+    f[0x3F018:0x3F01C] = bytes(4)  # no pending update
+    f[0x3F020:0x3F024] = bytes(4)
     for a in range(image.CONFIG_START, image.FLASH_SIZE, 0x1000):
         f[a:a + 64] = rnd.randbytes(64)
     return bytes(f)
@@ -116,6 +118,28 @@ class PatchTest(Base):
         self.assertEqual(st.recipes, ("bt_rumble", "bt_xbox", "cable_360", "dim_leds"))
         self.assertEqual(bytes(dev.f[:0x6000]), self.flash[:0x6000])
         self.assertEqual(bytes(dev.f[0x19000:]), self.flash[0x19000:])
+
+    def test_changing_the_ring_level_replaces_the_previous_one(self):
+        dev = SimBoot(self.flash)
+        for keys in (["dim_leds", "ring_25"], ["dim_leds", "ring_1"], ["dim_leds"]):
+            patch.apply(dev, patch.plan_patch(dev, self.backup, STOCK_A, keys), noprogress)
+            self.assertEqual(recipes.identify(bytes(dev.f[0x6000:0x18400])).recipes, tuple(sorted(keys)))
+
+    def test_a_pending_update_refuses_the_patch_and_writes_nothing(self):
+        for off in (0x3F018, 0x3F020):
+            f = bytearray(self.flash)
+            f[off:off + 4] = (0x1234).to_bytes(4, "little")
+            dev = SimBoot(bytes(f))
+            with self.assertRaises(OpError) as e:
+                patch.plan_patch(dev, self.backup_of(bytes(f)), STOCK_A, ["dim_leds"])
+            self.assertIn("pending", str(e.exception))
+            self.assertEqual(dev.ops, [])
+
+    def test_a_blank_update_record_is_not_a_pending_update(self):
+        f = bytearray(self.flash)
+        f[0x3F000:0x3F034] = b"\xff" * 0x34
+        dev = SimBoot(bytes(f))
+        self.assertTrue(patch.plan_patch(dev, self.backup_of(bytes(f)), STOCK_A, ["dim_leds"]).bank_a)
 
     def test_dry_run_changes_nothing(self):
         dev = SimBoot(self.flash)

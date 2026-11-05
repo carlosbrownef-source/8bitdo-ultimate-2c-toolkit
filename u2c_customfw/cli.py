@@ -10,6 +10,7 @@ from .ops import backup as bkp, devices, patch, report, restore
 from .ops.log import get_logger
 from .ops.plan import OpError
 from . import protocol
+from .protocol import boot
 from .transport import PermissionDenied, open_channel
 
 CONTROLLER_MODES = ("cable", "cable_360", "boot", "dongle")
@@ -69,6 +70,13 @@ def cmd_devices(args, store):
     for f in find():
         i = f.info
         args.say(f"{f.mode:15} {i.vendor:04x}:{i.product:04x} {i.name!r}")
+        if f.mode == "boot":
+            ch = open_channel(i, 0)
+            try:
+                who = boot.identify(ch)
+            finally:
+                ch.close()
+            args.say(f"{'':15} identifies as {who:#06x}" if who is not None else f"{'':15} doesn't answer the identity query")
 
 
 def cmd_backup(args, store):

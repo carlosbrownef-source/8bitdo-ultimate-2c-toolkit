@@ -39,12 +39,18 @@ firmware. Each tweak here is a small, hash-checked edit to that image.
 - **[jgus-org/8bitdo-2c-re-flake](https://github.com/jgus-org/8bitdo-2c-re-flake)** (MIT): reverse engineering of the
   Ultimate 2C's update and bootloader protocols, its recovery and its flash layout. It was the base for firmware analysis, and allowed me to obtain the official update files. No code was copied, the protocols were reimplemented based on jgus's notes.
 - **[xpadneo](https://github.com/atar-axis/xpadneo)**: the captured Xbox Series X|S Bluetooth report descriptor, used to rewrite the HID report to match the newer protocol.
+- **[supercypok/ultimate2c-ring](https://github.com/supercypok/ultimate2c-ring)** (MIT): how to drive the Home ring with PWM (registers, the LED task's call for the ring, its startup state) and the idea of keeping it dim while the controller runs. The Home ring tweak here is my own reimplementation of that method, placed differently and keeping the blink while pairing.
+- **[Crazyawk/8bitdo-ultimate2c-macos-rumble](https://github.com/Crazyawk/8bitdo-ultimate2c-macos-rumble)** (MIT): the earliest public use I found of the bootloader's identity query, used here as an extra check that the device in update mode is the controller.
+- **[vomba/8bitdo-ultimate-2c-apple](https://github.com/vomba/8bitdo-ultimate-2c-apple)** (MIT): notes on that query and on the update record's pending-update fields, checked here before patching.
 - **8BitDo**: the hardware, and the update server the app downloads firmware 1.09 from (only on request).
 - **Telink**: the tc32 toolchain ([flyskywhy/tc32](https://github.com/flyskywhy/tc32)) used to build `firmware-src/`.
 
-## Shout-out
+## Other projects
 
-**[Alan-Gomes/8bitdo-macos](https://github.com/Alan-Gomes/8bitdo-macos)** reached the same goal on its own: it patches a different firmware (a 1.06 beta) so the Ultimate 2C works as a native Xbox controller on macOS over Bluetooth. The two projects were built independently, and I only found it after publishing this one, so nothing here comes from it. Its docs explain in detail how that patch was reverse engineered, and they're worth a read.
+Other people reached the same goal on their own, and these are worth a look:
+
+- **[vomba/8bitdo-ultimate-2c-apple](https://github.com/vomba/8bitdo-ultimate-2c-apple)** changes just six bytes of firmware 1.09 so Apple uses its SN30 Pro+ profile: the smallest possible patch, without rumble. Its owner reports that it also works on Apple TV.
+- **[Crazyawk/8bitdo-ultimate2c-macos-rumble](https://github.com/Crazyawk/8bitdo-ultimate2c-macos-rumble)** brings Bluetooth rumble to CrossOver games, with patched firmware and an SDL shim.
 
 ## What the tweaks do
 
@@ -54,6 +60,7 @@ firmware. Each tweak here is a small, hash-checked edit to that image.
 | Rumble over Bluetooth | Rumble works over Bluetooth (the original firmware switches the motors off in that mode). Needs the Xbox tweak as it uses it's profile. May hang the controller, though I haven't seen it happen. |
 | Xbox 360 controller over cable | Plugged in by cable it presents as a wired Xbox 360 pad (`045e:028e`), which Apple's own driver takes. This is the simplest tweak if you want to avoid modding too much of the controller's code |
 | Dimmer LEDs | The three LEDs use weak drive strength: a little dimmer. The effect is barely noticable, but the LEDs are so bright everything helps IMO. |
+| Home ring brightness | Sets the ring around the Home button while connected: 25 %, 5 %, 1 %, 0.1 % or off (the percentage is PWM duty, not perceived brightness). It still blinks while searching or pairing. You choose one level, and changing it means installing again. |
 
 Each tweak is a hash-checked set of byte edits to the stock v1.09 image; nothing else in the firmware changes, and the controller's bootloader, MAC, calibration and pairings are never written.
 
@@ -83,7 +90,7 @@ The app's **Help** button explains each step and why each tweak is needed.
 2. **Tweaks**: choose tweaks, put the controller in update mode (turn it fully off, then hold L1 + R1 while plugging in the cable; the light will blink white), use *Check first*, then *Install tweaks*. Afterwards unplug the cable; if a Bluetooth tweak changed, remove the controller from Bluetooth settings and pair it again (macOS remembers the old description).
 3. **Restore**: if anything looks wrong, put the controller in update mode (hold L+R from power off and then connect the cable) and restore your backup, or 8BitDo's original firmware 1.09 (downloaded from 8BitDo's update server and checked against its known SHA-256).
 
-Safeguards, enforced in the code: nothing is written below `0x6000` (bootloader) or at/above `0x73000` (configuration, MAC, calibration, Bluetooth pairings); a write needs a backup of the same unit (bootloader and MAC match); the firmware must be the original 1.09, with or without the tweaks; the dongle is refused; restoring 8BitDo's v1.09 is refused unless the controller really is on 1.09 (read from its update record, or, if that is blank, identified by the hash of bank A or bank B) and is also refused when the version cannot be determined (unless you use *Install firmware 1.09 anyway* under Restore, behind a warning and a confirmation that spells out the risks; it never overrides a version that is known to be different); every edit checks the stock bytes it replaces.
+Safeguards, enforced in the code: nothing is written below `0x6000` (bootloader) or at/above `0x73000` (configuration, MAC, calibration, Bluetooth pairings); a write needs a backup of the same unit (bootloader and MAC match); the firmware must be the original 1.09, with or without the tweaks; the dongle is refused, by the bootloader's identity and by how its flash reads back; a pending firmware update refuses the patch; restoring 8BitDo's v1.09 is refused unless the controller really is on 1.09 (read from its update record, or, if that is blank, identified by the hash of bank A or bank B) and is also refused when the version cannot be determined (unless you use *Install firmware 1.09 anyway* under Restore, behind a warning and a confirmation that spells out the risks; it never overrides a version that is known to be different); every edit checks the stock bytes it replaces.
 
 ## Porting to Linux
 

@@ -114,10 +114,12 @@ def make_server(store: Path, port: int = 0):
                 st, version = fw.state, fw.version
             except (OpError, PermissionDenied, OSError) as e:
                 return self.send(200, json.dumps({"error": str(e)}))
+            ring = [recipes.RECIPES[k].title for k in st.recipes if recipes.RECIPES[k].group == "ring"]
             self.send(200, json.dumps({"mode": f.mode, "known": st.known, "recipes": list(st.recipes), "version": version, "version_from": fw.version_from,
                                        "titles": [recipes.RECIPES[k].title for k in st.recipes],
                                        "tweaks": [{"key": k, "title": r.title, "on": k in st.recipes}
-                                                  for k, r in recipes.RECIPES.items()]}))
+                                                  for k, r in recipes.RECIPES.items() if not r.group]
+                                                 + [{"key": "ring", "title": ring[0] if ring else "Home ring: normal", "on": bool(ring)}]}))
 
         def api_events(self):
             if not self.auth():

@@ -135,3 +135,48 @@ void main_tick(void)
 }
 #endif
 
+/* Home ring brightness: the LED task's call for the ring (0xd4f0, PB7) comes here instead of the stock driver 0xd36c.
+ * Register use follows supercypok/ultimate2c-ring (MIT), reimplemented here. When the ring should be on (mode 1), PB7
+ * is handed to PWM1 at the stored level, in thousandths; every other state goes back to GPIO and the stock driver, so
+ * the blink modes (2, 3) keep working. Level 0 means off. Motors use PWM4/5 and share only the clock, which isn't touched.
+ * The level lives in the RAM copy of this code, so it can be changed there without writing the flash. */
+#ifdef HOST
+extern unsigned char REGS[];
+extern volatile u16 RING_LEVEL;
+#define IO(a) (REGS + ((a) - 0x800000))
+#else
+#define RING_LEVEL (*(volatile u16 *)0x8416d0) /* image 0x76d0 */
+#define IO(a) ((u8 *)(a))
+#endif
+#define RING_PERIOD 1000
+
+void led_driver(u32 mode, u32 pin, u8 *counter); /* 0xd36c */
+
+void ring_led(u32 mode, u32 pin, u8 *counter)
+{
+	volatile u8 *pwm = IO(0x800780), *pb = IO(0x800508);
+	u32 v;
+
+	if (mode == 1) {
+		v = RING_LEVEL;
+		if (v) {
+			*(volatile u32 *)(pwm + 0x18) = RING_PERIOD << 16 | v; /* PWM1 compare, period */
+			pwm[4] &= ~2;       /* PWM1 not inverted */
+			pwm[6] &= ~2;
+			v = pwm[0];         /* PWM1 on */
+			v |= 2;
+			pwm[0] = v;
+			pwm[0x30] &= ~8;    /* its frame interrupt masked */
+			pb[3] &= ~0x80;     /* PB7 latch low */
+			pb[0x4f] = 4;       /* PB7 function: PWM1 */
+			pb[6] &= ~0x80;     /* PB7 not GPIO */
+			return;
+		}
+		mode = 0;
+	}
+	pwm[0] &= ~2;
+	v = pb[6];
+	v |= 0x80;
+	pb[6] = v;
+	led_driver(mode, pin, counter);
+}

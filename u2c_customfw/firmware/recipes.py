@@ -16,6 +16,8 @@ BLOBS = Path(__file__).parent / "blobs"
 NAME = b"8BitDo Ultimate 2C (One)"
 OLD_NAME_LEN = 27
 PACKER_SLOT = (0xB908, 0xBAD4)
+RING_LEVELS = (("ring_off", "Home ring: off", 0), ("ring_0_1", "Home ring: 0.1 %", 1), ("ring_1", "Home ring: 1 %", 10),
+               ("ring_5", "Home ring: 5 %", 50), ("ring_25", "Home ring: 25 %", 250))  # PWM1 compare value, period 1000
 
 
 class RecipeError(Exception):
@@ -39,6 +41,7 @@ class Recipe:
     title: str
     requires: tuple[str, ...]
     edits: tuple[Edit, ...]
+    group: str | None = None  # at most one recipe of a group can be installed
 
 
 @dataclass(frozen=True)
@@ -85,6 +88,12 @@ def _make() -> dict[str, Recipe]:
             Edit(0x7738, _blob("led.bin")),                      # main_tick, run from RAM at 0x1738
             Edit(0xA43C, _blob("hook.bin")),                     # main loop calls main_tick instead of 0xfaa0
         )),
+        *(Recipe(key, title, (), (
+            Edit(0xA3FA, b"\0"),                                 # the ring doesn't light up at startup
+            Edit(0xD4F0, _blob("ringhook.bin")),                 # LED task calls ring_led for the ring
+            Edit(0x7640, _blob("ring.bin").ljust(0x90, b"\0")),  # ring_led, run from RAM at 0x1640
+            Edit(0x76D0, level.to_bytes(2, "little")),           # its level, in thousandths
+        ), "ring") for key, title, level in RING_LEVELS),
     )}
 
 
@@ -128,6 +137,9 @@ def build(stock: bytes, keys, stock_sha256=None, region_sha256=None, remainder_s
         for need in RECIPES[k].requires:
             if need not in keys:
                 raise RecipeError(f"{k} needs {need}")
+    groups = [RECIPES[k].group for k in keys if RECIPES[k].group]
+    if len(groups) != len(set(groups)):
+        raise RecipeError("choose only one Home ring level")
     img = bytearray(stock)
     for key, r in RECIPES.items():  # recipe order: a dependent's edit lands over the one it supersedes
         if key not in keys:
@@ -159,7 +171,10 @@ def identify(bank_a: bytes, stock_sha256=None, region_sha256=None, remainder_sha
 
     plain = {k: [edit_state(e) for e in r.edits if e.superseded_by is None] for k, r in RECIPES.items()}
     present = {k for k, s in plain.items() if s and all(x == "new" for x in s)}
+    chosen = {RECIPES[k].group for k in present} - {None}
     for k, r in RECIPES.items():
+        if r.group in chosen and k not in present:  # the group's other options share regions with the installed one
+            continue
         s = plain[k] + [edit_state(e) for e in r.edits if e.superseded_by is not None and e.superseded_by not in present]
         if "other" in s or ("new" in s and "stock" in s):
             return State(False)

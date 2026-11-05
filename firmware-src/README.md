@@ -11,19 +11,25 @@ Our own code for the controller (Telink TC32, firmware 1.09). The built binaries
 | `rumble.bin` | `0x18390` | `rumble_write`: Xbox rumble to the motor setter `0xfa68`, the Xbox duration as its hold |
 | `led.bin` | image `0x7738`, run address `0x1738` | `main_tick`: LED pins to weak drive strength, then the motor routine `0xfaa0` |
 | `hook.bin` | `0xa43c` | the main loop's call, redirected from `0xfaa0` to `main_tick` |
+| `ring.bin` | image `0x7640`, run address `0x1640` | `ring_led`: the Home ring on PWM1 at the level stored at image `0x76d0` (RAM `0x8416d0`), otherwise the stock LED driver |
+| `ringhook.bin` | `0xd4f0` | the LED task's call for the ring, redirected from `0xd36c` to `ring_led` |
 
 ## Build
 
-Telink's `tc32-elf-gcc` 4.5.1 and binutils (flyskywhy/tc32, commit `8ec375bb`) are x86-64 Linux binaries; on a Mac
-they run in a Lima VM with Rosetta. If the VM cannot see this repository, copy the folder in and the blobs out:
+Telink's `tc32-elf-gcc` 4.5.1 and binutils come from [flyskywhy/tc32](https://github.com/flyskywhy/tc32). On a Mac, the
+`macos` branch (commit `fdb1e7e`, x86-64 binaries, runs with Rosetta) needs no VM, and gave the same bytes as the Linux
+binaries (commit `8ec375bb`) for every blob that existed when it was compared:
 
 ```bash
-limactl copy -r firmware-src tc32:~/u2c/ && limactl shell tc32 -- bash -lc 'mkdir -p ~/u2c/u2c_customfw/firmware/blobs && ~/u2c/firmware-src/build.sh /tmp/u2c-blobs'
-for f in packer noop rumble led hook report-map; do limactl copy tc32:~/u2c/u2c_customfw/firmware/blobs/$f.bin u2c_customfw/firmware/blobs/; done
-limactl copy tc32:~/u2c/u2c_customfw/firmware/blobs/MANIFEST u2c_customfw/firmware/blobs/
+git clone --depth 1 -b macos https://github.com/flyskywhy/tc32.git /some/path/tc32
+PATH="/some/path/tc32/bin:$PATH" firmware-src/build.sh /tmp/u2c-blobs
+PYTHONPATH=. python3 tools/make_constants.py ultimate-2c-controller-v1.09.dat   # when an edit region changes
 ```
+
+The linker's warning that `.rumble` overlaps a previous section is expected: `noop.bin` and `rumble.bin` are alternatives.
 
 ## Test
 
 `python3 firmware-src/test.py` compiles `packer.c` natively (`-DHOST`) and checks every field of the input report
-against a model built from `report-map.hex`, and the rumble handler against the Xbox rumble report.
+against a model built from `report-map.hex`, the rumble handler against the Xbox rumble report, and `ring_led` against
+the PWM1 and PB7 registers.

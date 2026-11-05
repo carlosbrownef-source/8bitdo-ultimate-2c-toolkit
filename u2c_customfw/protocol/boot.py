@@ -3,11 +3,13 @@
 
 64-byte reports, no report ID: [0]=05 [1:3]=cmd [5:7]=data length [7:9]=CRC-16/MODBUS of the data [9:13]=param
 [13:17]=address [17:]=data. cmd 5 read (param = length, data at reply[18]), 4 erase (param = length, 4 KB units),
-3 write (<= 46 bytes). Reply [0]=0 [1]=5 [2]=0 [4]=cmd is success.
+3 write (<= 46 bytes), 8 identity. Reply [0]=0 [1]=5 [2]=0 [4]=cmd is success.
 """
 from . import ProtocolError
 
 CHUNK = 46
+CONTROLLER_ID = 0x301B
+DONGLE_ID = 0x301C             # by analogy with the app's USB ID: no dongle bootloader has been asked yet
 
 
 def crc16(data: bytes) -> int:
@@ -62,8 +64,23 @@ def write_chunk(ch, addr: int, param: int, data: bytes) -> None:
         raise ProtocolError(f"write at {addr:#x} rejected")
 
 
+def identify(ch) -> int | None:
+    """The bootloader's identity (cmd 8), or None if it doesn't answer. On the controller it is a constant in the
+    bootloader itself (0x3988), so damaged firmware can't change it."""
+    a = _call(ch, request(8, param=4, datalen=4), tries=1)
+    if a is None or len(a) < 20 or a[6:8] != b"\x02\0":
+        return None
+    return int.from_bytes(a[18:20], "little")
+
+
 def kind(ch) -> str | None:
-    """The dongle's 128 KB flash reads back aliased above 0x20000; the controller's 0x20000 is erased."""
+    """Controller or dongle. The identity can only rule out the controller, since the dongle's answer is not known yet.
+    The dongle's 128 KB flash reads back aliased above 0x20000; the controller's 0x20000 is erased."""
+    who = identify(ch)
+    if who == DONGLE_ID:
+        return "dongle"
+    if who not in (None, CONTROLLER_ID):
+        return None
     lo, hi = read(ch, 0, 16), read(ch, 0x20000, 16)
     if hi == b"\xff" * 16:
         return "controller"

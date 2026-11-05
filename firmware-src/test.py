@@ -11,9 +11,12 @@ HARNESS = r"""
 #include <stdlib.h>
 typedef unsigned char u8; typedef unsigned short u16; typedef unsigned int u32;
 u32 BTN; u16 LX, LY, RX, RY, LT, RT;
+u8 REGS[0x1000] __attribute__((aligned(4))); volatile u16 RING_LEVEL;
 static int notifies, afters;
 int pack_xbox(void);
 int rumble_write(u8 *p);
+void ring_led(u32 mode, u32 pin, u8 *counter);
+void led_driver(u32 mode, u32 pin, u8 *counter) { printf("D %x %x %lx\n", mode, pin, (unsigned long)counter); }
 void motor_set(u32 s, u32 w, u32 h) { printf("M %u %u %u\n", s, w, h); }
 int ble_notify(int conn, int handle, u8 *p, int len) {
     if (conn != 0x40 || handle != 0x1d || len != 16 || afters) { printf("bad call %x %x %d\n", conn, handle, len); exit(1); }
@@ -26,6 +29,16 @@ int main(void) {
     unsigned b, lx, ly, rx, ry, lt, rt;
     char line[256];
     while (fgets(line, sizeof line, stdin)) {
+        if (line[0] == 'L') { /* L <mode> <level> <fill>: one ring_led call on registers all set to fill, then their state */
+            unsigned mode, level, fill;
+            sscanf(line + 2, "%x %x %x", &mode, &level, &fill);
+            for (int i = 0; i < 0x1000; i++) REGS[i] = fill;
+            RING_LEVEL = level;
+            ring_led(mode, 0x180, (u8 *)0x3452);
+            printf("%02x %02x %02x %02x %02x %02x %02x %02x%02x%02x%02x\n", REGS[0x780], REGS[0x784], REGS[0x786], REGS[0x7b0], REGS[0x50b], REGS[0x557], REGS[0x50e],
+                   REGS[0x79b], REGS[0x79a], REGS[0x799], REGS[0x798]);
+            continue;
+        }
         if (line[0] == 'R') { /* R <ATT write packet hex>: one rumble_write call, then "-" */
             u8 pk[64] = {0}; int n = 0; unsigned x;
             for (char *q = line + 2; n < 64 && sscanf(q, "%2x", &x) == 1; q += 2) pk[n++] = x;
@@ -129,6 +142,14 @@ def rumble_packet(value):
     return bytes([2, 7 + len(value)]) + (3 + len(value)).to_bytes(2, "little") + b"\x04\x00\x52\x21\x00" + value
 
 
+def _run_harness(stdin):
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, "h.c"), "w").write(HARNESS)
+        exe = os.path.join(d, "t")
+        subprocess.run(["cc", "-DHOST", "-O1", "-o", exe, os.path.join(HERE, "packer.c"), os.path.join(d, "h.c")], check=True)
+        return subprocess.run([exe], input=stdin, capture_output=True, text=True).stdout
+
+
 def rumble_check():
     """Each rumble report -> the expected motor_set call (Xbox report 3: mask, LT, RT, strong, weak, duration, delay, loop)."""
     rnd = random.Random(2)
@@ -156,6 +177,30 @@ def rumble_check():
         ([] if len(got) == len(cases) else [(("rumble",), str(len(got)), f"{len(cases)} calls")])
 
 
+def ring_check():
+    """ring_led against the Telink B80 PWM1 and PB7 registers (bits of each that must not change are checked with both fills)."""
+    cases = [(m, lv, f) for m in (0, 1, 2, 3) for lv in (0, 1, 10, 250) for f in (0, 0xFF)]
+    out = _run_harness("".join("L %x %x %x\n" % c for c in cases)).splitlines()
+    bad, i = [], 0
+    for m, lv, f in cases:
+        on = m == 1 and lv != 0
+        want = []
+        if not on:
+            want.append("D %x 180 3452" % (0 if m == 1 else m))
+        if on:
+            regs = (f | 2, f & ~2, f & ~2, f & ~8, f & ~0x80, 4, f & ~0x80)
+            word = 1000 << 16 | lv
+        else:
+            regs = (f & ~2, f, f, f, f, f, f | 0x80)
+            word = f * 0x01010101
+        want.append(" ".join("%02x" % (r & 0xFF) for r in regs) + " %08x" % word)
+        got = out[i:i + len(want)]
+        i += len(want)
+        if got != want:
+            bad.append((("ring", m, lv, f), " | ".join(got), f"want {' | '.join(want)}"))
+    return bad
+
+
 def main():
     assert set(FIELDS) == {LX, LY, RX, RY, LT, RT, HAT, SHARE} | {(9, n) for n in range(1, 16)}, sorted(FIELDS)
     rnd = random.Random(1)
@@ -176,7 +221,7 @@ def main():
         if run.returncode:
             sys.exit(f"FAIL: harness stopped after {len(out) - 1} reports: {run.stdout.splitlines()[-1]}")
     bad = [(v, o, why) for v, o in zip(vec, out) for why in [check(v, bytes.fromhex(o))] if why]
-    bad += rumble_check()
+    bad += rumble_check() + ring_check()
     if len(out) != len(vec) or bad:
         for v, o, why in bad[:10]:
             print("input", [hex(x) if isinstance(x, int) else x for x in v], "got", o, "->", why)

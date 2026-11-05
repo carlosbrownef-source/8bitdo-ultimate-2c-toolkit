@@ -14,7 +14,7 @@ What was established by disassembling 8BitDo's v1.09 image. Addresses are image 
 | --- | --- |
 | `0x0-0x5000` | resident bootloader (never written) |
 | `0x6000-0x18400` | app bank A (the running firmware) |
-| `0x3f000` | update record (52 bytes: version, staging address `0x40000`, pending length, CRC) |
+| `0x3f000` | update record (52 bytes: version at `+0x0c`, pending magic at `+0x18`, staging address `0x40000` at `+0x1c`, pending length at `+0x20`, CRC at `+0x30`). A patch is refused while a pending field is set. |
 | `0x40000-0x52400` | app bank B (normal-mode updates are staged here and applied by the bootloader) |
 | `0x73000-0x77000`, `0x79000`, `0x7c000`, `0x7f000` | configuration, MAC (`0x76000`), calibration, Bluetooth pairings (`0x7c000`, 64-byte records) |
 
@@ -24,10 +24,10 @@ USB interface with vendor usage page `0xff7a`, 64-byte reports: output report `0
 
 ## Bootloader (`2dc8:3208`)
 
-Enter by powering the controller fully off and holding L1+R1 while plugging in the cable (white LED). One HID interface, 64-byte reports without report ID: `[0]=05 [1:3]=command [5:7]=data length [7:9]=CRC-16/MODBUS of the data [9:13]=parameter [13:17]=address [17:]=data`. Commands: 5 read (data from byte 18), 4 erase (4 KB units), 3 write (at most 46 bytes), 8 version. Success reply: `[0]=0 [1]=5 [2]=0 [4]=command`. No signature or encryption is involved.
+Enter by powering the controller fully off and holding L1+R1 while plugging in the cable (white LED). One HID interface, 64-byte reports without report ID: `[0]=05 [1:3]=command [5:7]=data length [7:9]=CRC-16/MODBUS of the data [9:13]=parameter [13:17]=address [17:]=data`. Commands: 5 read (data from byte 18), 4 erase (4 KB units), 3 write (at most 46 bytes), 8 identity (data length and parameter 4; the reply has length 2 and, from byte 18, the constant `0x301b` from the bootloader itself, so damaged firmware does not change it; what the dongle answers is not known yet). Success reply: `[0]=0 [1]=5 [2]=0 [4]=command`. No signature or encryption is involved.
 
 ## Other findings
 
 - Main loop (`0xa430`): the button/stick/rumble tasks; in Bluetooth mode it calls the motor setter with zero strength on every pass, which is why rumble is off in stock Bluetooth mode.
-- LEDs are three plain GPIO outputs (PB7, PD5, PF1) switched by the LED task every 200 ms; their drive strength is the only brightness control.
+- LEDs are three plain GPIO outputs (PB7, PD5, PF1) switched by the LED task every 200 ms; weak drive strength dims them slightly, and the Home ring (PB7) can also be driven by PWM1 for real brightness control (`firmware-src/packer.c`, `ring_led`). Its level is a word at image `0x76d0`, copied to RAM at `0x8416d0`.
 - The Bluetooth stack is a closed Telink library; the firmware never requests a connection-parameter update, so macOS runs the link at a 15 ms interval.

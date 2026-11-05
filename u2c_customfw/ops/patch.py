@@ -22,6 +22,17 @@ def check_unit(ch, backup) -> None:
         raise OpError(f"{e}; nothing written") from e
 
 
+def check_no_pending_update(ch) -> None:
+    """A staged update (record +0x18 magic, +0x20 length, as in vomba/8bitdo-ultimate-2c-apple) could replace the tweaks at the next start."""
+    try:
+        record = boot.read(ch, image.UPDATE_RECORD, 0x24)
+    except protocol.ProtocolError as e:
+        raise OpError(f"{e}; nothing written") from e
+    for field in (record[0x18:0x1C], record[0x20:0x24]):
+        if field not in (bytes(4), b"\xff" * 4):
+            raise OpError("a firmware update is pending on this controller, and it could replace the tweaks at its next start. Start the controller normally once, then check again; nothing written")
+
+
 def current_bank_a(ch) -> bytes:
     try:
         return boot.read(ch, image.BASE, image.BANK_A_SIZE)
@@ -31,6 +42,7 @@ def current_bank_a(ch) -> bytes:
 
 def plan_patch(ch, backup, stock: bytes, keys) -> Plan:
     check_unit(ch, backup)
+    check_no_pending_update(ch)
     cur = current_bank_a(ch)
     if not recipes.identify(cur).known:
         raise OpError("this controller's firmware isn't the original 1.09, with or without the tweaks: use Restore first; nothing written")

@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Placement of each tweak's code in the controller v1.09 image. noop_write and rumble_write share 0x18390 (one or
  * the other is placed), so the link uses --no-check-sections. main_tick runs from RAM at 0x1738, stored at image
- * 0x7738 (dead RAM-code functions 0x1738-0x17d4). */
+ * 0x7738 (dead RAM-code functions 0x1738-0x17d4); ring_led at 0x1640, stored at 0x7640 (dead 0x1640-0x16d4), with its
+ * level word after it at 0x16d0. */
 SECTIONS
 {
 	.packer 0xb908 : { *(.text.pack_xbox) *(.text.put16) *(.text.trig) *(.text.hat) *(.rodata*) }
@@ -9,6 +10,8 @@ SECTIONS
 	.rumble 0x18390 : { *(.text.rumble_write) *(.text.rumble_level) }
 	.led 0x1738 : AT(0x7738) { *(.text.main_tick) }
 	.hook 0xa43c : { *(.hook) }
+	.ring 0x1640 : AT(0x7640) { *(.text.ring_led) }
+	.ringhook 0xd4f0 : { *(.ringhook) }
 	.rest : { *(.text*) *(.data*) *(.bss*) *(COMMON) }
 	/DISCARD/ : { *(.comment) }
 }
@@ -18,4 +21,6 @@ ASSERT(noop_write == 0x18390 && rumble_write == 0x18390, "write callbacks not at
 ASSERT(SIZEOF(.rumble) <= 0x18400 - 0x18390, "rumble_write overflows the image tail")
 ASSERT(main_tick == 0x1738 && SIZEOF(.led) <= 0x17d4 - 0x1738, "main_tick outside the dead RAM-code functions")
 ASSERT(SIZEOF(.hook) == 4, "hook is one tjl")
+ASSERT(ring_led == 0x1640 && SIZEOF(.ring) <= 0x16d0 - 0x1640, "ring_led outside the dead RAM-code functions")
+ASSERT(SIZEOF(.ringhook) == 4, "ring hook is one tjl")
 ASSERT(SIZEOF(.rest) == 0, "unplaced code or data")

@@ -11,6 +11,8 @@ from u2c_customfw.firmware.recipes import RecipeError
 
 KEYS = ["bt_xbox", "bt_rumble", "cable_360", "dim_leds"]
 VALID = [list(c) for n in range(5) for c in itertools.combinations(KEYS, n) if "bt_rumble" not in c or "bt_xbox" in c]
+RING = {"ring_off": 0, "ring_0_1": 1, "ring_1": 10, "ring_5": 50, "ring_25": 250}  # PWM compare value, period 1000
+RING_LEVEL_ADDR = 0x76D0
 
 
 def synthetic():
@@ -67,6 +69,43 @@ class RecipeTest(unittest.TestCase):
         self.assertEqual((st.known, st.recipes), (True, ()))
 
 
+class RingTest(unittest.TestCase):
+    def setUp(self):
+        self.stock, self.k = synthetic()
+
+    def test_each_level_identifies_alone_and_with_the_other_tweaks(self):
+        for ring in RING:
+            for keys in ([], ["dim_leds"], KEYS):
+                st = recipes.identify(recipes.build(self.stock, keys + [ring], **self.k), **self.k)
+                self.assertTrue(st.known, ring)
+                self.assertEqual(st.recipes, tuple(sorted(keys + [ring])))
+
+    def test_each_level_stores_its_pwm_value(self):
+        for ring, value in RING.items():
+            img = recipes.build(self.stock, [ring], **self.k)
+            self.assertEqual(int.from_bytes(img[RING_LEVEL_ADDR - image.BASE:RING_LEVEL_ADDR - image.BASE + 2], "little"), value, ring)
+
+    def test_levels_differ_only_in_the_level_word(self):
+        a, b = (recipes.build(self.stock, [k], **self.k) for k in ("ring_1", "ring_25"))
+        at = RING_LEVEL_ADDR - image.BASE
+        self.assertEqual(a[:at] + a[at + 2:], b[:at] + b[at + 2:])
+
+    def test_two_levels_are_refused(self):
+        with self.assertRaises(RecipeError) as e:
+            recipes.build(self.stock, ["ring_1", "ring_5"], **self.k)
+        self.assertIn("one", str(e.exception))
+
+    def test_a_level_value_no_recipe_has_makes_the_image_unknown(self):
+        bad = bytearray(recipes.build(self.stock, ["ring_1"], **self.k))
+        bad[RING_LEVEL_ADDR - image.BASE] = 77
+        self.assertFalse(recipes.identify(bytes(bad), **self.k).known)
+
+    def test_a_half_installed_ring_makes_the_image_unknown(self):
+        bad = bytearray(recipes.build(self.stock, ["ring_1"], **self.k))
+        bad[RING_LEVEL_ADDR - image.BASE:RING_LEVEL_ADDR - image.BASE + 2] = self.stock[RING_LEVEL_ADDR - image.BASE:RING_LEVEL_ADDR - image.BASE + 2]
+        self.assertFalse(recipes.identify(bytes(bad), **self.k).known)
+
+
 @unittest.skipUnless(os.environ.get("U2C_STOCK_DAT"), "set U2C_STOCK_DAT to a local ultimate-2c-controller-v1.09.dat")
 class RealStockTest(unittest.TestCase):
     def setUp(self):
@@ -83,7 +122,7 @@ class RealStockTest(unittest.TestCase):
         self.assertEqual(recipes.build(self.stock, ["bt_xbox", "bt_rumble", "cable_360"]), ref.read_bytes())
 
     def test_all_combinations_identify(self):
-        for keys in VALID:
+        for keys in VALID + [[r] for r in RING] + [KEYS + [r] for r in RING]:
             self.assertEqual(recipes.identify(recipes.build(self.stock, keys)).recipes, tuple(sorted(keys)))
 
 

@@ -33,6 +33,11 @@ class CliTest(unittest.TestCase):
         self.flash = controller_flash()
         (self.tmp / "controller-20260101-000000.bin").write_bytes(self.flash)
 
+    def test_devices_shows_what_the_bootloader_identifies_as(self):
+        code, text = run(["devices", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], SimBoot(self.flash))
+        self.assertEqual(code, 0)
+        self.assertIn("0x301b", text)
+
     def test_identify_names_the_tweaks(self):
         built = recipes.build(STOCK_A, ["bt_xbox", "cable_360"], **K)
         f = bytearray(self.flash); f[image.BASE:image.BANK_A_END] = built
