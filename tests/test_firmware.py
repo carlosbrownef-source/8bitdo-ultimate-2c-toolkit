@@ -104,7 +104,7 @@ class ControllerNameTest(unittest.TestCase):
             self.assertEqual((st.known, st.recipes), (True, tuple(sorted(keys))), keys)
 
     def test_the_published_tweaks_keep_their_bytes(self):
-        """Firmware installed by 0.1.x is only recognised while these match: changing a blob needs an `accepts` for the old one."""
+        """Firmware installed by 0.1.x and 0.2.0 is only recognised while these match: changing a blob needs an `accepts` for the old one."""
         published = {
         "packer.bin": "1ba223dee721be22c4a64575784013bedebb0e5706b5bd4a93cd760b985424e9",
         "noop.bin": "7817034cdd42530d23894be6e9dd41a777ec2a407cc73c69ac0665fc047e4d1e",
@@ -112,9 +112,13 @@ class ControllerNameTest(unittest.TestCase):
         "led.bin": "7876889cb9c2981ee4e78338f2eca0589f431d509f361f6b5d029f5eeb7eecd1",
         "hook.bin": "012f37b995249381906e85cb32b127cfebd08f92ed34253b1d93ffe690b8a28e",
         "report-map.bin": "a681e2cb8b5d9466f258e2f07f0fcc518ec438231af1b61b125c213d2c62e165",
+        "ring.bin": "3230e6f5f644389a1cf7de4d8d12f7c0c5994b1d3fefa3156e1658b708336b35",
+        "ringhook.bin": "36bb496143d7a87026b50fe0220ef246c168c3b6b6251f4286b33edf1498222d",
         }
         for name, sha in published.items():
             self.assertEqual(hashlib.sha256((recipes.BLOBS / name).read_bytes()).hexdigest(), sha, name)
+        self.assertEqual(recipes.NAME, b"8BitDo Ultimate 2C (X/S)")
+        self.assertEqual([level for _, _, level in recipes.RING_LEVELS], [0, 1, 10, 50, 250])
 
     def test_the_old_name_alone_does_not_count_as_the_tweak(self):
         bad = bytearray(self.stock)
