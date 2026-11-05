@@ -42,6 +42,10 @@ firmware. Each tweak here is a small, hash-checked edit to that image.
 - **8BitDo**: the hardware, and the update server the app downloads firmware 1.09 from (only on request).
 - **Telink**: the tc32 toolchain ([flyskywhy/tc32](https://github.com/flyskywhy/tc32)) used to build `firmware-src/`.
 
+## Shout-out
+
+**[Alan-Gomes/8bitdo-macos](https://github.com/Alan-Gomes/8bitdo-macos)** reached the same goal on its own: it patches a different firmware (a 1.06 beta) so the Ultimate 2C works as a native Xbox controller on macOS over Bluetooth. The two projects were built independently, and I only found it after publishing this one, so nothing here comes from it. Its docs explain in detail how that patch was reverse engineered, and they're worth a read.
+
 ## What the tweaks do
 
 | Tweak | Effect |
