@@ -224,6 +224,16 @@ async function refresh() {
   }
 }
 
+let matched = "";
+function matchInstalled() {  // start from what's installed, so installing doesn't drop a tweak by surprise; the person's choices stay until other firmware is read
+  const key = fw && fw.known && fw.recipes ? fw.recipes.join() : "";
+  if (!key || key === matched) return;
+  matched = key;
+  tweakBoxes().forEach((x) => (x.checked = fw.recipes.includes(x.value)));
+  const level = ringButtons().find((b) => fw.recipes.includes(b.dataset.ring)) || ringButtons()[0];
+  ringButtons().forEach((b) => b.classList.toggle("on", b === level));
+}
+
 let fwSeq = 0;
 async function readFirmware() {  // read-only; skipped while a job runs, and the job buttons wait for it
   if (busy || !st.devices.some((d) => CONTROLLER.includes(d.mode) || d.mode === "dongle" || d.mode.startsWith("bluetooth"))) return;
@@ -231,7 +241,7 @@ async function readFirmware() {  // read-only; skipped while a job runs, and the
   let f;
   try { f = await api("GET", "/api/firmware"); } catch (e) { f = { error: e.message }; }
   if (mine !== fwSeq) return;
-  fw = f; reading = false; render();
+  fw = f; reading = false; matchInstalled(); render();
 }
 
 document.querySelectorAll("[data-icon]").forEach((e) => (e.innerHTML = ICON[e.dataset.icon]));

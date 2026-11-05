@@ -11,7 +11,7 @@
     const device = window.simReplugged ? "bluetooth_xbox" : { bt: "bluetooth_xbox", btstock: "bluetooth", cable: "cable", web: "cable", none: "bluetooth_xbox", background: "bluetooth_xbox", noext: "bluetooth_xbox", busy: "bluetooth_xbox" }[mode];
     if (path.startsWith("/api/firmware") && device === "bluetooth_xbox") return json({ note: "The controller firmware cannot be read over Bluetooth. Connect the controller by cable for firmware diagnostics." });
     const answer = await realFetch(url, options);
-    if (path.startsWith("/api/firmware") && query.get("tweaks")) return json({ ...(await answer.json()), recipes: ["dim", "ring"], titles: ["Dimmer LEDs", "Home ring: 5 %"] });
+    if (path.startsWith("/api/firmware") && query.get("tweaks")) return json({ ...(await answer.json()), recipes: ["bt_xbox", "ring_5"], titles: ["Dimmer LEDs", "Home ring: 5 %"] });
     if (path.startsWith("/api/firmware") && query.get("identity") === "none") return json({ ...(await answer.json()), boot_identity: null });
     if (path.startsWith("/api/state") && device) return json({ ...(await answer.json()), devices: [{ mode: device, name: "simulated" }] });
     return answer;
@@ -45,6 +45,8 @@
     report: () => document.getElementById("report-open").click(),
     plugged: () => { window.simReplugged = true; },
     replugged: () => { window.simReplugged = true; },
+    installed: () => { document.getElementById("diag-snap").textContent = tweaks().join(); },
+    keptchoice: () => { document.querySelector('[data-ring="ring_1"]').click(); refresh(); setTimeout(() => { document.getElementById("diag-snap").textContent = tweaks().join(); }, 1000); },
     reopen: () => { showTab("firmware"); showTab("diagnostics"); },
     latebt: () => { window.simReplugged = true; window.u2cDiagnostics({ type: "state", connected: false }); window.u2cDiagnostics(PAD); },
     refreshbutton: () => { window.simReplugged = true; document.getElementById("details-refresh").click(); },

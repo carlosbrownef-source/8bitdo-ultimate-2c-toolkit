@@ -234,6 +234,18 @@ class ControllerTestCard(PageCase):
         self.assertNotIn("can't run in update mode", text)
         self.assertIn("8BitDo Ultimate 2C (X/S)", text)
 
+    def test_tweak_controls_start_from_what_is_installed(self):
+        dom, _, _ = self.body("boot&tweaks=1&scenario=installed")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ring_5")
+
+    def test_reading_the_same_firmware_keeps_the_choice_made(self):
+        dom, _, _ = self.body("boot&tweaks=1&scenario=keptchoice")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ring_1")
+
+    def test_original_firmware_keeps_the_suggested_tweaks(self):
+        dom, _, _ = self.body("boot&scenario=installed")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds")
+
     def test_returning_to_the_tab_doesnt_read_the_firmware_again(self):
         dom, _, _ = self.body("boot&scenario=reopen")
         self.assertEqual(dom.find("diag-fetch").all_text().count("/api/firmware"), 1)
