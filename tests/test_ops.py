@@ -303,6 +303,9 @@ class DiagnosticsDataTest(Base):
         self.assertEqual(len(report.clean_extras({"firmware": "x" * 999})["firmware"]), 120)
         self.assertEqual(report.clean_extras({"firmware": 5}), {})
 
+    def test_report_uses_the_apps_name(self):
+        self.assertTrue(report.report([], None, "").startswith("Firmware Toolkit "))
+
     def test_report_without_extras_is_unchanged(self):
         self.assertEqual(report.report([], None, "x"), report.report([], None, "x", {}))
         self.assertNotIn("macOS sees", report.report([], None, "x"))

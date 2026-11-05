@@ -29,7 +29,7 @@ def clean_extras(raw) -> dict:
 
 
 def report(found, state, log_tail: str, extras: dict | None = None) -> str:
-    lines = [f"u2c-customfw {__version__}", f"python {platform.python_version()} on {platform.platform()}", "", "Devices:"]
+    lines = [f"Firmware Toolkit {__version__}", f"python {platform.python_version()} on {platform.platform()}", "", "Devices:"]
     for f in found:
         i = f.info
         lines.append(f"  {f.mode}: {i.vendor:04x}:{i.product:04x} page {i.usage_page:#06x} via {i.transport}  {i.name!r}")
