@@ -1,6 +1,9 @@
 # 8BitDo Ultimate 2C Firmware Toolkit
 
-<p align="center"><img src="docs/images/controller.svg" alt="The 8BitDo Ultimate 2C Wireless controller, drawn for this project" width="420"></p>
+<p align="center">
+  <img src="docs/images/firmware.png" alt="The Firmware tab, showing firmware 1.09 with its tweaks, the backup and restore steps and the Home ring brightness" width="420">
+  <img src="docs/images/diagnostics.png" alt="The Diagnostics tab, testing a controller over Bluetooth" width="420">
+</p>
 
 Everything your **8BitDo Ultimate 2C Wireless** needs on a Mac, in one app. Firmware Toolkit makes macOS and its games treat the controller as a native one, adds rumble and control over its light, and lets you test it, back it up and restore it. There are no drivers or background programs, because the changes live in the controller itself.
 

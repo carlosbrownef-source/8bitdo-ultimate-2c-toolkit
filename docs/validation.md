@@ -15,4 +15,25 @@ Run on one Ultimate 2C Wireless controller, macOS 27 (Apple silicon), through th
    weak drive strength).
 5. The final backup identified as stock v1.09 plus all four tweaks. The bug report contains no MAC or pairing bytes.
 
-Not validated: other Ultimate 2C units, the dongle (refused by design), Linux.
+# Hardware validation of 0.2.0 (2026-11-05)
+
+Run on the same controller, macOS 27.2 (Apple silicon), through the macOS app and the command line. Each install was
+read back and identified afterwards.
+
+- **Update mode:** the bootloader's identity query answers `0x301b`, shown under Firmware details. No update was pending.
+- **Backups:** a backup taken before the controller was paired again still counts as the same unit. Installing with
+  "your backup" finds the original firmware when the newest backup has tweaks.
+- **Home ring:** 25 %, 5 %, 1 % and Off were installed and looked at, and 5 % was installed from the app. The ring blinks
+  at its usual brightness while searching, then settles at the chosen level. It doesn't change while vibrating. 0.1 % was
+  not looked at; it runs the same code as the other percentages.
+- **Bluetooth:** all 19 controls, triggers and sticks respond. Vibrate like a game, Left, Right and Direct report are felt.
+  macOS strips the report ID, so the direct report reaches the firmware as intended. The battery is shown through macOS.
+  Home lights up in the test and doesn't open Apple Games, after macOS asks for permission the first time, and it opens
+  Apple Games again after leaving the tab or quitting the app.
+- **Cable:** all controls respond, vibration through macOS works, and Direct report is disabled. Switching to another app
+  pauses the test, and it continues on returning.
+- **Sticks:** they stay inside the circle at the diagonals, over Bluetooth and by cable.
+- **Name:** macOS shows "8BitDo Ultimate 2C (X/S)" without pairing again.
+- **Detection:** turning the controller off, connecting it and entering update mode are noticed without pressing Refresh.
+
+Not validated: other Ultimate 2C units, rumble in CrossOver games, the dongle (refused by design), Linux.
