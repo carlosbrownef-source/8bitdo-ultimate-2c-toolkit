@@ -21,9 +21,9 @@ const ICON = {
 /* Ultimate 2C, drawn from scratch: offset sticks, d-pad lower left, ABXY upper right, home button with its LED ring. */
 const stick = (x, y, k) => `<circle cx="${x}" cy="${y}" r="19" fill="#1c2026"/><g data-k="${k}"><circle cx="${x}" cy="${y}" r="13.5" fill="#4b525c"/><circle cx="${x}" cy="${y}" r="9" fill="#424851"/></g>`;
 const face = (x, y, t) => `<circle data-k="${t}" cx="${x}" cy="${y}" r="8.6" fill="#4b525c"/><text x="${x}" y="${y + 2.9}" text-anchor="middle" font-size="8.5" font-weight="600" fill="#b9c0c9" font-family="-apple-system,sans-serif">${t}</text>`;
-const pad = (led, dim) => `<svg viewBox="0 0 300 172" fill="none" role="img" aria-label="Controller"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4049"/><stop offset="1" stop-color="#2a2f36"/></linearGradient></defs>
+const pad = (led, dim, gradient = "g") => `<svg viewBox="0 0 300 172" fill="none" role="img" aria-label="Controller"><defs><linearGradient id="${gradient}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4049"/><stop offset="1" stop-color="#2a2f36"/></linearGradient></defs>
 <path data-k="LB" d="M66 32c7-11 29-14 41-9" stroke="#454b54" stroke-width="9" stroke-linecap="round"/><path data-k="RB" d="M234 32c-7-11-29-14-41-9" stroke="#454b54" stroke-width="9" stroke-linecap="round"/>
-<path d="M105 24L195 24C217.5 22 235.5 26 245.4 36C259.8 52 267 92 265.2 128C263.4 160 241.8 170 231 156C223.8 146 216.6 132 198.6 128L101.4 128C83.4 132 76.2 146 69 156C58.2 170 36.6 160 34.8 128C33 92 40.2 52 54.6 36C64.5 26 82.5 22 105 24Z" fill="url(#g)" stroke="#4d545e" stroke-width="1.5" ${dim ? 'stroke-dasharray="5 4"' : ""}/>
+<path d="M105 24L195 24C217.5 22 235.5 26 245.4 36C259.8 52 267 92 265.2 128C263.4 160 241.8 170 231 156C223.8 146 216.6 132 198.6 128L101.4 128C83.4 132 76.2 146 69 156C58.2 170 36.6 160 34.8 128C33 92 40.2 52 54.6 36C64.5 26 82.5 22 105 24Z" fill="url(#${gradient})" stroke="#4d545e" stroke-width="1.5" ${dim ? 'stroke-dasharray="5 4"' : ""}/>
 ${stick(81, 62, "LS")}${stick(182, 100, "RS")}
 <circle cx="118" cy="100" r="20" fill="#30353d"/><path d="M112.5 85h11v9.5h9.5v11h-9.5v9.5h-11v-9.5h-9.5v-11h9.5z" fill="#4b525c"/>
 <rect data-k="Up" x="112.5" y="85" width="11" height="9.5" fill="transparent"/><rect data-k="Down" x="112.5" y="105.5" width="11" height="9.5" fill="transparent"/><rect data-k="Left" x="103" y="94.5" width="9.5" height="11" fill="transparent"/><rect data-k="Right" x="123.5" y="94.5" width="9.5" height="11" fill="transparent"/>
@@ -111,10 +111,12 @@ function render() {
   $("force-hint").hidden = !hot;
   $("strip-alert").hidden = !(hot && tab === "firmware");
   details();
+  diagnosticsRender();
 }
 
 let tab = "firmware";
 function showTab(name) {
+  if (name !== tab) (name === "diagnostics" ? diagnosticsShow : diagnosticsHide)();
   tab = name;
   $("tab-firmware").hidden = name !== "firmware";
   $("tab-diagnostics").hidden = name !== "diagnostics";
@@ -265,7 +267,7 @@ $("force-open").onclick = () => {
   d.showModal();
 };
 $("report-open").onclick = async () => {
-  try { $("report-text").textContent = (await api("POST", "/api/report")).text; } catch (e) { $("report-text").textContent = e.message; }
+  try { $("report-text").textContent = (await api("POST", "/api/report", { macos: diagnosticsSummary() || undefined, boot_identity: fw && fw.boot_identity != null ? fw.boot_identity : undefined, pending: fw && fw.pending })).text; } catch (e) { $("report-text").textContent = e.message; }
   $("report").showModal();
 };
 $("report-copy").onclick = async () => {

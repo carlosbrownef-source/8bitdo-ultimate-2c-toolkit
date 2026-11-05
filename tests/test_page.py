@@ -125,6 +125,90 @@ class TabsTest(PageCase):
         self.assertIn("Replaces the firmware", text)
 
 
+class ControllerTestCard(PageCase):
+    def body(self, query, budget=4000):
+        dom = self.server.dom("&diagsim=" + query, budget)
+        return dom, dom.find("test-body"), dom.find("test-body").all_text()
+
+    def sent(self, dom):
+        return dom.find("diag-sent").all_text()
+
+    def chip(self, dom, name):
+        return next(n for n in dom.find("test-seen").walk() if n.attrs.get("data-c") == name)
+
+    def test_live_view(self):
+        dom, body, text = self.body("bt&scenario=press")
+        for want in ("8BitDo Ultimate 2C (One)", "Xbox One", "3 of 19"):
+            self.assertIn(want, text)
+        self.assertIn("s", self.chip(dom, "A").classes())
+        self.assertNotIn("s", self.chip(dom, "B").classes())
+        self.assertIn('"op":"start"', self.sent(dom))
+        self.assertIn("width: 50%", dom.find("test-lt").attrs["style"])
+        stick = next(n for n in body.walk() if n.attrs.get("data-k") == "LS")
+        self.assertEqual(stick.attrs["transform"], "translate(5.6 -4.2)")  # GameController's up is positive, the drawing's is negative
+
+    def test_each_drawing_has_its_own_gradient(self):
+        dom = self.server.dom("&diagsim=bt")
+        ids = [n.attrs["id"] for n in dom.walk() if n.tag == "lineargradient"]
+        self.assertEqual(len(ids), len(set(ids)), ids)
+        self.assertEqual(len(ids), 2)
+
+    def test_states(self):
+        for state_, sentence in (
+                ("boot", "The controller test can't run in update mode. Disconnect the controller and connect it again by Bluetooth or cable."),
+                ("web", "The controller test is only available in the Mac app. Everything else in this tab works here."),
+                ("none", "No controller found. Connect the controller by Bluetooth or cable to test it."),
+                ("busy", "The controller test is unavailable while a task is running."),
+                ("background", "The controller test is paused, because macOS only sends controller input to the app in front."),
+                ("noext", "macOS sees this controller, but not as a standard gamepad, so its controls can't be tested here.")):
+            self.assertIn(sentence, self.body(state_)[2], state_)
+
+    def test_direct_report_only_over_bluetooth(self):
+        dom, body, text = self.body("cable")
+        self.assertIn("The direct report only works over Bluetooth.", text)
+        self.assertIn("disabled", next(n for n in body.walk() if n.attrs.get("data-op") == "direct").attrs)
+        dom, body, text = self.body("bt")
+        self.assertNotIn("disabled", next(n for n in body.walk() if n.attrs.get("data-op") == "direct").attrs)
+
+    def test_leaving_stops_and_coming_back_restarts(self):
+        dom, _, text = self.body("bt&scenario=leave")
+        self.assertRegex(self.sent(dom), r'"start".*"stop".*"start"')
+        self.assertIn("0 of 19", text)
+
+    def test_disconnect_mid_test(self):
+        dom, _, text = self.body("bt&scenario=disconnect")
+        self.assertIn("No controller found.", dom.find("diag-snap").all_text())
+        self.assertIn("Another Pad", text)
+        self.assertIn("0 of 19", text)
+
+    def test_late_input_ignored(self):
+        dom, _, text = self.body("bt&scenario=late")
+        self.assertIn("1 of 19", text)
+        self.assertNotIn("s", self.chip(dom, "B").classes())
+
+    def test_vibrate_waits_for_result(self):
+        dom, body, text = self.body("bt&scenario=vibrate", 6000)
+        self.assertIn("disabled", dom.find("diag-snap").all_text())
+        self.assertEqual(self.sent(dom).count('"op":"vibrate"'), 1)
+        self.assertIn('"locality":"default"', self.sent(dom))
+        self.assertIn("No answer from the app.", text)
+        self.assertNotIn("disabled", next(n for n in body.walk() if n.attrs.get("data-op") == "default").attrs)
+
+    def test_vibration_result_lines(self):
+        self.assertIn("Sent. Did you feel it?", self.body("bt&scenario=vibrateok")[2])
+        self.assertIn("Sent. You'll only feel it if Rumble over Bluetooth is installed.", self.body("bt&scenario=direct")[2])
+        self.assertIn("The engine failed", self.body("bt&scenario=vibrateerror")[2])
+
+    def test_missing_locality_disables_its_button(self):
+        _, body, _ = self.body("bt&scenario=defaultonly")
+        self.assertIn("disabled", next(n for n in body.walk() if n.attrs.get("data-op") == "left").attrs)
+        self.assertNotIn("disabled", next(n for n in body.walk() if n.attrs.get("data-op") == "default").attrs)
+
+    def test_report_includes_what_macos_sees(self):
+        dom, _, _ = self.body("bt&scenario=report")
+        self.assertIn("macOS sees: 8BitDo Ultimate 2C (One) (Xbox One)", dom.find("report-text").all_text())
+
+
 class UnknownFirmwareTest(PageCase):
     sim = "unknown"
 
