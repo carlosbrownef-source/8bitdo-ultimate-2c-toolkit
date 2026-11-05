@@ -45,11 +45,13 @@ class WebTest(unittest.TestCase):
         return [json.loads(l[6:]) for l in text.splitlines() if l.startswith("data: ")]
 
     def test_report_endpoint_with_a_bad_body(self):
-        for body in ({"macos": "x"}, {"boot_identity": "x"}, {"macos": {"name": 5}}):
-            self.assertEqual(self.call("POST", "/api/report", body)[0], 200)
+        with mock.patch.object(cli, "find", lambda: []):
+            for body in ({"macos": "x"}, {"boot_identity": "x"}, {"macos": {"name": 5}}):
+                self.assertEqual(self.call("POST", "/api/report", body)[0], 200)
 
     def test_report_endpoint_uses_the_extras(self):
-        text = json.loads(self.call("POST", "/api/report", {"macos": {"name": "Pad"}, "pending": True})[1])["text"]
+        with mock.patch.object(cli, "find", lambda: []):
+            text = json.loads(self.call("POST", "/api/report", {"macos": {"name": "Pad"}, "pending": True})[1])["text"]
         self.assertIn("Pad", text)
         self.assertIn("Pending update: yes", text)
 
