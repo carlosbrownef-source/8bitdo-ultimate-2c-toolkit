@@ -2,8 +2,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>CFBundleName</key><string>u2c-customfw</string>
-  <key>CFBundleDisplayName</key><string>u2c-customfw</string>
+  <key>CFBundleName</key><string>Firmware Toolkit</string>
+  <key>CFBundleDisplayName</key><string>Firmware Toolkit</string>
   <key>CFBundleIdentifier</key><string>org.u2c-customfw.app</string>
   <key>CFBundleExecutable</key><string>u2c-customfw</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>

@@ -1,73 +1,25 @@
-# u2c-customfw
+# 8BitDo Ultimate 2C Firmware Toolkit
 
 <p align="center"><img src="docs/images/controller.svg" alt="The 8BitDo Ultimate 2C Wireless controller, drawn for this project" width="420"></p>
 
-Back up, patch and repair the firmware of the **8BitDo Ultimate 2C Wireless controller (firmware 1.09)**, so macOS treats it as an Xbox controller and every game sees it.
+Everything your **8BitDo Ultimate 2C Wireless** needs on a Mac, in one app. Firmware Toolkit makes macOS and its games treat the controller as a native one, adds rumble and control over its light, and lets you test it, back it up and restore it. There are no drivers or background programs, because the changes live in the controller itself.
 
-> ## READ THIS FIRST
-> **This is a vibe-coded project.** It was written with an AI assistant (Opus 5.5) and tested on one controller, my own. It should work on the same model and firmware, unless there are new hardware versions.
->
-> **It comes with NO WARRANTY of any kind, explicit or implied**, including any warranty of merchantability or fitness
-> for a particular purpose. You use it entirely at your own risk. The program modifies the app portion of the controller's memory, and takes a lot of assumptions about how the firmware works. It has been tested as working, but not extensively, and edge cases may exist.
->
-> **By using this app you lose your controller's warranty.** Writing a modified firmware to the controller probably voids it. You can restore your firmware to the original version, but I cannot know if it's possible for 8BitDo to tell you modified it anyway.
->
-> **It only works with the 8BitDo Ultimate 2C Wireless controller running firmware 1.09.** It does not work with the
-> 2.4 GHz dongle, with other 8BitDo models, or with other firmware versions, and it won't let you continue if it doesn't detect the correct device and firmware.
->
-> **It will probably break compatibility with 8BitDo's own apps**, both the Firmware Updater and Ultimate Software (the controller reports itself differently).
->
-> **You can always return to the original firmware.** The part of the controller that runs update mode (its bootloader)
-> is never modified, and Restore restores either your own backup or 8BitDo's firmware 1.09.
+## What it does
 
-## Why this is public
+- **Works as a native controller.** Over Bluetooth it presents itself as an Xbox Series X|S controller, and by cable as an Xbox 360 controller, so macOS and its games recognise it.
+- **Rumble over Bluetooth.** The original firmware doesn't vibrate over Bluetooth, and this makes it respond to games.
+- **Adjustable light.** Choose how bright the ring around the Home button is, or turn it off, and dim the other lights.
+- **Tests the controller.** See what macOS reports, check every button, stick and trigger, and try the vibration.
+- **Backs up and restores.** Save a full copy of the controller's memory first, and go back to it or to 8BitDo's original firmware at any time.
 
-Out of the box, macOS and most Mac games don't recognise the Ultimate 2C as a standard controller (just as a HID device). This project is
-public to help Mac users use it as a native controller on their system. This doesn't happen on Windows, as it isn't as inflexible as macOS in detecting Xbox 360-compatible controllers (when using a cable), and because it supports Xbox 360 controllers via bluetooth, and macOS does not.
+It works with the Ultimate 2C Wireless on firmware 1.09, on Macs with Apple silicon. It doesn't work with the 2.4 GHz dongle or other models.
 
-It only supports this controller with firmware 1.09, because that is the only one I have and could test. The same
-approach could probably be extended to other firmware versions, and perhaps to other 8BitDo controllers, but I can't do that
-myself without the hardware. If you have one, [docs/firmware-notes.md](docs/firmware-notes.md) explains how the
-firmware is laid out and [docs/porting.md](docs/porting.md) how to port the app to Linux. It would only work if the firmware is not encrypted.
-
-This is possible because the controller's firmware is neither encrypted nor signed: 8BitDo's update file is a plain
-image, and the controller's bootloader only checks a CRC on each block it receives, so it accepts and runs a modified
-firmware. Each tweak here is a small, hash-checked edit to that image.
-
-## Credits
-
-- **[jgus-org/8bitdo-2c-re-flake](https://github.com/jgus-org/8bitdo-2c-re-flake)** (MIT): reverse engineering of the
-  Ultimate 2C's update and bootloader protocols, its recovery and its flash layout. It was the base for firmware analysis, and allowed me to obtain the official update files. No code was copied, the protocols were reimplemented based on jgus's notes.
-- **[xpadneo](https://github.com/atar-axis/xpadneo)**: the captured Xbox Series X|S Bluetooth report descriptor, used to rewrite the HID report to match the newer protocol.
-- **[supercypok/ultimate2c-ring](https://github.com/supercypok/ultimate2c-ring)** (MIT): how to drive the Home ring with PWM (registers, the LED task's call for the ring, its startup state) and the idea of keeping it dim while the controller runs. The Home ring tweak here is my own reimplementation of that method, placed differently and keeping the blink while pairing.
-- **[Crazyawk/8bitdo-ultimate2c-macos-rumble](https://github.com/Crazyawk/8bitdo-ultimate2c-macos-rumble)** (MIT): the earliest public use I found of the bootloader's identity query, used here as an extra check that the device in update mode is the controller, and the idea of testing vibration both through CoreHaptics and directly.
-- **[vomba/8bitdo-ultimate-2c-apple](https://github.com/vomba/8bitdo-ultimate-2c-apple)** (MIT): notes on that query and on the update record's pending-update fields, checked here before patching.
-- **8BitDo**: the hardware, and the update server the app downloads firmware 1.09 from (only on request).
-- **Telink**: the tc32 toolchain ([flyskywhy/tc32](https://github.com/flyskywhy/tc32)) used to build `firmware-src/`.
-
-## Other projects
-
-Other people reached the same goal on their own, and these are worth a look:
-
-- **[vomba/8bitdo-ultimate-2c-apple](https://github.com/vomba/8bitdo-ultimate-2c-apple)** changes just six bytes of firmware 1.09 so Apple uses its SN30 Pro+ profile: the smallest possible patch, without rumble. Its owner reports that it also works on Apple TV.
-- **[Crazyawk/8bitdo-ultimate2c-macos-rumble](https://github.com/Crazyawk/8bitdo-ultimate2c-macos-rumble)** brings Bluetooth rumble to CrossOver games, with patched firmware and an SDL shim.
-
-## What the tweaks do
-
-| Tweak | Effect |
-| --- | --- |
-| Xbox Series X\|S controller over Bluetooth | Over Bluetooth the controller presents as an Xbox Series X\|S pad (`045e:0b13`), so macOS's GameController framework handles it natively (name "8BitDo Ultimate 2C (One)"). Needs a re-pair afterwards (or macOS may still detect it as a HID device). |
-| Rumble over Bluetooth | Rumble works over Bluetooth (the original firmware switches the motors off in that mode). Needs the Xbox tweak as it uses it's profile. May hang the controller, though I haven't seen it happen. |
-| Xbox 360 controller over cable | Plugged in by cable it presents as a wired Xbox 360 pad (`045e:028e`), which Apple's own driver takes. This is the simplest tweak if you want to avoid modding too much of the controller's code |
-| Dimmer LEDs | The three LEDs use weak drive strength: a little dimmer. The effect is barely noticable, but the LEDs are so bright everything helps IMO. |
-| Home ring brightness | Sets the ring around the Home button while connected: 25 %, 5 %, 1 %, 0.1 % or off (the percentage is PWM duty, not perceived brightness). It still blinks while searching or pairing. You choose one level, and changing it means installing again. |
-
-Each tweak is a hash-checked set of byte edits to the stock v1.09 image; nothing else in the firmware changes, and the controller's bootloader, MAC, calibration and pairings are never written.
+> **There's no warranty, and you use this at your own risk.** Installing modified firmware probably voids your controller's warranty. Please read the [full disclaimer](DISCLAIMER.md) before using it. Not affiliated with or endorsed by 8BitDo.
 
 ## Install (macOS, Apple silicon)
 
-1. Download `u2c-customfw-<version>-macos-arm64.zip` from the releases page and unzip it.
-2. Open the app once. macOS will block it because it is not signed: open **System Settings → Privacy & Security**, scroll to the message about u2c-customfw and click **Open Anyway** (right-click → Open no longer works on current macOS). You can also remove it from Quarantine with xattr.
+1. Download `firmware-toolkit-<version>-macos-arm64.zip` from the releases page and unzip it.
+2. Open the app once. macOS will block it because it is not signed: open **System Settings → Privacy & Security**, scroll to the message about Firmware Toolkit and click **Open Anyway** (right-click → Open no longer works on current macOS). You can also remove it from Quarantine with xattr.
 3. When asked, allow **Input Monitoring** (System Settings → Privacy & Security → Input Monitoring). The app needs it to talk to the controller.
 
 Or with [Homebrew](https://github.com/carlosbrownef-source/homebrew-tap), which replaces step 1:
@@ -103,6 +55,32 @@ The Diagnostics tab helps you check how macOS sees the controller after installi
 
 The controller test is only available in the Mac app for now, because it uses macOS's GameController directly. Everything else in the tab also works when you run the app from source.
 
+## What the tweaks do
+
+| Tweak | Effect |
+| --- | --- |
+| Xbox Series X\|S controller over Bluetooth | Over Bluetooth the controller presents as an Xbox Series X\|S pad (`045e:0b13`), so macOS's GameController framework handles it natively (name "8BitDo Ultimate 2C (One)"). Needs a re-pair afterwards (or macOS may still detect it as a HID device). |
+| Rumble over Bluetooth | Rumble works over Bluetooth (the original firmware switches the motors off in that mode). Needs the Xbox tweak as it uses it's profile. May hang the controller, though I haven't seen it happen. |
+| Xbox 360 controller over cable | Plugged in by cable it presents as a wired Xbox 360 pad (`045e:028e`), which Apple's own driver takes. This is the simplest tweak if you want to avoid modding too much of the controller's code |
+| Dimmer LEDs | The three LEDs use weak drive strength: a little dimmer. The effect is barely noticable, but the LEDs are so bright everything helps IMO. |
+| Home ring brightness | Sets the ring around the Home button while connected: 25 %, 5 %, 1 %, 0.1 % or off (the percentage is PWM duty, not perceived brightness). It still blinks while searching or pairing. You choose one level, and changing it means installing again. |
+
+Each tweak is a hash-checked set of byte edits to the stock v1.09 image; nothing else in the firmware changes, and the controller's bootloader, MAC, calibration and pairings are never written.
+
+## Why this is public
+
+Out of the box, macOS and most Mac games don't recognise the Ultimate 2C as a standard controller (just as a HID device). This project is
+public to help Mac users use it as a native controller on their system. This doesn't happen on Windows, as it isn't as inflexible as macOS in detecting Xbox 360-compatible controllers (when using a cable), and because it supports Xbox 360 controllers via bluetooth, and macOS does not.
+
+It only supports this controller with firmware 1.09, because that is the only one I have and could test. The same
+approach could probably be extended to other firmware versions, and perhaps to other 8BitDo controllers, but I can't do that
+myself without the hardware. If you have one, [docs/firmware-notes.md](docs/firmware-notes.md) explains how the
+firmware is laid out and [docs/porting.md](docs/porting.md) how to port the app to Linux. It would only work if the firmware is not encrypted.
+
+This is possible because the controller's firmware is neither encrypted nor signed: 8BitDo's update file is a plain
+image, and the controller's bootloader only checks a CRC on each block it receives, so it accepts and runs a modified
+firmware. Each tweak here is a small, hash-checked edit to that image.
+
 ## Porting to Linux
 
 The only OS-specific part is `u2c_customfw/transport/`. See [docs/porting.md](docs/porting.md).
@@ -114,6 +92,24 @@ The only OS-specific part is `u2c_customfw/transport/`. See [docs/porting.md](do
 - [firmware-src/README.md](firmware-src/README.md): the C and assembly we add, and how to rebuild it.
 - [docs/releasing.md](docs/releasing.md): publishing a new version, and how the Homebrew tap follows it.
 
+## Other projects
+
+Other people reached the same goal on their own, and these are worth a look:
+
+- **[vomba/8bitdo-ultimate-2c-apple](https://github.com/vomba/8bitdo-ultimate-2c-apple)** changes just six bytes of firmware 1.09 so Apple uses its SN30 Pro+ profile: the smallest possible patch, without rumble. Its owner reports that it also works on Apple TV.
+- **[Crazyawk/8bitdo-ultimate2c-macos-rumble](https://github.com/Crazyawk/8bitdo-ultimate2c-macos-rumble)** brings Bluetooth rumble to CrossOver games, with patched firmware and an SDL shim.
+
+## Credits
+
+- **[jgus-org/8bitdo-2c-re-flake](https://github.com/jgus-org/8bitdo-2c-re-flake)** (MIT): reverse engineering of the
+  Ultimate 2C's update and bootloader protocols, its recovery and its flash layout. It was the base for firmware analysis, and allowed me to obtain the official update files. No code was copied, the protocols were reimplemented based on jgus's notes.
+- **[xpadneo](https://github.com/atar-axis/xpadneo)**: the captured Xbox Series X|S Bluetooth report descriptor, used to rewrite the HID report to match the newer protocol.
+- **[supercypok/ultimate2c-ring](https://github.com/supercypok/ultimate2c-ring)** (MIT): how to drive the Home ring with PWM (registers, the LED task's call for the ring, its startup state) and the idea of keeping it dim while the controller runs. The Home ring tweak here is my own reimplementation of that method, placed differently and keeping the blink while pairing.
+- **[Crazyawk/8bitdo-ultimate2c-macos-rumble](https://github.com/Crazyawk/8bitdo-ultimate2c-macos-rumble)** (MIT): the earliest public use I found of the bootloader's identity query, used here as an extra check that the device in update mode is the controller, and the idea of testing vibration both through CoreHaptics and directly.
+- **[vomba/8bitdo-ultimate-2c-apple](https://github.com/vomba/8bitdo-ultimate-2c-apple)** (MIT): notes on that query and on the update record's pending-update fields, checked here before patching.
+- **8BitDo**: the hardware, and the update server the app downloads firmware 1.09 from (only on request).
+- **Telink**: the tc32 toolchain ([flyskywhy/tc32](https://github.com/flyskywhy/tc32)) used to build `firmware-src/`.
+
 ## License
 
-GPL-3.0-or-later; see `LICENSE`. Credits are [above](#credits) and in [CREDITS.md](CREDITS.md). 8BitDo firmware is not included in this repository.
+GPL-3.0-or-later; see `LICENSE`. Credits are [above](#credits) and in [CREDITS.md](CREDITS.md). 8BitDo firmware is not included in this repository. Not affiliated with or endorsed by 8BitDo. The command-line tool and the Homebrew packages keep the name `u2c-customfw`.

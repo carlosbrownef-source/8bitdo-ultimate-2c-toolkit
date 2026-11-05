@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Build dist/u2c-customfw.app (Apple silicon, unsigned apart from an ad-hoc signature) and the release zip.
+# Build dist/Firmware Toolkit.app (Apple silicon, unsigned apart from an ad-hoc signature) and the release zip.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
@@ -13,7 +13,7 @@ tarball=dist/cache/python.tar.gz
 [ -f "$tarball" ] || curl -fsSL -o "$tarball" "$PBS_URL"
 echo "$PBS_SHA256  $tarball" | shasum -a 256 -c -
 
-app=dist/u2c-customfw.app
+app="dist/Firmware Toolkit.app"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/app"
 tar xzf "$tarball" -C "$app/Contents/Resources"
@@ -23,5 +23,5 @@ cp macos/AppIcon.icns "$app/Contents/Resources/"  # rendered from macos/icon.svg
 sed "s/@VERSION@/$version/g" macos/Info.plist > "$app/Contents/Info.plist"
 swiftc -O -target arm64-apple-macos13.0 -o "$app/Contents/MacOS/u2c-customfw" macos/main.swift macos/Diagnostics.swift -framework AppKit -framework WebKit -framework IOKit -framework GameController -framework CoreHaptics
 codesign --force --deep -s - "$app"
-(cd dist && rm -f "u2c-customfw-$version-macos-arm64.zip" && ditto -c -k --keepParent u2c-customfw.app "u2c-customfw-$version-macos-arm64.zip")
-ls -lh "dist/u2c-customfw-$version-macos-arm64.zip"
+(cd dist && rm -f "firmware-toolkit-$version-macos-arm64.zip" && ditto -c -k --keepParent "Firmware Toolkit.app" "firmware-toolkit-$version-macos-arm64.zip")
+ls -lh "dist/firmware-toolkit-$version-macos-arm64.zip"

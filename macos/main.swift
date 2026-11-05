@@ -27,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKN
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 860),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         // The title bar replaces the page's own top bar (hidden with ?native=1): name, what it is for, and Help.
-        window.title = "u2c-customfw"
+        window.title = "Firmware Toolkit"
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
         window.subtitle = "v\(version) · 8BitDo Ultimate 2C Wireless · firmware 1.09 only"
         window.titlebarAppearsTransparent = true    // takes the window colour, so it blends into the page
@@ -64,7 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKN
 
     func installMenu() {
         let main = NSMenu(), item = NSMenuItem(), menu = NSMenu()
-        menu.addItem(withTitle: "Quit u2c-customfw", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit Firmware Toolkit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.submenu = menu
         main.addItem(item)
         let editItem = NSMenuItem(), edit = NSMenu(title: "Edit")  // so ⌘C and ⌘A work in the page (the problem report)
