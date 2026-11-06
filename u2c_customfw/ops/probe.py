@@ -77,7 +77,7 @@ def _ring_level(ch, mode: str, state: recipes.State) -> int | None:
     installed = next((i for i, k in enumerate(recipes.RING_ORDER) if k in state.recipes), None)
     if installed is None or state.outdated:
         return None
-    saved = _read(ch, mode, image.RING_SAVED, 1)[0]
+    saved = _read(ch, mode, image.SETTINGS, image.SETTINGS_SIZE)[image.RING_SAVED - image.SETTINGS]
     return saved & 15 if saved >> 4 == installed and saved & 15 < len(recipes.RING_ORDER) else installed
 
 

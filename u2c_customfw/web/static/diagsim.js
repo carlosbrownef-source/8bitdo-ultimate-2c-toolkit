@@ -50,6 +50,7 @@
     keptchoice: () => { document.querySelector('[data-ring="ring_1"]').click(); refresh(); setTimeout(() => { document.getElementById("diag-snap").textContent = tweaks().join(); }, 1000); },
     noalerts: () => { document.querySelector('.tweak[value="battery_alerts"]').click(); document.getElementById("diag-snap").textContent = tweaks().join(); },
     ringlevel: () => document.querySelector('[data-live="1"]').click(),
+    ringreread: () => { document.querySelector('[data-live="1"]').click(); setTimeout(refresh, 300); },
     ringsave: () => document.getElementById("ring-save").click(),
     reopen: () => { showTab("firmware"); showTab("diagnostics"); },
     latebt: () => { window.simReplugged = true; window.u2cDiagnostics({ type: "state", connected: false }); window.u2cDiagnostics(PAD); },

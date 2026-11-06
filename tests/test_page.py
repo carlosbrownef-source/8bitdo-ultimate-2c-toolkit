@@ -272,7 +272,20 @@ class ControllerTestCard(PageCase):
     def test_save_sends_save(self):
         dom, _, _ = self.body("bt&scenario=ringsave")
         self.assertIn('"op":"ring","level":255,"save":true', self.sent(dom))
+        self.assertIn("If the Home ring", dom.find("ring-note").all_text())
+
+    def test_by_cable_save_says_saved(self):
+        dom, _, _ = self.body("cable&tweaks=1&scenario=ringsave")
         self.assertIn("Saved", dom.find("ring-note").all_text())
+
+    def test_reading_the_firmware_again_shows_what_it_starts_at(self):
+        dom, _, _ = self.body("cable&tweaks=1&scenario=ringreread")
+        self.assertIn("on", self.ring_button(dom, 2).attrs.get("class", ""))
+        self.assertNotIn("on", self.ring_button(dom, 1).attrs.get("class", "").split())
+
+    def test_over_bluetooth_nothing_is_marked_until_chosen(self):
+        dom, _, _ = self.body("bt")
+        self.assertFalse(any("on" in self.ring_button(dom, i).attrs.get("class", "").split() for i in range(6)))
 
     def test_by_cable_a_level_goes_through_the_app(self):
         dom, _, _ = self.body("cable&tweaks=1&scenario=ringlevel")

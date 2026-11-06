@@ -29,7 +29,7 @@ Enter by powering the controller fully off and holding L1+R1 while plugging in t
 ## Other findings
 
 - Main loop (`0xa430`): the button/stick/rumble tasks; in Bluetooth mode it calls the motor setter with zero strength on every pass, which is why rumble is off in stock Bluetooth mode.
-- Battery: `0x843415` holds the percentage and `0x843424` the voltage in mV. PD0 (`0x800518` bit 0) is external power, and `0x843423` latches when charged. The button word `0x84342c` has L4 at bit 26 and R4 at bit 25, which reach neither the Bluetooth report nor games. A save (`0xd538`) doesn't interrupt Bluetooth: the longest gap between reports was 44 ms.
+- Battery: `0x843415` holds the percentage and `0x843424` the voltage in mV. PD0 (`0x800518` bit 0) is external power, and `0x843423` latches when charged. The button word `0x84342c` has L4 at bit 26 and R4 at bit 25, which don't reach the Bluetooth report. A save (`0xd538`) doesn't interrupt Bluetooth: the longest gap between reports was 44 ms.
 - The app area runs up to `0x19000`: `0x18400-0x19000` is blank on stock, erased with bank A, and the bootloader writes it like the rest with the same parameter.
-- LEDs are three plain GPIO outputs (PB7, PD5, PF1) switched by the LED task every 200 ms; weak drive strength dims them slightly, and the Home ring (PB7) can also be driven by PWM1 for real brightness control (`firmware-src/packer.c`, `ring_led`). Its level is a word at image `0x76d0`, copied to RAM at `0x8416d0`.
+- LEDs are three plain GPIO outputs (PB7, PD5, PF1) switched by the LED task every 200 ms; weak drive strength dims them slightly, and the Home ring (PB7) can also be driven by PWM1 for real brightness control (`firmware-src/packer.c`, `ring_tick`). Its level is a word at image `0x76d0`, copied to RAM at `0x8416d0`.
 - The Bluetooth stack is a closed Telink library; the firmware never requests a connection-parameter update, so macOS runs the link at a 15 ms interval.

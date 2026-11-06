@@ -41,7 +41,7 @@ const ringChoice = () => ringButtons().find((b) => b.classList.contains("on"));
 const alertsOn = () => tweakBoxes().some((x) => x.value === "battery_alerts" && x.checked);
 const tweaks = () => [...tweakBoxes().filter((x) => x.checked).map((x) => x.value), ...(ringChoice().dataset.ring ? [ringChoice().dataset.ring] : alertsOn() ? ["ring_normal"] : [])];
 const tweakTitles = () => [...tweakBoxes().filter((x) => x.checked).map((x) => x.parentElement.lastElementChild.firstChild.textContent),
-  ...(ringChoice().dataset.ring ? [`Home ring: ${ringChoice().textContent.toLowerCase()}`] : [])];
+  ...(ringChoice().dataset.ring || alertsOn() ? [`Home ring: ${ringChoice().textContent.toLowerCase()}`] : [])];
 
 function lastBackup(names) {  // controller-YYYYMMDD-HHMMSS….bin, oldest first
   const m = names.length && names[names.length - 1].match(/controller-(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)/);

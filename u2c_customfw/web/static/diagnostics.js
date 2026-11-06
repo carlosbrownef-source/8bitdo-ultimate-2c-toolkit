@@ -52,7 +52,7 @@ const TEST_MESSAGES = {
   background: "The controller test is paused, because macOS only sends controller input to the app in front.",
 };
 
-let ringLevel = null, ringBusy = false, ringId = 0, ringMessage = "", ringTimer = null, ringAsked = null, ringRead = null;
+let ringLevel = null, ringBusy = false, ringId = 0, ringMessage = "", ringTimer = null, ringAsked = null, ringRead = null, ringVia = null;
 
 function ringAccess() {  // how the card can reach the controller, or why it can't
   const modes = st ? st.devices.map((d) => d.mode) : [];
@@ -69,7 +69,7 @@ function ringAccess() {  // how the card can reach the controller, or why it can
 
 function ringRender() {
   const access = ringAccess(), off = !access.via || ringBusy;
-  if (fw && fw.ring_level !== undefined && fw.ring_level !== ringRead) { ringRead = fw.ring_level; ringLevel = fw.ring_level; }
+  if (fw && fw !== ringRead) { ringRead = fw; ringLevel = fw.ring_level === undefined ? null : fw.ring_level; }  // each read says what the ring starts at
   document.querySelectorAll("[data-live]").forEach((b) => { b.disabled = off; b.classList.toggle("on", +b.dataset.live === ringLevel); });
   $("ring-save").disabled = off;
   $("ring-note").textContent = access.note || ringMessage || (access.via === "bluetooth"
@@ -83,7 +83,9 @@ function ringDone(error, level, save) {
   if (error) ringMessage = error;
   else {
     if (level !== null) ringLevel = level;
-    ringMessage = save ? "Saved. The controller keeps this level when you turn it off." : "Sent. Save it if you want to keep it after turning the controller off.";
+    const ifTweaks = "If the Home ring and Rumble over Bluetooth tweaks are installed";
+    if (ringVia === "bluetooth") ringMessage = save ? `Sent. ${ifTweaks}, the controller keeps this level when you turn it off.` : `Sent. ${ifTweaks}, the ring changes at once, until you turn the controller off or save it.`;
+    else ringMessage = save ? "Saved. The controller keeps this level when you turn it off." : "Sent. Save it if you want to keep it after turning the controller off.";
   }
   ringRender();
 }
@@ -91,7 +93,7 @@ function ringDone(error, level, save) {
 async function ringSend(level, save) {
   const access = ringAccess();
   if (!access.via || ringBusy) return;
-  ringBusy = true; ringMessage = ""; ringRender();
+  ringBusy = true; ringMessage = ""; ringVia = access.via; ringRender();
   if (access.via === "cable") {
     let error = null;
     try { await api("POST", "/api/ring", level === null ? { save: true } : { level }); } catch (e) { error = e.message; }

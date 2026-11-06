@@ -13,7 +13,8 @@ BANK_B = 0x40000               # second copy of the app, where updates are stage
 CONFIG_START = 0x73000         # config, MAC, calibration, Bluetooth bonds: never written
 MAC_SECTOR = 0x76000
 SECTOR = 0x1000
-RING_SAVED = 0x73019           # settings record +25: the Home ring's saved level (firmware writes it, never the app)
+SETTINGS, SETTINGS_SIZE = 0x73000, 26  # the firmware's settings record
+RING_SAVED = SETTINGS + 25     # the Home ring's saved level (the firmware writes it, never the app)
 
 STOCK_SHA256 = "dfd443c77f831008aa453ee2c1c9cb6871c36f8947c548e61d4387fba0a9da70"      # bank A of v1.09
 STOCK_DAT_SHA256 = "87349e603bb92d6ae9ff6defb6f32b10de2f2d3252fe4e442fa7993f982f2a5a"  # 8BitDo's .dat file

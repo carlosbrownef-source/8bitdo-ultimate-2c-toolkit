@@ -11,7 +11,7 @@ Our own code for the controller (Telink TC32, firmware 1.09). The built binaries
 | `rumble.bin` | `0x18390` | `rumble_write`: Xbox rumble to the motor setter `0xfa68`, the Xbox duration as its hold. A report with bit 7 of its first byte set is a Home ring command instead |
 | `led.bin` | image `0x7738`, run address `0x1738` | `main_tick`: LED pins to weak drive strength, then the motor routine `0xfaa0` |
 | `hook.bin` | `0xa43c` | the main loop's call, redirected from `0xfaa0` to `main_tick` |
-| `ringtail.bin` | `0x18400`, up to `0x18ff0` (blank on stock), run in place | the Home ring: `ring_command` first, then `ring_tick` (PWM1 at the level, alerts and pulses, every 200 ms), `main_poll` (the L4 + R4 chord, every 10 ms) and the vendor commands. Its state is at RAM `0x841640` (dead RAM code, zeroed at image `0x7640`), the level installed at image `0x76d0`, and the saved level in settings field `+25` |
+| `ringtail.bin` | `0x18400`, up to `0x18ff0` (blank on stock), run in place | the Home ring: `ring_command` first, then `ring_tick` (PWM1 at the level, alerts and pulses, every 200 ms), `main_poll` (the L4 + R4 chord and the end of a pulse, every 100 ms) and the vendor commands. Its state is at RAM `0x841640` (dead RAM code, zeroed at image `0x7640`), the level installed at image `0x76d0`, and the saved level in settings field `+25` |
 | `ringhook.bin` | `0xd4f0` | the LED task's call for the ring, redirected from `0xd36c` to `ring_tick` |
 | `pollhook.bin` | `0xa484` | the main loop's call, redirected from `0xcfa4` to `main_poll`, which still calls it |
 | `vhooka.bin`, `vhookb.bin` | `0xf83c`, `0xf842` | the vendor command checks, redirected from `0xf56c` and `0xf594` to `vendor_a` and `vendor_b`, which still call them |

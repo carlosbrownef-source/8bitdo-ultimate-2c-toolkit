@@ -154,8 +154,8 @@ void main_tick(void)
  *
  * The level changes with L4 + R4 (the button word has L4 at bit 26 and R4 at bit 25, measured), the marked Bluetooth
  * report in rumble_write, or 81 05 00 52 <level> by cable, where 81 05 00 53 saves. Settings field +25 keeps the level
- * in its low nibble and, in the high one, the level installed when it was saved: installing another level wins, or the
- * app's choice would be ignored after any save.
+ * in its low nibble and, in the high one, the level installed when it was saved: installing another level wins and
+ * replaces the save, or the app's choice would be ignored after any save, and an old save could come back later.
  *
  * Battery alerts, when 0x18ff0 is 1: slow blink while charging, fast blink at 15 % or less, and pulses. Charging is PD0
  * high with the charged latch 0x843423 clear (see 0xb4fc). Values come from trying them on the controller. */
@@ -169,7 +169,8 @@ void main_tick(void)
 #define PULSE_STRENGTH 200
 #define PULSE_SHORT 20   /* 10 ms units */
 #define PULSE_LONG 50
-#define SAMPLE_TICKS 160000 /* 10 ms at 16 MHz: taps count, contact bounce doesn't */
+#define PULSE_GAP 3      /* ticks after a pulse ends, before the next */
+#define TICKS_10MS 160000  /* the system timer runs at 16 MHz */
 #define L4 (1u << 26)
 #define R4 (1u << 25)
 
@@ -177,9 +178,9 @@ enum { ALERT_NONE, ALERT_CHARGING, ALERT_LOW, ALERT_VERY_LOW };
 
 struct ring_state {
 	u8 init, level, installed, phase, alert, save_wait, q_short, q_long;
-	u8 stop_wait, gap, ext_prev, full_done;
+	u8 gap, ext_prev, full_done;
 	u16 charge_ticks, repeat;
-	u32 prev_btn, sampled, ticks;
+	u32 prev_btn, stop_at, ticks;
 };
 typedef char ring_state_fits[sizeof(struct ring_state) <= 0x90 ? 1 : -1];
 
@@ -234,48 +235,42 @@ static void ring_init(void)
 	S.level = S.installed;
 	if (saved >> 4 == S.installed && (saved & 15) < RING_LEVELS)
 		S.level = saved & 15;
+	else if (saved != 0xff && saved >> 4 != S.installed)
+		S.save_wait = 1;
 	S.ext_prev = *IO(0x800518) & 1;
 }
 
+/* From the main loop's slow branch, every 100 ms (0xa460). */
 void main_poll(void)
 {
-	u32 now = TIMER, b, pressed;
+	u32 b = BTN, pressed = b & ~S.prev_btn;
 
-	if (now - S.sampled >= SAMPLE_TICKS) {
-		S.sampled = now;
-		b = BTN;
-		pressed = b & ~S.prev_btn;
-		S.prev_btn = b;
-		if (S.init && (b & L4) && (b & R4) && (pressed & (L4 | R4))) {
-			S.level = S.level + 1 < RING_LEVELS ? S.level + 1 : 0;
-			S.save_wait = SAVE_TICKS;
-		}
+	S.prev_btn = b;
+	if (S.init && (b & L4) && (b & R4) && (pressed & (L4 | R4))) {
+		S.level = S.level + 1 < RING_LEVELS ? S.level + 1 : 0;
+		S.save_wait = SAVE_TICKS;
+	}
+	/* Only the Bluetooth path stops the motors when a hold runs out: elsewhere the strengths stay until changed. */
+	if (S.stop_at && (int)(TIMER - S.stop_at) >= 0) {
+		S.stop_at = 0;
+		motor_set(0, 0, 1);
 	}
 	stock_chords();
 }
 
 static void pulse_now(u32 hold)
 {
-	u32 ticks = 1;
-
 	motor_set(PULSE_STRENGTH, PULSE_STRENGTH, hold);
-	while (hold >= 20) { /* 200 ms ticks */
-		hold -= 20;
-		ticks++;
-	}
-	S.stop_wait = ticks;
+	S.stop_at = (TIMER + (hold - 5) * TICKS_10MS) | 1; /* centred on the 100 ms checks; never 0, which means none */
+	S.gap = PULSE_GAP;
 }
 
 static void pulses(void)
 {
-	if (S.stop_wait) {
-		S.stop_wait = S.stop_wait - 1;
-		if (!S.stop_wait) {
-			motor_set(0, 0, 1);
-			S.gap = 1;
-		}
+	if (S.stop_at) {
+		return;
 	} else if (S.gap) {
-		S.gap = 0;
+		S.gap = S.gap - 1;
 	} else if (S.q_long) {
 		S.q_long = 0;
 		pulse_now(PULSE_LONG);

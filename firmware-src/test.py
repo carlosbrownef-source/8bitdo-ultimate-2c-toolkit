@@ -61,14 +61,15 @@ int main(void) {
         if (line[0] == 'X') { unsigned pc, ex, fu; sscanf(line + 2, "%u %u %u", &pc, &ex, &fu); PCT = pc; REGS[0x518] = ex; FULL = fu; continue; }
         if (line[0] == 'B') { sscanf(line + 2, "%x", &BTN); continue; }
         if (line[0] == 'N') { RING_CODE = 0; continue; } /* no ring code installed */
-        if (line[0] == 'P') { /* P <n>: n main-loop passes, 10 ms apart */
+        if (line[0] == 'P') { /* P <n>: n main-loop passes, 100 ms apart */
             unsigned n; sscanf(line + 2, "%u", &n);
-            while (n--) { TIMER += 160000; main_poll(); }
+            while (n--) { TIMER += 1600000; main_poll(); }
             continue;
         }
         if (line[0] == 'T') { /* T <mode> <n>: n LED ticks; each prints what the ring got, then E */
             unsigned m, n; sscanf(line + 2, "%u %u", &m, &n);
             while (n--) {
+                TIMER += 1600000; main_poll(); TIMER += 1600000; main_poll(); /* two main-loop passes per LED tick */
                 ring_tick(m, 0x180, (u8 *)0x3452);
                 if (REGS[0x780] & 2) printf("W %u\n", REGS[0x798] | REGS[0x799] << 8);
                 printf("E\n");
@@ -326,7 +327,7 @@ def test_chord_needs_both_buttons():
 
 
 def test_a_tap_between_ticks_counts():
-    assert duty(Sim(level=250).tick().press(L4 | R4).tick().ticks()[-1]) == 50
+    assert duty(Sim(level=250).tick().btn(L4 | R4).poll(1).btn(0).poll(1).tick().ticks()[-1]) == 50
 
 
 def test_chord_wraps_around():
@@ -418,14 +419,37 @@ def test_pulses_on_reaching_5_percent_then_every_5_minutes():
     assert m[2][0] - m[0][0] == 1500, m
 
 
-def test_two_short_pulses_are_apart():
+def test_two_short_pulses_are_as_tried_on_the_controller():
     m = motors(Sim(pct=50).tick(20).bat(5).tick(10).ticks())
-    assert m[1][0] - m[0][0] >= 3, m
+    assert m[1][0] - m[0][0] == 4, m  # 800 ms from start to start
 
 
-def test_a_pulse_is_stopped_afterwards():
-    ticks = Sim(ext=0).tick(20).bat(50, 1).tick(5).ticks()
-    assert any("M 0 0 1" in t for t in ticks), ticks
+def stops(ticks):
+    return [i for i, t in enumerate(ticks) if "M 0 0 1" in t]
+
+
+def test_pulses_last_as_long_as_chosen_on_any_connection():
+    ticks = Sim().tick(20).bat(50, 1).tick(5).ticks()
+    assert stops(ticks)[0] - motors(ticks)[0][0] == 1, ticks[20:]  # 200 ms: stopped in the next tick's passes
+    lines = Sim().tick(20).bat(50, 1).tick(160).bat(100, 1, 1).tick(1).add("P 4", "G").out()
+    assert "M 0 0 1" not in lines[lines.index(f"M {STRONG} {STRONG} {LONG}"):lines.index(f"M {STRONG} {STRONG} {LONG}") + 2]
+    long_start = Sim().tick(20).bat(50, 1).tick(160).bat(100, 1, 1).tick(5).ticks()
+    assert stops(long_start)[-1] - motors(long_start)[-1][0] == 3, "500 ms ends in the third tick's passes"
+
+
+def test_a_level_saved_under_another_install_is_cleared_once():
+    saves = [x for x in Sim(level=10, saved=0x21).tick(5).out() if x.startswith("SAVE")]
+    assert saves == ["SAVE 33"], saves  # now 1 % (index 3), installed and current
+
+
+def test_going_back_to_the_first_level_doesnt_bring_the_old_save_back():
+    assert not [x for x in Sim(level=50, saved=0x33).tick().out() if x.startswith("SAVE 23")]
+    assert duty(Sim(level=50, saved=0x33).tick().ticks()[0]) == 50
+
+
+def test_no_save_at_startup_without_reason():
+    for saved in (0xFF, 0x21, 0x22):
+        assert not [x for x in Sim(level=50, saved=saved).tick(5).out() if x.startswith("SAVE")], hex(saved)
 
 
 def test_no_low_battery_pulses_on_external_power():
