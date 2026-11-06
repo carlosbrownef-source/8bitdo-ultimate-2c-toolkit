@@ -11,7 +11,7 @@ cd "$here"
 rm -f "$out"/*.o "$out"/*.elf "$out"/*.bin "$out"/packer.dis
 tc32-elf-gcc -Os -Wall -Werror -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -c packer.c -o "$out/packer.o"
 tc32-elf-gcc -Os -Wall -Werror -ffreestanding -fno-builtin -ffunction-sections -fdata-sections ${EXTRA_CFLAGS:-} -c settings.c -o "$out/settings.o"
-tc32-elf-as hook.s -o "$out/hook.o"
+tc32-elf-as ${EXTRA_ASFLAGS:-} hook.s -o "$out/hook.o"
 tc32-elf-ld -T packer.ld --no-check-sections \
 	--defsym ble_notify=0x1458c --defsym after_notify=0x1abc --defsym motor_set=0xfa68 --defsym motor_tick=0xfaa0 --defsym led_driver=0xd36c \
 	--defsym save_settings=0xd538 --defsym stock_chords=0xcfa4 --defsym stock_vendor_a=0xf56c --defsym stock_vendor_b=0xf594 \

@@ -175,6 +175,7 @@ static void stack_answer(void)
 	r[0] = 0x59;
 	r[1] = n;
 	r[2] = n >> 8;
+	r[3] = *(volatile u8 *)0x8416cc; /* the witness in hook.s: 1 if anything entered the dead code at 0x1210 */
 	stock_send(r, 63, 2);
 }
 #endif

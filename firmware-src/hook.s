@@ -45,6 +45,18 @@
 	.section .hota, "a"
 	.word	no_write + 1
 
+@ Stack test build only: at the entry of the dead code at 0x1210, ahead of scan_hook, a witness. Nothing should ever call this
+@ address, since hscan calls scan_hook directly. If something does, it notes that and returns. It takes 12 bytes.
+	.ifdef STACK_TEST
+	.section .text.sram_guard, "ax"
+	tloadr	r0, .Lguard_flag
+	tmovs	r1, #1
+	tstorerb	r1, [r0, #0]
+	tjex	lr
+.Lguard_flag:
+	.word	0x8416cc
+	.endif
+
 @ Finer stick movement: the ADC pass before each report.
 	.section .hsweep, "ax"
 	tjl	two_sweeps

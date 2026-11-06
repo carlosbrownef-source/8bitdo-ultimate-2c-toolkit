@@ -26,7 +26,7 @@ SECTIONS
 	.hunplug 0xea88 : { *(.hunplug) }
 	.hota 0x178cc : { *(.hota) }
 	.hsweep 0xa2dc : { *(.hsweep) }
-	.sram 0x1210 : AT(0x7210) { *(.text.scan_hook) *(.text.trigger) }
+	.sram 0x1210 : AT(0x7210) { *(.text.sram_guard) *(.text.scan_hook) *(.text.trigger) }
 	.ringtail 0x18400 : { *(.text.rumble_tail) *(.text*) *(.rodata*) }
 	.rest : { *(.text*) *(.data*) *(.bss*) *(COMMON) }
 	/DISCARD/ : { *(.comment) }
