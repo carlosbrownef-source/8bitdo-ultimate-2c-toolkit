@@ -25,6 +25,7 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
         case "stop": stop()
         case "vibrate": vibrate(body["locality"] as? String ?? "default", body["id"])
         case "direct": direct(body["id"])
+        case "ring": ring(body["level"] as? Int ?? 255, body["save"] as? Bool ?? false, body["id"])
         default: break
         }
     }
@@ -166,6 +167,15 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
 
     /// Xbox's rumble report straight to the controller, skipping GameController: both main motors, level 100, 0.7 s.
     private func direct(_ id: Any?) {
+        send([0x03, 0x03, 0, 0, 100, 100, 70, 0, 0], "direct", id)  // report ID, then mask, LT, RT, strong, weak, duration, delay, loop
+    }
+
+    /// The Home ring tweak's marked report: bit 7 of the first byte, which no rumble mask uses, then the level and save.
+    private func ring(_ level: Int, _ save: Bool, _ id: Any?) {
+        send([0x03, 0x80, UInt8(clamping: level), save ? 1 : 0, 0, 0, 0, 0, 0], "ring", id)
+    }
+
+    private func send(_ report: [UInt8], _ op: String, _ id: Any?) {
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
         IOHIDManagerSetDeviceMatching(manager, [kIOHIDVendorIDKey: 0x045E, kIOHIDProductIDKey: 0x0B13] as CFDictionary)
         IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
@@ -175,10 +185,9 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
             (IOHIDDeviceGetProperty($0, kIOHIDTransportKey as CFString) as? String)?.contains("Bluetooth") == true
                 && (IOHIDDeviceGetProperty($0, kIOHIDMaxOutputReportSizeKey as CFString) as? Int ?? 0) >= 8
         }
-        guard let device = bluetooth else { return result("direct", "No controller was found over Bluetooth.", id) }
-        let report: [UInt8] = [0x03, 0x03, 0, 0, 100, 100, 70, 0, 0]  // report ID, then mask, LT, RT, strong, weak, duration, delay, loop
+        guard let device = bluetooth else { return result(op, "No controller was found over Bluetooth.", id) }
         let status = IOHIDDeviceSetReport(device, kIOHIDReportTypeOutput, 3, report, report.count)
-        result("direct", status == kIOReturnSuccess ? nil : "The report couldn't be sent (IOReturn \(String(UInt32(bitPattern: status), radix: 16))).", id)
+        result(op, status == kIOReturnSuccess ? nil : "The report couldn't be sent (IOReturn \(String(UInt32(bitPattern: status), radix: 16))).", id)
     }
 
     private func result(_ op: String, _ error: String?, _ id: Any?) {

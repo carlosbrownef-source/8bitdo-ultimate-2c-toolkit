@@ -9,9 +9,10 @@
     const path = String(url);
     document.getElementById("diag-fetch").textContent += path + " ";
     const device = window.simReplugged ? "bluetooth_xbox" : { bt: "bluetooth_xbox", btstock: "bluetooth", cable: "cable", web: "cable", none: "bluetooth_xbox", background: "bluetooth_xbox", noext: "bluetooth_xbox", busy: "bluetooth_xbox" }[mode];
+    if (path.startsWith("/api/ring")) return query.get("ringfail") ? new Response(JSON.stringify({ error: "The controller said no." }), { status: 409 }) : json({ ok: true });
     if (path.startsWith("/api/firmware") && device === "bluetooth_xbox") return json({ note: "The controller firmware cannot be read over Bluetooth. Connect the controller by cable for firmware diagnostics." });
     const answer = await realFetch(url, options);
-    if (path.startsWith("/api/firmware") && query.get("tweaks")) return json({ ...(await answer.json()), recipes: ["bt_xbox", "ring_5"], titles: ["Dimmer LEDs", "Home ring: 5 %"] });
+    if (path.startsWith("/api/firmware") && query.get("tweaks")) return json({ ...(await answer.json()), recipes: ["bt_xbox", "ring_5"], titles: ["Dimmer LEDs", "Home ring: 5 %"], ring_level: 2, outdated: !!query.get("outdated") });
     if (path.startsWith("/api/firmware") && query.get("identity") === "none") return json({ ...(await answer.json()), boot_identity: null });
     if (path.startsWith("/api/state") && device) return json({ ...(await answer.json()), devices: [{ mode: device, name: "simulated" }] });
     return answer;
@@ -47,6 +48,9 @@
     replugged: () => { window.simReplugged = true; },
     installed: () => { document.getElementById("diag-snap").textContent = tweaks().join(); },
     keptchoice: () => { document.querySelector('[data-ring="ring_1"]').click(); refresh(); setTimeout(() => { document.getElementById("diag-snap").textContent = tweaks().join(); }, 1000); },
+    noalerts: () => { document.querySelector('.tweak[value="battery_alerts"]').click(); document.getElementById("diag-snap").textContent = tweaks().join(); },
+    ringlevel: () => document.querySelector('[data-live="1"]').click(),
+    ringsave: () => document.getElementById("ring-save").click(),
     reopen: () => { showTab("firmware"); showTab("diagnostics"); },
     latebt: () => { window.simReplugged = true; window.u2cDiagnostics({ type: "state", connected: false }); window.u2cDiagnostics(PAD); },
     refreshbutton: () => { window.simReplugged = true; document.getElementById("details-refresh").click(); },
@@ -56,6 +60,7 @@
     window.webkit = { messageHandlers: { diagnostics: { postMessage(m) {
       document.getElementById("diag-sent").textContent += JSON.stringify(m) + " ";
       if (m.op === "start") window.u2cDiagnostics(STATES[mode]);
+      if (m.op === "ring") window.u2cDiagnostics(query.get("ringfail") ? { type: "result", op: "ring", id: m.id, ok: false, error: "The report failed" } : { type: "result", op: "ring", id: m.id, ok: true });
       if ((m.op === "vibrate" || m.op === "direct") && !UNANSWERED.includes(scenario))
         window.u2cDiagnostics(scenario === "vibrateerror" ? { type: "result", op: m.op, id: m.id, ok: false, error: "The engine failed" } : { type: "result", op: m.op, id: m.id, ok: true });
     } } } };

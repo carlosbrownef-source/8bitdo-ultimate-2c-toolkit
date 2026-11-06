@@ -10,9 +10,10 @@ from pathlib import Path
 from unittest import mock
 
 from u2c_customfw import cli, state
-from u2c_customfw.firmware import recipes
+from u2c_customfw.firmware import image, recipes
 from u2c_customfw.ops import devices, probe
 from u2c_customfw import transport
+from u2c_customfw.protocol import app
 from u2c_customfw.sim import SimApp
 from tests.test_ops import K, STOCK_A, controller_flash
 from u2c_customfw.web import jobs, server
@@ -54,6 +55,49 @@ class WebTest(unittest.TestCase):
             text = json.loads(self.call("POST", "/api/report", {"macos": {"name": "Pad"}, "pending": True})[1])["text"]
         self.assertIn("Pad", text)
         self.assertIn("Pending update: yes", text)
+
+    def ring_call(self, body, flash=None, mode="cable_360"):
+        built = recipes.build(STOCK_A, ["ring_5"], **K)
+        info = transport.DeviceInfo(0x045E, 0x028E, 0xFF7A, "USB", "x", None)
+        self.dev = SimApp(controller_flash(built) if flash is None else flash)
+        with mock.patch.object(cli, "find", lambda: [devices.Found(info, mode)]), mock.patch.object(cli, "open_channel", lambda i, rid: self.dev):
+            return self.call("POST", "/api/ring", body)
+
+    def test_api_ring_sends_the_level(self):
+        sent = []
+        with mock.patch.object(app, "set_ring", lambda ch, level: sent.append(level)):
+            self.assertEqual(self.ring_call({"level": 2})[0], 200)
+        self.assertEqual(sent, [2])
+
+    def test_api_ring_saves(self):
+        sent = []
+        with mock.patch.object(app, "save_ring", lambda ch: sent.append("save")):
+            self.assertEqual(self.ring_call({"save": True})[0], 200)
+        self.assertEqual(sent, ["save"])
+
+    def test_api_ring_refuses_an_unknown_level(self):
+        for level in (6, -1, "2", 1.5):
+            self.assertEqual(self.ring_call({"level": level})[0], 400, level)
+        self.assertEqual(self.ring_call({})[0], 400)
+
+    def test_api_ring_refuses_without_the_tweak(self):
+        status, text = self.ring_call({"level": 2}, flash=controller_flash())
+        self.assertEqual(status, 409)
+        self.assertIn("Home ring", text)
+
+    def test_api_ring_refuses_in_update_mode(self):
+        self.assertEqual(self.ring_call({"level": 2}, mode="boot")[0], 409)
+
+    def test_firmware_endpoint_reports_the_ring_level(self):
+        built = recipes.build(STOCK_A, ["ring_5"], **K)
+        flash = bytearray(controller_flash(built))
+        flash[image.RING_SAVED] = 0x21  # 25 %, saved while 5 % was installed
+        info = transport.DeviceInfo(0x045E, 0x028E, 0xFF7A, "USB", "x", None)
+        with mock.patch.object(cli, "find", lambda: [devices.Found(info, "cable_360")]), \
+                mock.patch.object(cli, "open_channel", lambda i, rid: SimApp(bytes(flash))), \
+                mock.patch.object(recipes, "_constants", lambda a=None, b=None, c=None: (K["stock_sha256"], K["region_sha256"], K["remainder_sha256"])):
+            data = json.loads(self.call("GET", "/api/firmware")[1])
+        self.assertEqual(data["ring_level"], 1)
 
     def test_token_required(self):
         self.assertEqual(self.call("GET", "/api/state", token=None)[0], 403)

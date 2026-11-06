@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Normal-mode reads through the running controller's update channel (output report 0x81, input report 0x02).
 
-Only reads are sent: `81 05 05` (any address, <= 46 bytes). The controller ignores reads until a session is open;
+Only reads are sent, apart from the Home ring's two commands below: `81 05 05` (any address, <= 46 bytes). The controller ignores reads until a session is open;
 then the session start `81 05 00 21 01` (only replies) is sent, and if reads still fail `81 05 c1`, which turns the
 flash's write protection off until the controller restarts and changes no data. `81 05 00 51` (reboot into the
 bootloader) is never sent.
@@ -28,6 +28,16 @@ def read(ch, addr: int, n: int, tries: int = 3) -> bytes | None:
                 and int.from_bytes(r[6:8], "little") == n and int.from_bytes(r[14:18], "little") == addr):
             return r[18:18 + n]
     return None
+
+
+def set_ring(ch, level: int) -> None:
+    """The Home ring tweak's live level, 0-5. It changes RAM only, and there is no reply."""
+    ch.xfer(bytes([0x81, 0x05, 0x00, 0x52, level]).ljust(64, b"\0"), 0.3)
+
+
+def save_ring(ch) -> None:
+    """Asks the Home ring tweak to keep its level: the firmware saves it, in its own settings record."""
+    ch.xfer(bytes([0x81, 0x05, 0x00, 0x53]).ljust(64, b"\0"), 0.3)
 
 
 def open_session(ch) -> str | None:

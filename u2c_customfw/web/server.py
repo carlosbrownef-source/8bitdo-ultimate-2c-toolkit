@@ -13,6 +13,7 @@ from .. import cli
 from ..firmware import recipes
 from ..ops import probe, report as report_mod
 from ..ops.plan import OpError
+from ..protocol import app
 from ..transport import PermissionDenied
 from . import jobs
 
@@ -92,6 +93,33 @@ def make_server(store: Path, port: int = 0):
             finally:
                 runner.release()
 
+        def api_ring(self, req):
+            """The Home ring's live level or save, by cable; over Bluetooth the Mac app sends them itself."""
+            level, save = req.get("level"), req.get("save") is True
+            if (level is None and not save) or (level is not None and (type(level) is not int or not 0 <= level < len(recipes.RING_ORDER))):
+                return self.send(400, json.dumps({"error": "bad request"}))
+            if not runner.claim():
+                return self.send(409, json.dumps({"error": "Another task is running."}))
+            try:
+                ours = [f for f in cli.find() if f.mode in ("cable", "cable_360")]
+                if len(ours) != 1:
+                    return self.send(409, json.dumps({"error": "Connect the controller by cable, without other controllers."}))
+                ch = cli.open_channel(ours[0].info, 0x81)
+                try:
+                    if app.open_session(ch) is None or app.read(ch, recipes.RING_CODE[0], 4) in (None, b"\xff" * 4):
+                        return self.send(409, json.dumps({"error": "Install a Home ring brightness in Tweaks first."}))
+                    if level is not None:
+                        app.set_ring(ch, level)
+                    if save:
+                        app.save_ring(ch)
+                finally:
+                    ch.close()
+                self.send(200, json.dumps({"ok": True}))
+            except (OpError, PermissionDenied, OSError) as e:
+                self.send(409, json.dumps({"error": str(e)}))
+            finally:
+                runner.release()
+
         def firmware_report(self):
             found = cli.find()
             ours = [f for f in found if f.mode in cli.CONTROLLER_MODES]
@@ -116,7 +144,7 @@ def make_server(store: Path, port: int = 0):
                 return self.send(200, json.dumps({"error": str(e)}))
             ring = [recipes.RECIPES[k].title for k in st.recipes if recipes.RECIPES[k].group == "ring"]
             self.send(200, json.dumps({"mode": f.mode, "known": st.known, "recipes": list(st.recipes), "version": version, "version_from": fw.version_from,
-                                       "pending": fw.pending, "boot_identity": fw.boot_identity, "outdated": st.outdated,
+                                       "pending": fw.pending, "boot_identity": fw.boot_identity, "outdated": st.outdated, "ring_level": fw.ring_level,
                                        "titles": [recipes.RECIPES[k].title for k in st.recipes],
                                        "tweaks": [{"key": k, "title": r.title, "on": k in st.recipes}
                                                   for k, r in recipes.RECIPES.items() if not r.group]
@@ -156,6 +184,8 @@ def make_server(store: Path, port: int = 0):
             if route == "/api/accept":
                 state.accept(store)
                 return self.send(200, json.dumps({"accepted": True}))
+            if route == "/api/ring":
+                return self.api_ring(req)
             if route == "/api/report":
                 log = Path(store) / "u2c-customfw.log"
                 tail = "\n".join(log.read_text().splitlines()[-30:]) if log.exists() else ""

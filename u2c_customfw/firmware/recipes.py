@@ -21,6 +21,7 @@ RING_LEVELS = (("ring_off", "Home ring: off", 0), ("ring_0_1", "Home ring: 0.1 %
                ("ring_5", "Home ring: 5 %", 50), ("ring_25", "Home ring: 25 %", 250),
                ("ring_normal", "Home ring: normal", 0xFFFF))  # PWM1 compare value, period 1000; normal doesn't use it
 OLD_RING_LEVELS = RING_LEVELS[:5]                             # what 0.2.0 could install
+RING_ORDER = ("ring_normal", "ring_25", "ring_5", "ring_1", "ring_0_1", "ring_off")  # the firmware's level numbers
 RING_CODE = (0x18400, 0x18FF0)                                # blank on stock
 ALERTS_FLAG = 0x18FF0
 

@@ -16,6 +16,7 @@ class Firmware:
     version_from: str   # "update record", "bank A hash", "bank B hash" or "unknown"
     pending: bool = False
     boot_identity: int | None = None   # only in update mode; None if the bootloader doesn't answer
+    ring_level: int | None = None      # the level the Home ring starts at, 0-5, if its current form is installed
 
 
 def _read(ch, mode: str, addr: int, n: int) -> bytes:
@@ -71,16 +72,27 @@ def detect_version(ch, mode: str, bank_a: bytes | None = None) -> tuple[float | 
     return None, "unknown"
 
 
+def _ring_level(ch, mode: str, state: recipes.State) -> int | None:
+    """As ring_init in the firmware: a saved level counts while it was saved under the level installed."""
+    installed = next((i for i, k in enumerate(recipes.RING_ORDER) if k in state.recipes), None)
+    if installed is None or state.outdated:
+        return None
+    saved = _read(ch, mode, image.RING_SAVED, 1)[0]
+    return saved & 15 if saved >> 4 == installed and saved & 15 < len(recipes.RING_ORDER) else installed
+
+
 def read_firmware(ch, mode: str) -> Firmware:
     identity = boot.identify(ch) if mode == "boot" else None
     try:
         _check_device(ch, mode, identity)
         bank_a = _read(ch, mode, image.BASE, image.APP_SIZE)
         pending = pending_update(ch, mode)
+        state = recipes.identify(bank_a)
+        ring = _ring_level(ch, mode, state)
     except protocol.ProtocolError as e:
         raise OpError(str(e)) from e
     version, how = detect_version(ch, mode, bank_a)
-    return Firmware(recipes.identify(bank_a), version, how, pending, identity)
+    return Firmware(state, version, how, pending, identity, ring)
 
 
 def read_state(ch, mode: str) -> recipes.State:

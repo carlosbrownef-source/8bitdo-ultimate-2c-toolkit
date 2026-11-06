@@ -249,13 +249,68 @@ class ControllerTestCard(PageCase):
         dom, _, _ = self.body("boot&tweaks=1&scenario=installed")
         self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ring_5")
 
+    def test_alerts_off_with_normal_installs_no_ring_code(self):
+        dom, _, _ = self.body("boot&scenario=noalerts")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds")
+
     def test_reading_the_same_firmware_keeps_the_choice_made(self):
         dom, _, _ = self.body("boot&tweaks=1&scenario=keptchoice")
         self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ring_1")
 
     def test_original_firmware_keeps_the_suggested_tweaks(self):
         dom, _, _ = self.body("boot&scenario=installed")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,ring_normal")
+
+    def ring_button(self, dom, index):
+        return next(n for n in dom.find("ring-card").walk() if n.attrs.get("data-live") == str(index))
+
+    def test_choosing_a_level_sends_it_at_once(self):
+        dom, _, _ = self.body("bt&scenario=ringlevel")
+        self.assertIn('"op":"ring","level":1,"save":false', self.sent(dom))
+        self.assertIn("on", self.ring_button(dom, 1).attrs.get("class", ""))
+
+    def test_save_sends_save(self):
+        dom, _, _ = self.body("bt&scenario=ringsave")
+        self.assertIn('"op":"ring","level":255,"save":true', self.sent(dom))
+        self.assertIn("Saved", dom.find("ring-note").all_text())
+
+    def test_by_cable_a_level_goes_through_the_app(self):
+        dom, _, _ = self.body("cable&tweaks=1&scenario=ringlevel")
+        self.assertIn("/api/ring", dom.find("diag-fetch").all_text())
+        self.assertNotIn('"op":"ring"', self.sent(dom))
+
+    def test_by_cable_the_card_shows_the_level_read(self):
+        dom, _, _ = self.body("cable&tweaks=1")
+        self.assertIn("on", self.ring_button(dom, 2).attrs.get("class", ""))
+
+    def test_card_explains_when_the_tweak_is_missing(self):
+        dom, _, _ = self.body("cable")
+        self.assertIn("Home ring brightness", dom.find("ring-note").all_text())
+        self.assertIn("disabled", self.ring_button(dom, 1).attrs)
+
+    def test_card_explains_firmware_from_an_earlier_version(self):
+        dom, _, _ = self.body("cable&tweaks=1&outdated=1")
+        self.assertIn("again", dom.find("ring-note").all_text())
+        self.assertIn("disabled", self.ring_button(dom, 1).attrs)
+
+    def test_card_is_off_in_update_mode(self):
+        dom, _, _ = self.body("boot")
+        self.assertIn("disabled", self.ring_button(dom, 1).attrs)
+
+    def test_no_commands_during_a_job(self):
+        dom, _, _ = self.body("busy&scenario=ringlevel")
+        self.assertNotIn('"op":"ring"', self.sent(dom))
+        self.assertIn("disabled", self.ring_button(dom, 1).attrs)
+
+    def test_failed_change_shows_why_and_the_previous_level(self):
+        dom, _, _ = self.body("cable&tweaks=1&scenario=ringlevel&ringfail=1")
+        self.assertIn("The controller said no", dom.find("ring-note").all_text())
+        self.assertIn("on", self.ring_button(dom, 2).attrs.get("class", ""))
+
+    def test_a_bluetooth_error_shows_why(self):
+        dom, _, _ = self.body("bt&scenario=ringlevel&ringfail=1")
+        self.assertIn("The report failed", dom.find("ring-note").all_text())
+        self.assertNotIn("on", self.ring_button(dom, 1).attrs.get("class", ""))
 
     def test_returning_to_the_tab_doesnt_read_the_firmware_again(self):
         dom, _, _ = self.body("boot&scenario=reopen")

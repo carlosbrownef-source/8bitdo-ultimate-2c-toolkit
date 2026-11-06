@@ -13,6 +13,20 @@ def flash(size=0x80000):
     return bytes(f)
 
 
+class RingCommandTest(unittest.TestCase):
+    def test_level_and_save_reports(self):
+        sent = []
+
+        class Ch:
+            def xfer(self, req, timeout=0.5):
+                sent.append(req)
+
+        app.set_ring(Ch(), 3)
+        app.save_ring(Ch())
+        self.assertEqual([r[:5].hex() for r in sent], ["8105005203", "8105005300"])
+        self.assertTrue(all(len(r) == 64 for r in sent))
+
+
 class BootTest(unittest.TestCase):
     def test_crc16_modbus_check_value(self):
         self.assertEqual(boot.crc16(b"123456789"), 0x4B37)

@@ -52,7 +52,63 @@ const TEST_MESSAGES = {
   background: "The controller test is paused, because macOS only sends controller input to the app in front.",
 };
 
+let ringLevel = null, ringBusy = false, ringId = 0, ringMessage = "", ringTimer = null, ringAsked = null, ringRead = null;
+
+function ringAccess() {  // how the card can reach the controller, or why it can't
+  const modes = st ? st.devices.map((d) => d.mode) : [];
+  if (busy) return { note: "Please wait until the task finishes." };
+  if (modes.some((m) => m === "cable" || m === "cable_360")) {
+    if (!fw) return { note: "Reading the firmware…" };
+    if (fw.outdated) return { note: "This firmware has the Home ring from an earlier version. Install the tweaks again to change it here." };
+    if (fw.ring_level === undefined || fw.ring_level === null) return { note: "To change the ring here, install a Home ring brightness in the Firmware tab." };
+    return { via: "cable" };
+  }
+  if (modes.includes("bluetooth_xbox")) return bridge() ? { via: "bluetooth" } : { note: "Over Bluetooth, this only works in the Mac app." };
+  return { note: "Connect the controller by Bluetooth or cable." };
+}
+
+function ringRender() {
+  const access = ringAccess(), off = !access.via || ringBusy;
+  if (fw && fw.ring_level !== undefined && fw.ring_level !== ringRead) { ringRead = fw.ring_level; ringLevel = fw.ring_level; }
+  document.querySelectorAll("[data-live]").forEach((b) => { b.disabled = off; b.classList.toggle("on", +b.dataset.live === ringLevel); });
+  $("ring-save").disabled = off;
+  $("ring-note").textContent = access.note || ringMessage || (access.via === "bluetooth"
+    ? "This needs the Home ring and Rumble over Bluetooth tweaks. A change lasts until you turn the controller off, unless you save it."
+    : "A change lasts until you turn the controller off, unless you save it.");
+}
+
+function ringDone(error, level, save) {
+  clearTimeout(ringTimer);
+  ringBusy = false; ringAsked = null;
+  if (error) ringMessage = error;
+  else {
+    if (level !== null) ringLevel = level;
+    ringMessage = save ? "Saved. The controller keeps this level when you turn it off." : "Sent. Save it if you want to keep it after turning the controller off.";
+  }
+  ringRender();
+}
+
+async function ringSend(level, save) {
+  const access = ringAccess();
+  if (!access.via || ringBusy) return;
+  ringBusy = true; ringMessage = ""; ringRender();
+  if (access.via === "cable") {
+    let error = null;
+    try { await api("POST", "/api/ring", level === null ? { save: true } : { level }); } catch (e) { error = e.message; }
+    return ringDone(error, level, save);
+  }
+  ringAsked = { id: ++ringId, level, save };
+  ringTimer = setTimeout(() => ringDone("No answer from the app.", level, save), RESULT_TIMEOUT_MS);
+  bridge().postMessage({ op: "ring", level: level === null ? 255 : level, save, id: ringId });
+}
+
+addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("[data-live]").forEach((b) => (b.onclick = () => ringSend(+b.dataset.live, false)));
+  document.getElementById("ring-save").onclick = () => ringSend(null, true);
+});
+
 function diagnosticsRender() {
+  ringRender();
   const body = $("test-body");
   if (!body || !testVisible) return;
   const mode = testMode();
@@ -167,6 +223,8 @@ window.u2cDiagnostics = (e) => {
     if (e.rt > TRIGGER_SEEN) testSeen.add("RT");
     paintInput(e);
     paintSeen();
+  } else if (e.type === "result" && e.op === "ring") {
+    if (ringAsked && e.id === ringAsked.id) ringDone(e.ok ? null : e.error || "It couldn't be sent.", ringAsked.level, ringAsked.save);
   } else if (e.type === "result" && testPending && e.id === testId) {
     const direct = testPending === "direct";
     finishVibrate(!e.ok ? e.error || "It couldn't be sent." : direct ? "Sent. You'll only feel it if Rumble over Bluetooth is installed." : "Sent. Did you feel it?");

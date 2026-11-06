@@ -46,6 +46,7 @@
       <label class="tw"><input type="checkbox" class="tweak" value="bt_rumble" checked><span class="sw"></span><span>Rumble over Bluetooth<em>(needs the Xbox tweak)</em></span></label>
       <label class="tw"><input type="checkbox" class="tweak" value="cable_360" checked><span class="sw"></span><span>Xbox 360 controller over cable</span></label>
       <label class="tw"><input type="checkbox" class="tweak" value="dim_leds" checked><span class="sw"></span><span>Dimmer LEDs</span></label>
+      <label class="tw"><input type="checkbox" class="tweak" value="battery_alerts" checked><span class="sw"></span><span>Battery alerts<em>(the ring and motors tell you about the battery)</em></span></label>
       <div class="base"><span>Home ring brightness:</span>
         <div class="seg" id="ring"><button data-ring="" class="on">Normal</button><button data-ring="ring_25">25 %</button><button data-ring="ring_5">5 %</button><button data-ring="ring_1">1 %</button><button data-ring="ring_0_1">0.1 %</button><button data-ring="ring_off">Off</button></div></div>
       <div class="base"><span>Take the original firmware 1.09 from:</span>
@@ -71,6 +72,13 @@
     <section class="cd" id="test-card">
       <h2>Controller test<span class="tag">Nothing is written to the controller</span></h2>
       <div id="test-body"></div>
+    </section>
+    <section class="cd wide" id="ring-card">
+      <h2>Home ring<span class="tag">Changes at once</span></h2>
+      <div class="ring-row"><div class="seg" id="ring-live">
+        <button data-live="0">Normal</button><button data-live="1">25 %</button><button data-live="2">5 %</button><button data-live="3">1 %</button><button data-live="4">0.1 %</button><button data-live="5">Off</button>
+      </div><button id="ring-save" class="sec small">Save</button></div>
+      <p class="res" id="ring-note"></p>
     </section>
     <div class="cols even">
       <section class="cd" id="firmware-details"><h2>Firmware details</h2><div id="details-body"></div>
@@ -140,7 +148,8 @@
     <li><b>Rumble over Bluetooth.</b> The original firmware doesn't vibrate over Bluetooth. This tweak makes the controller respond to the rumble commands games send. It needs the Xbox tweak, because it uses the Xbox rumble commands.</li>
     <li><b>Xbox 360 controller over cable.</b> Connected by cable, the controller introduces itself as a wired Xbox 360 controller, a type macOS recognises.</li>
     <li><b>Dimmer LEDs.</b> Slightly lowers the brightness of the controller's three lights. It is subtle: to really change the ring around the Home button, use Home ring brightness.</li>
-    <li><b>Home ring brightness.</b> Sets how bright the ring around the Home button is while the controller is connected: Normal leaves it as it is, and the percentages are how much of the time the light is on, not how bright it looks. It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. It can be changed by installing again with another level. Off keeps it dark while connected.</li>
+    <li><b>Home ring brightness.</b> Sets how bright the ring around the Home button is while the controller is connected: Normal leaves it as it is, and the percentages are how much of the time the light is on, not how bright it looks. It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. Off keeps it dark while connected. You can change it at any time with L4 + R4 on the controller, or in the Diagnostics tab, and the controller keeps the level you saved until you install another one here.</li>
+    <li><b>Battery alerts.</b> The ring blinks slowly while charging and quickly when the battery is at 15 % or less, even if you turned it off. The motors give one short pulse when charging starts, one long pulse when it completes, and two short pulses at 5 % or less, again every 5 minutes. These only work with a Home ring level, so with this on and the brightness on Normal, the ring's code is installed at full brightness.</li>
   </ul>
   <p>The tweaks are always added to 8BitDo's original firmware 1.09, taken from your backup or downloaded from 8BitDo, so the result is always a known, checked firmware.</p>
   <h4>Update mode</h4>
@@ -155,6 +164,7 @@
   <p>This tab helps you check how macOS sees the controller, and gather information if something goes wrong.</p>
   <p><b>Controller test</b> shows what macOS's GameController reports, which is what a game gets, including the battery when macOS provides it. Press each control to see it light up, and use the buttons to make the controller vibrate. "Vibrate like a game" uses the same path as native games, and "Direct report" goes straight to the controller, so if only the direct report vibrates, the firmware isn't the problem. The first time you press the Home button in this test, macOS may ask for your permission to let the app receive it. If you allow it, Home won't open Apple Games while this tab is open. This test is only available in the Mac app.</p>
   <p>The controller also has its own option for the sticks: holding Start + Select until it vibrates switches their limit at the diagonals between a circle and a square. It's part of 8BitDo's firmware, and the controller remembers it.</p>
+  <p><b>Home ring</b> changes the ring at once, over Bluetooth or by cable, without installing anything. A change lasts until you turn the controller off, and <b>Save</b> keeps it.</p>
   <p><b>Firmware details</b> shows what the app read from the controller, including where the version came from and whether a firmware update is pending.</p>
   <p><b>Create a problem report</b> collects the controller's state and the last task's log for a bug report. It never includes the controller's address, its Bluetooth pairings or your backup.</p>
   <p><b>Install firmware 1.09 anyway</b> is only for a controller whose firmware can't be identified. It erases the firmware and installs 8BitDo's original 1.09 without being able to check beforehand that it's right for the controller, so use it only if Restore doesn't work.</p>
