@@ -16,7 +16,9 @@ u32 stick_left(int x, int y);
 u32 stick_right(int x, int y);
 u32 stick_shape(int x, int y, u32 side);
 void scan_hook(u32 *word, u8 *lt, u8 *rt);
-u8 DZ_OFF;
+u8 DZ_OFF, RECORD_DZ;
+u32 MAP_R4_A, MAP_R4_B, MAP_L4_A, MAP_L4_B;
+u8 MAP_TABLE[0x9c] __attribute__((aligned(4)));
 u32 stock_isqrt(u32 v);
 
 static u8 flash[0x1000];
@@ -66,6 +68,9 @@ u32 stock_crc(u8 *p, u32 n)
 	}
 	return (c >> 8 | c << 8) & 0xffff;
 }
+static int mapping_saves, record_saves;
+void stock_save_mappings(void) { mapping_saves++; }
+void save_settings(void) { record_saves++; }
 void motor_set(u32 s, u32 w, u32 h) { motors++; last_s = s; last_w = w; last_h = h; }
 
 u32 stock_isqrt(u32 v)
@@ -521,6 +526,107 @@ static void trigger_clamped(void)
 	CHECK(rt == 255);
 }
 
+static void map_cmd(int slot, u32 mask)
+{
+	u8 p[64] = {0x81, 5, 0, 0x57};
+	p[4] = slot; p[5] = mask; p[6] = mask >> 8; p[7] = mask >> 16; p[8] = mask >> 24;
+	settings_vendor(p);
+}
+
+#define LIVE_R4() (*(u16 *)(MAP_TABLE + 134) | (u32)*(u16 *)(MAP_TABLE + 136) << 16)
+#define LIVE_L4() (MAP_TABLE[147] | (*(u32 *)(MAP_TABLE + 148) & 0xffffff) << 8)
+
+static void mapping_sets_four_variables_and_live_table(void)
+{
+	start();
+	*(u32 *)(MAP_TABLE + 148) = 0xaa000000; /* its top byte belongs to something else */
+	map_cmd(0, 0x2001);
+	CHECK(MAP_R4_A == 0x2001 && MAP_R4_B == 0x2001 && LIVE_R4() == 0x2001);
+	map_cmd(1, 0xc000);
+	CHECK(MAP_L4_A == 0xc000 && MAP_L4_B == 0xc000 && LIVE_L4() == 0xc000);
+	CHECK(MAP_TABLE[151] == 0xaa);
+	CHECK(mapping_saves == 0);
+}
+
+static void mapping_to_none_restores_default(void)
+{
+	start();
+	map_cmd(0, 0x2001);
+	map_cmd(0, 0);
+	CHECK(MAP_R4_A == 1u << 25 && MAP_R4_B == 1u << 25 && LIVE_R4() == 1u << 25);
+	map_cmd(1, 0);
+	CHECK(MAP_L4_A == 1u << 26 && MAP_L4_B == 1u << 26 && LIVE_L4() == 1u << 26);
+}
+
+static void mapping_refuses_bad_slot_and_bits(void)
+{
+	start();
+	MAP_R4_A = MAP_L4_A = 77;
+	map_cmd(2, 1);
+	map_cmd(0, 0x10000);
+	map_cmd(1, 1u << 26);
+	CHECK(MAP_R4_A == 77 && MAP_L4_A == 77);
+}
+
+static void save_persists_mappings_with_stock(void)
+{
+	start();
+	map_cmd(0, 1);
+	cmd(0x55, 0, 0);
+	settings_poll();
+	CHECK(mapping_saves == 1 && writes == 1 && record_saves == 0);
+}
+
+static void dead_zone_command_sets_both_places(void)
+{
+	start();
+	cmd(0x58, 1, 0);
+	CHECK(DZ_OFF == 1 && RECORD_DZ == 1);
+	cmd(0x58, 0, 0);
+	CHECK(DZ_OFF == 0 && RECORD_DZ == 0);
+	cmd(0x58, 2, 0);
+	CHECK(DZ_OFF == 0 && RECORD_DZ == 0);
+}
+
+static void save_keeps_the_dead_zone_switch_only_when_it_changed(void)
+{
+	start();
+	cmd(0x55, 0, 0);
+	settings_poll();
+	CHECK(record_saves == 0);
+	cmd(0x58, 1, 0);
+	cmd(0x55, 0, 0);
+	settings_poll();
+	CHECK(record_saves == 1);
+	cmd(0x55, 0, 0);
+	settings_poll();
+	CHECK(record_saves == 1);
+}
+
+static void reset_restores_mappings_and_dead_zone(void)
+{
+	start();
+	map_cmd(0, 1);
+	map_cmd(1, 2);
+	cmd(0x58, 1, 0);
+	cmd(0x56, 0, 0);
+	settings_poll();
+	CHECK(MAP_R4_A == 1u << 25 && MAP_L4_B == 1u << 26 && LIVE_L4() == 1u << 26 && DZ_OFF == 0 && RECORD_DZ == 0);
+	CHECK(mapping_saves == 1 && record_saves == 1 && writes == 1);
+}
+
+static void start_applies_the_stored_dead_zone_switch(void)
+{
+	RECORD_DZ = 1; /* stock only applies it in the 2.4 GHz position (0xd644) */
+	start();
+	CHECK(DZ_OFF == 1);
+	settings_reset_for_test();
+	RECORD_DZ = 0;
+	DZ_OFF = 1;
+	start();
+	CHECK(DZ_OFF == 0);
+}
+
 typedef void (*test_fn)(void);
 static const test_fn tests[] = {
 	load_defaults_on_blank, load_defaults_on_bad_crc, load_defaults_on_future_version, load_defaults_on_field_out_of_range,
@@ -532,6 +638,9 @@ static const test_fn tests[] = {
 	inside_dead_zone_is_centre, dead_zone_switch_means_zero, zero_dead_zone_is_exact, outer_limit_reaches_full_at_limit,
 	curves_at_half_and_ends, curves_are_monotonic, a_curve_keeps_the_direction, invert_each_axis, invert_alone_makes_a_stick_custom,
 	huge_input_doesnt_overflow, trigger_default_untouched, trigger_before_loading_untouched, trigger_start_end_scale, trigger_clamped,
+	mapping_sets_four_variables_and_live_table, mapping_to_none_restores_default, mapping_refuses_bad_slot_and_bits, save_persists_mappings_with_stock,
+	dead_zone_command_sets_both_places, save_keeps_the_dead_zone_switch_only_when_it_changed, reset_restores_mappings_and_dead_zone,
+	start_applies_the_stored_dead_zone_switch,
 };
 
 int main(void)
@@ -542,7 +651,9 @@ int main(void)
 		erases = writes = unlocks = motors = 0;
 		last_s = last_w = last_h = 0;
 		stock_limit_calls = stock_scan_calls = 0;
-		DZ_OFF = 0;
+		DZ_OFF = RECORD_DZ = 0;
+		mapping_saves = record_saves = 0;
+		memset(MAP_TABLE, 0, sizeof MAP_TABLE);
 		settings_reset_for_test();
 		tests[i]();
 		ran++;

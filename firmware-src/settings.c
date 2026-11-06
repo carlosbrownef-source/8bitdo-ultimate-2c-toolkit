@@ -12,6 +12,8 @@ void motor_set(u32 strong, u32 weak, u32 hold); /* 0xfa68 */
 u32 stock_limit(int x, int y);                  /* 0x890, the stock dead zone: the same arguments and result as stick_left */
 u32 stock_isqrt(u32 v);                         /* 0x84c */
 void stock_scan(u32 *word, u8 *lt, u8 *rt);     /* 0xc3a8: digital triggers, mapping and turbo */
+void stock_save_mappings(void);                 /* 0xd7d4: into stock's record, if they changed */
+void save_settings(void);                       /* 0xd538: stock's record */
 
 #ifdef HOST
 #include <string.h>
@@ -22,7 +24,8 @@ void flash_erase(u32 addr);
 void flash_write(u32 addr, u32 n, u8 *data);
 void flash_read(u32 addr, u32 n, u8 *data);
 u32 stock_crc(u8 *p, u32 n);
-extern u8 DZ_OFF;
+extern u8 DZ_OFF, RECORD_DZ, MAP_TABLE[];
+extern u32 MAP_R4_A, MAP_R4_B, MAP_L4_A, MAP_L4_B;
 #define S settings_ram
 void settings_reset_for_test(void) { memset(&S, 0, sizeof S); IDLE_LIMIT = 0; }
 #else
@@ -30,6 +33,12 @@ void flash_unlock(void);       /* 0xbd00 */
 void flash_erase(u32 addr);    /* 0xfe98 */
 u32 stock_crc(u8 *p, u32 n);   /* 0xaf80 */
 #define DZ_OFF (*(volatile u8 *)0x8433d6)      /* the firmware's dead zone switch, flipped by Start + Select */
+#define RECORD_DZ (*(volatile u8 *)0x843916)   /* the same switch in stock's settings record: +6 */
+#define MAP_R4_A (*(volatile u32 *)0x84346c)   /* the variables stock saves in its record: +9, cable and 2.4 GHz */
+#define MAP_L4_A (*(volatile u32 *)0x843464)   /* +13 */
+#define MAP_R4_B (*(volatile u32 *)0x843460)   /* +17, the Bluetooth position */
+#define MAP_L4_B (*(volatile u32 *)0x843474)   /* +21 */
+#define MAP_TABLE ((u8 *)0x843874)             /* the button scan's table: R4 in halfwords at +134 and +136, L4 unaligned at +147 */
 #define flash_write(a, n, d) ((void (*)(u32, u32, u8 *))*(volatile u32 *)0x842e3c)(a, n, d)
 #define flash_read(a, n, d) ((void (*)(u32, u32, u8 *))*(volatile u32 *)0x842e50)(a, n, d)
 #define S (*(struct settings *)0x841680) /* not volatile: nothing here waits in a loop for another context's change */
@@ -87,12 +96,37 @@ static int stored_ok(void)
 	return 1;
 }
 
+/* What L4 or R4 presses, as button word bits; nothing means its own bit, as stock's default. Applies at once in the scan's table. */
+static void set_mapping(u32 l4, u32 mask)
+{
+	u8 *t = MAP_TABLE;
+
+	if (l4) {
+		mask = mask ? mask : 1u << 26;
+		MAP_L4_A = MAP_L4_B = mask;
+		t[147] = mask;
+		*(u32 *)(t + 148) = (*(u32 *)(t + 148) & 0xff000000) | mask >> 8;
+	} else {
+		mask = mask ? mask : 1u << 25;
+		MAP_R4_A = MAP_R4_B = mask;
+		*(u16 *)(t + 134) = mask;
+		*(u16 *)(t + 136) = mask >> 16;
+	}
+}
+
+static void set_dead_zone_off(u32 off)
+{
+	DZ_OFF = RECORD_DZ = off;
+	S.dz_changed = 1;
+}
+
 static void load(void)
 {
 	flash_read(SECTOR, RECORD_SIZE, (u8 *)&S);
 	if (!stored_ok())
 		set_defaults();
 	changed();
+	DZ_OFF = RECORD_DZ == 1; /* stock only applies this switch at startup in the 2.4 GHz position (0xd644) */
 	S.loaded = 1;
 }
 
@@ -122,11 +156,19 @@ void settings_poll(void)
 		S.reset = 0;
 		set_defaults();
 		changed();
+		set_mapping(0, 0);
+		set_mapping(1, 0);
+		set_dead_zone_off(0);
 		S.save = 1;
 	}
 	if (S.save) {
 		S.save = 0;
 		store();
+		stock_save_mappings();
+		if (S.dz_changed) {
+			S.dz_changed = 0;
+			save_settings();
+		}
 	}
 }
 
@@ -143,6 +185,13 @@ void settings_vendor(u8 *p)
 		S.save = 1;
 	} else if (p[3] == 0x56) {
 		S.reset = 1;
+	} else if (p[3] == 0x57) {
+		u32 mask = p[5] | p[6] << 8 | (u32)p[7] << 16 | (u32)p[8] << 24;
+		if (p[4] < 2 && mask <= 0xffff)
+			set_mapping(p[4], mask);
+	} else if (p[3] == 0x58) {
+		if (p[4] < 2)
+			set_dead_zone_off(p[4]);
 	}
 }
 

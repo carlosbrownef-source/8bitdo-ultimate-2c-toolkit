@@ -268,6 +268,43 @@ class SettingsTabTest(PageCase):
         self.assertNotIn("No answer", dom.find("ring-note").all_text())
         self.assertIn("Sent", dom.find("ring-note").all_text())
 
+    def test_mapping_warning_text(self):
+        text = " ".join(self.server.dom(self.READY).find("settings-cards").all_text().split())
+        self.assertIn("Pressing L4 and R4 together changes the Home ring's brightness, and games also receive the buttons you mapped to them.", text)
+
+    def mapping_buttons(self, dom, slot):
+        return [n for n in dom.find("settings-cards").walk() if n.attrs.get("data-slot") == slot]
+
+    def test_mapping_choices_exclude_paddles(self):
+        dom = self.server.dom(self.READY)
+        for slot in ("r4", "l4"):
+            names = [" ".join(n.text).strip() for n in self.mapping_buttons(dom, slot)]
+            self.assertEqual(sorted(names), sorted(["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "LS", "RS", "View", "Menu", "Up", "Down", "Left", "Right"]))
+
+    def test_mapping_is_sent_as_bits(self):
+        dom = self.server.dom(self.READY + "&scenario=mapa")
+        posted = dom.find("diag-posted").all_text()
+        self.assertIn('{"mapping":{"slot":"r4","mask":8192}}', posted)  # A is bit 13
+        self.assertIn('{"mapping":{"slot":"r4","mask":12288}}', posted)  # then B too, bit 12
+        self.assertNotIn("hidden", dom.find("settings-unsaved").attrs)
+
+    def test_mapping_shows_what_is_kept(self):
+        dom = self.server.dom(self.READY + "&mapped=1")
+        on = [" ".join(n.text).strip() for n in self.mapping_buttons(dom, "l4") if "on" in n.classes()]
+        self.assertEqual(on, ["LT"])
+
+    def test_dead_zone_switch_has_a_control_and_shows_its_state(self):
+        dom = self.server.dom(self.READY + "&scenario=dzoff")
+        self.assertIn('{"dead_zone_off":true}', dom.find("diag-posted").all_text())
+        self.assertIn("Start + Select", dom.find("settings-cards").all_text())
+
+    def test_calibration_steps_send_nothing(self):
+        dom = self.server.dom(self.READY)
+        text = dom.find("settings-cards").all_text()
+        self.assertIn("Start + Select + L1 + R1", text)
+        self.assertIn("7 seconds", text)
+        self.assertEqual(dom.find("diag-posted").all_text().strip(), "")
+
     def test_controls_are_off_while_a_change_is_on_its_way(self):
         dom = self.server.dom(self.READY + "&slow=1&scenario=setvibration", 1200)
         self.assertIn("disabled", next(n for n in self.control(dom, "vibration").walk() if n.attrs.get("data-value") == "50").attrs)

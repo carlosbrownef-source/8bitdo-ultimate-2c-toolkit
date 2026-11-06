@@ -32,7 +32,9 @@ u32 stock_crc(u8 *p, u32 n) { return 0; }
 u32 stock_limit(int x, int y) { return 0; }
 u32 stock_isqrt(u32 v) { return 0; }
 void stock_scan(u32 *w, u8 *lt, u8 *rt) {}
-u8 DZ_OFF;
+u8 DZ_OFF, RECORD_DZ, MAP_TABLE[0x9c];
+u32 MAP_R4_A, MAP_R4_B, MAP_L4_A, MAP_L4_B;
+void stock_save_mappings(void) {}
 void stock_chords(void) { stock_passes++; }
 void stock_vendor_a(u8 *p) { printf("VA\n"); }
 void stock_vendor_b(u8 *p) { printf("VB\n"); }

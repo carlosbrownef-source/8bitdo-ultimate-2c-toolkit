@@ -18,6 +18,7 @@ const SETTINGS_CARDS = [
     { heading: "Left trigger", rows: [{ field: "lt_start", label: "Starts at", kind: "range", format: percent }, { field: "lt_end", label: "Full at", kind: "range", format: percent }] },
     { heading: "Right trigger", rows: [{ field: "rt_start", label: "Starts at", kind: "range", format: percent }, { field: "rt_end", label: "Full at", kind: "range", format: percent }] },
   ] },
+  { title: "L4 and R4", wide: true, kind: "mapping", text: "Choose what each back button presses. With nothing chosen, games don't see it. Pressing L4 and R4 together changes the Home ring's brightness, and games also receive the buttons you mapped to them." },
   { title: "Vibration", text: "How strongly games make the controller vibrate. Battery alerts keep their own strength.", rows: [
     { field: "vibration", label: "Vibration from games", kind: "seg", format: (v) => `${v} %` },
   ] },
@@ -25,7 +26,15 @@ const SETTINGS_CARDS = [
     { field: "idle_min", label: "Turn off after", kind: "seg", format: (v) => `${v} min` },
     { field: "buzz", label: "Vibrate when connecting", kind: "toggle" },
   ] },
+  { title: "Calibration", wide: true, kind: "calibration", text: "If a stick doesn't reach its full range or doesn't return to the centre, the controller can measure them again. This uses a function of its own, and the app doesn't send it anything." },
 ];
+const CALIBRATION_STEPS = [
+  "Connect the controller and leave the sticks alone.",
+  "Hold Start + Select + L1 + R1 for 7 seconds, until a light blinks. Keep the sticks still for a moment longer.",
+  "Move both sticks all around their range, and press both triggers fully.",
+  "Press Start + Select + L1 + R1 once more to save. The light stops blinking.",
+];
+const MAP_BUTTONS = [["A", 13], ["B", 12], ["X", 4], ["Y", 5], ["LB", 10], ["RB", 11], ["LT", 14], ["RT", 15], ["LS", 1], ["RS", 2], ["View", 3], ["Menu", 0], ["Up", 9], ["Down", 8], ["Left", 7], ["Right", 6]];
 
 let settingsData = null, settingsValues = {}, settingsDirty = false, settingsBusy = false, settingsMessage = "", settingsLoading = false, settingsRead = null;
 
@@ -48,6 +57,14 @@ function settingsMount() {
     section.innerHTML = `<h2></h2><p></p>`;
     section.querySelector("h2").textContent = card.title;
     section.querySelector("p").textContent = card.text;
+    if (card.title === "Sticks") section.append(deadZoneRow());
+    if (card.kind === "mapping") section.append(...[["R4", "r4"], ["L4", "l4"]].map(mappingRow));
+    if (card.kind === "calibration") {
+      const steps = document.createElement("ol");
+      steps.className = "set-steps";
+      steps.replaceChildren(...CALIBRATION_STEPS.map((t) => { const li = document.createElement("li"); li.textContent = t; return li; }));
+      section.append(steps);
+    }
     if (card.columns) {
       const cols = document.createElement("div");
       cols.className = "set-cols";
@@ -58,11 +75,40 @@ function settingsMount() {
         cols.append(box);
       });
       section.append(cols);
-    } else {
+    } else if (card.rows) {
       card.rows.forEach((row) => section.append(settingsRow(row, fields[row.field])));
     }
     return section;
   }));
+}
+
+function deadZoneRow() {
+  const line = document.createElement("div"), label = document.createElement("span"), t = document.createElement("label"), input = document.createElement("input"), sw = document.createElement("span");
+  line.className = "set-row";
+  label.textContent = "Turn off the dead zones. Holding Start + Select for about 4 seconds on the controller does the same.";
+  t.className = "set-toggle"; sw.className = "sw";
+  input.type = "checkbox"; input.id = "dead-zone-off";
+  input.setAttribute("aria-label", "Turn off the dead zones");
+  input.onchange = () => settingsSwitch(input.checked);
+  t.append(input, sw);
+  line.append(label, t);
+  return line;
+}
+
+function mappingRow([name, slot]) {
+  const line = document.createElement("div"), label = document.createElement("span"), box = document.createElement("div");
+  line.className = "set-row set-map";
+  label.textContent = name;
+  box.className = "set-chips";
+  MAP_BUTTONS.forEach(([text, bit]) => {
+    const b = document.createElement("button");
+    b.className = "sec small";
+    b.textContent = text; b.dataset.slot = slot; b.dataset.bit = bit;
+    b.onclick = () => settingsMap(slot, settingsData.mapping[slot] ^ (1 << bit));
+    box.append(b);
+  });
+  line.append(label, box);
+  return line;
 }
 
 function settingsRow(row, field) {
@@ -121,6 +167,11 @@ function settingsPaint() {
       c.value = v; c.setAttribute("value", v); c.paintOut(v); c.disabled = settingsBusy;
     }
   });
+  const off = $("dead-zone-off");
+  off.checked = settingsData.dead_zone_off; off.disabled = settingsBusy;
+  document.querySelectorAll("#settings-cards [data-slot]").forEach((b) => {
+    b.classList.toggle("on", !!(settingsData.mapping[b.dataset.slot] >> +b.dataset.bit & 1)); b.disabled = settingsBusy;
+  });
   $("settings-save").disabled = $("settings-reset").disabled = settingsBusy;
   $("settings-unsaved").hidden = !settingsDirty;
   $("settings-message").textContent = settingsMessage;
@@ -151,6 +202,18 @@ async function settingsChange(name, value) {
   settingsPaint();
 }
 
+async function settingsMap(slot, mask) {
+  if (settingsBusy) return;
+  if (await settingsPost({ mapping: { slot, mask } })) { settingsData.mapping[slot] = mask; settingsDirty = true; }
+  settingsPaint();
+}
+
+async function settingsSwitch(off) {
+  if (settingsBusy) return;
+  if (await settingsPost({ dead_zone_off: off })) { settingsData.dead_zone_off = off; settingsDirty = true; }
+  settingsPaint();
+}
+
 async function settingsSave() {
   if (settingsBusy) return;
   if (await settingsPost({ save: true, values: settingsValues })) {
@@ -165,6 +228,8 @@ async function settingsReset() {
   const answer = await settingsPost({ reset: true });
   if (answer) {
     settingsValues = { ...answer.values };
+    settingsData.mapping = { r4: 0, l4: 0 };
+    settingsData.dead_zone_off = false;
     settingsDirty = false;
     settingsMessage = "The controller is back on the default settings.";
   }

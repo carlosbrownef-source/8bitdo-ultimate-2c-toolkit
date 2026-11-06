@@ -17,7 +17,7 @@
     }
     if (path.startsWith("/api/settings") && query.get("settings")) {
       const answer = await (await realFetch(url, options)).json();
-      return json({ ...answer, available: true, note: "", values: Object.fromEntries(answer.fields.map((f) => [f.name, f.default])), dead_zone_off: false, mapping: { r4: 0, l4: 0 } });
+      return json({ ...answer, available: true, note: "", values: Object.fromEntries(answer.fields.map((f) => [f.name, f.default])), dead_zone_off: false, mapping: { r4: 0, l4: query.get("mapped") ? 1 << 14 : 0 } });
     }
     if (path.startsWith("/api/ring")) return query.get("ringfail") ? new Response(JSON.stringify({ error: "The controller said no." }), { status: 409 }) : json({ ok: true });
     if (path.startsWith("/api/firmware") && device === "bluetooth_xbox") return json({ note: "The controller firmware cannot be read over Bluetooth. Connect the controller by cable for firmware diagnostics." });
@@ -66,6 +66,8 @@
     liveinput: () => window.u2cDiagnostics({ type: "input", ...REST, lx: 0.5, ly: -0.5, lt: 0.5 }),
     leavesettings: () => showTab("firmware"),
     settingstodiag: () => showTab("diagnostics"),
+    mapa: () => { document.querySelector('[data-slot="r4"][data-bit="13"]').click(); setTimeout(() => document.querySelector('[data-slot="r4"][data-bit="12"]').click(), 200); },
+    dzoff: () => document.getElementById("dead-zone-off").click(),
     resetopen: () => $("settings-reset").click(),
     resetyes: () => { $("settings-reset").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); }, 200); },  // headless Chrome holds back the close event
     ringlevel: () => document.querySelector('[data-live="1"]').click(),
