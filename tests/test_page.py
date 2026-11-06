@@ -358,7 +358,7 @@ class ControllerTestCard(PageCase):
         self.assertIn("1 of 19", text)
 
     def test_a_change_of_device_is_noticed_without_refresh(self):
-        dom = self.server.dom("&diagsim=boot&scenario=plugged", 7000)
+        dom = self.server.dom("&diagsim=boot&scenario=replugged", 7000)
         self.assertIn("Connected over Bluetooth", dom.find("badge-text").all_text())
 
     def test_the_firmware_is_not_reread_when_nothing_changes(self):

@@ -44,7 +44,6 @@
     direct: () => clickOp("direct"),
     defaultonly: () => window.u2cDiagnostics({ ...PAD, localities: ["default"] }),
     report: () => document.getElementById("report-open").click(),
-    plugged: () => { window.simReplugged = true; },
     replugged: () => { window.simReplugged = true; },
     installed: () => { document.getElementById("diag-snap").textContent = tweaks().join(); },
     keptchoice: () => { document.querySelector('[data-ring="ring_1"]').click(); refresh(); setTimeout(() => { document.getElementById("diag-snap").textContent = tweaks().join(); }, 1000); },

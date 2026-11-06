@@ -7,7 +7,8 @@ from pathlib import Path
 
 from .. import protocol
 from ..firmware import image, recipes
-from ..protocol import app, boot
+from ..protocol import boot
+from . import probe
 from .plan import OpError
 
 CABLE_MODES = ("cable", "cable_360")
@@ -21,36 +22,17 @@ class Backup:
     data: bytes
 
 
-def _read_all(ch, mode, label, progress) -> bytes:
-    size = image.FLASH_SIZE
-    if mode == "boot":
-        return boot.read(ch, 0, size, lambda d, t: progress(label, d, t))
-    out = bytearray()
-    for a in range(0, size, boot.CHUNK):
-        c = app.read(ch, a, min(boot.CHUNK, size - a))
-        if c is None:
-            raise OpError(f"The controller didn't answer at {a:#x}, so nothing was saved.")
-        out += c
-        if len(out) % 0x4000 < boot.CHUNK:
-            progress(label, len(out), size)
-    return bytes(out)
-
-
 def _state(data: bytes) -> recipes.State:
     return recipes.identify(data[image.BASE:image.APP_END])
 
 
 def backup(ch, mode: str, store: Path, progress) -> Backup:
     try:
-        if mode in CABLE_MODES:
-            if app.open_session(ch) is None:
-                raise OpError("The controller isn't answering. Unplug it, plug it back in and try again.")
-            if app.read(ch, 0x10000, 16) == b"\xff" * 16:
-                raise OpError("This looks like the 2.4 GHz dongle, which this app doesn't support.")
-        elif mode == "boot" and boot.kind(ch) != "controller":
-            raise OpError("The device in update mode isn't a controller. The 2.4 GHz dongle isn't supported.")
-        a = _read_all(ch, mode, "pass 1", progress)
-        b = _read_all(ch, mode, "pass 2", progress)
+        if mode in CABLE_MODES or mode == "boot":
+            probe._check_device(ch, mode, boot.identify(ch) if mode == "boot" else None)
+        size = image.FLASH_SIZE
+        a = probe._read(ch, mode, 0, size, lambda d, t: progress("pass 1", d, t))
+        b = probe._read(ch, mode, 0, size, lambda d, t: progress("pass 2", d, t))
     except protocol.ProtocolError as e:
         raise OpError(str(e)) from e
     if a != b:

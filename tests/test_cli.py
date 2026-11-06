@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import contextlib
-import hashlib
 import io
 import tempfile
 import unittest
@@ -10,7 +9,7 @@ from unittest import mock
 from u2c_customfw import cli, state, transport
 from u2c_customfw.firmware import image, recipes
 from u2c_customfw.ops import devices
-from u2c_customfw.sim import SimApp, SimBoot
+from u2c_customfw.sim import SimBoot
 from tests.test_ops import K, STOCK_A, controller_flash
 
 

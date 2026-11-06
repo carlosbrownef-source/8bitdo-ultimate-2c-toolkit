@@ -2,8 +2,15 @@
 """A text report for bug reports. Device IDs, mode, firmware state and the log tail: never the MAC, the Bluetooth
 bonds or any backup data."""
 import platform
+from pathlib import Path
 
 from .. import __version__
+
+
+def log_tail(store, n: int = 30) -> str:
+    """The last n lines of the app's log, or an empty string if there is none yet."""
+    log = Path(store) / "u2c-customfw.log"
+    return "\n".join(log.read_text().splitlines()[-n:]) if log.exists() else ""
 
 
 def clean_extras(raw) -> dict:

@@ -35,8 +35,8 @@ class Bar:
 
 
 class Exit(Exception):
-    def __init__(self, code, msg):
-        self.code, self.msg = code, msg
+    def __init__(self, code, msg, hint=""):
+        self.code, self.msg, self.hint = code, msg, hint   # hint: command-line advice, printed by main() only, never shown in the app
 
 
 def pick(modes=CONTROLLER_MODES):
@@ -56,7 +56,7 @@ def stock_for(args, backup, store):
         return fetch.fetch_stock()
     stock = bkp.find_original(backup, store)
     if stock is None:
-        raise Exit(2, "None of your backups contains the original firmware 1.09. Download it from 8BitDo's server instead (--download on the command line).")
+        raise Exit(2, "None of your backups contains the original firmware 1.09. Download it from 8BitDo's server instead.", "Or run this command again with --download.")
     return stock
 
 
@@ -99,7 +99,6 @@ def cmd_identify(args, store):
 
 
 def _backup_for(args, ch, store):
-    from .protocol import boot
     if args.backup:
         return bkp.load(Path(args.backup))
     found = bkp.find_backups(store, boot.read(ch, 0, image.BOOT_END), boot.read(ch, image.MAC_SECTOR, image.SECTOR))
@@ -146,8 +145,7 @@ def cmd_restore(args, store):
 
 
 def cmd_report(args, store):
-    log = store / "u2c-customfw.log"
-    tail = "\n".join(log.read_text().splitlines()[-30:]) if log.exists() else ""
+    tail = report.log_tail(store)
     backups = sorted(Path(store).glob("controller-*.bin"))
     st = None
     if backups:
@@ -185,7 +183,7 @@ def main(argv=None) -> int:
         {"devices": cmd_devices, "backup": cmd_backup, "identify": cmd_identify, "patch": cmd_patch,
          "restore": cmd_restore, "report": cmd_report}[args.cmd](args, store)
     except Exit as e:
-        print(e.msg, file=sys.stderr)
+        print(f"{e.msg} {e.hint}".strip(), file=sys.stderr)
         return e.code
     except (OpError, fetch.FetchError, protocol.ProtocolError, PermissionDenied) as e:
         print(f"stopped: {e}", file=sys.stderr)

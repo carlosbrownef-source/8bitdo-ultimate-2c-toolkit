@@ -3,7 +3,6 @@
 be this address (against DNS rebinding)."""
 import json
 import secrets
-import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -79,7 +78,7 @@ def make_server(store: Path, port: int = 0):
                 found = [{"mode": "error", "name": str(e)}]
             backups = sorted(p.name for p in Path(store).glob("controller-*.bin"))
             self.send(200, json.dumps({"version": __version__, "accepted": state.accepted(store), "devices": found,
-                                       "backups": backups, "busy": runner.running,
+                                       "backups": backups,
                                        "disclaimer": disclaimer.text()}))
 
         def api_firmware(self):
@@ -143,7 +142,7 @@ def make_server(store: Path, port: int = 0):
             except (OpError, PermissionDenied, OSError) as e:
                 return self.send(200, json.dumps({"error": str(e)}))
             ring = [recipes.RECIPES[k].title for k in st.recipes if recipes.RECIPES[k].group == "ring"]
-            self.send(200, json.dumps({"mode": f.mode, "known": st.known, "recipes": list(st.recipes), "version": version, "version_from": fw.version_from,
+            self.send(200, json.dumps({"known": st.known, "recipes": list(st.recipes), "version": version, "version_from": fw.version_from,
                                        "pending": fw.pending, "boot_identity": fw.boot_identity, "outdated": st.outdated, "ring_level": fw.ring_level,
                                        "titles": [recipes.RECIPES[k].title for k in st.recipes],
                                        "tweaks": [{"key": k, "title": r.title, "on": k in st.recipes}
@@ -187,9 +186,7 @@ def make_server(store: Path, port: int = 0):
             if route == "/api/ring":
                 return self.api_ring(req)
             if route == "/api/report":
-                log = Path(store) / "u2c-customfw.log"
-                tail = "\n".join(log.read_text().splitlines()[-30:]) if log.exists() else ""
-                return self.send(200, json.dumps({"text": report_mod.report(cli.find(), None, tail, report_mod.clean_extras(req))}))
+                return self.send(200, json.dumps({"text": report_mod.report(cli.find(), None, report_mod.log_tail(store), report_mod.clean_extras(req))}))
             if route in ("/api/patch", "/api/restore") and not state.accepted(store):
                 return self.send(403, json.dumps({"error": "Accept the disclaimer first."}))
             params = {"/api/backup": ("backup", {}),

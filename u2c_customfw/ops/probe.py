@@ -19,15 +19,18 @@ class Firmware:
     ring_level: int | None = None      # the level the Home ring starts at, 0-5, if its current form is installed
 
 
-def _read(ch, mode: str, addr: int, n: int) -> bytes:
+def _read(ch, mode: str, addr: int, n: int, progress=None) -> bytes:
+    """Read n bytes by either channel; progress(done, total) is called along the way."""
     if mode == "boot":
-        return boot.read(ch, addr, n)
+        return boot.read(ch, addr, n, progress)
     out = bytearray()
     for a in range(addr, addr + n, boot.CHUNK):
         c = app.read(ch, a, min(boot.CHUNK, addr + n - a))
         if c is None:
             raise OpError(f"The controller didn't answer at {a:#x}.")
         out += c
+        if progress and len(out) % 0x4000 < boot.CHUNK:
+            progress(len(out), n)
     return bytes(out)
 
 
