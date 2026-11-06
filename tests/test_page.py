@@ -126,6 +126,9 @@ class TabsTest(PageCase):
         text = tab.all_text()
         self.assertLess(text.index("Back up"), text.index("Tweaks"))
 
+    def test_help_explains_the_stick_limit(self):
+        self.assertIn("Start + Select", self.server.dom().find("help").all_text())
+
     def test_tags_say_what_happens(self):
         text = self.server.dom().find("tab-firmware").all_text()
         self.assertNotIn("Changes the controller", text)
