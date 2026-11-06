@@ -40,7 +40,7 @@ class CliTest(unittest.TestCase):
 
     def test_identify_names_the_tweaks(self):
         built = recipes.build(STOCK_A, ["bt_xbox", "cable_360"], **K)
-        f = bytearray(self.flash); f[image.BASE:image.BANK_A_END] = built
+        f = bytearray(self.flash); f[image.BASE:image.APP_END] = built
         p = self.tmp / "x.bin"; p.write_bytes(bytes(f))
         code, text = run(["identify", str(p)], [])
         self.assertEqual(code, 0)

@@ -18,7 +18,11 @@ OLD_NAME = b"8BitDo Ultimate 2C (One)"  # what versions before 0.2 installed: st
 OLD_NAME_LEN = 27
 PACKER_SLOT = (0xB908, 0xBAD4)
 RING_LEVELS = (("ring_off", "Home ring: off", 0), ("ring_0_1", "Home ring: 0.1 %", 1), ("ring_1", "Home ring: 1 %", 10),
-               ("ring_5", "Home ring: 5 %", 50), ("ring_25", "Home ring: 25 %", 250))  # PWM1 compare value, period 1000
+               ("ring_5", "Home ring: 5 %", 50), ("ring_25", "Home ring: 25 %", 250),
+               ("ring_normal", "Home ring: normal", 0xFFFF))  # PWM1 compare value, period 1000; normal doesn't use it
+OLD_RING_LEVELS = RING_LEVELS[:5]                             # what 0.2.0 could install
+RING_CODE = (0x18400, 0x18FF0)                                # blank on stock
+ALERTS_FLAG = 0x18FF0
 
 
 class RecipeError(Exception):
@@ -44,12 +48,15 @@ class Recipe:
     requires: tuple[str, ...]
     edits: tuple[Edit, ...]
     group: str | None = None  # at most one recipe of a group can be installed
+    requires_group: str | None = None  # one recipe of this group must be installed too
+    earlier_form_of: str | None = None  # how an earlier version installed that recipe: recognised, not installable
 
 
 @dataclass(frozen=True)
 class State:
     known: bool
     recipes: tuple[str, ...] = ()
+    outdated: bool = False  # has a tweak in the form an earlier version installed it
 
 
 def _blob(name: str) -> bytes:
@@ -81,7 +88,7 @@ def _make() -> dict[str, Recipe]:
             Edit(0xA214, bytes([len(NAME) + 2, 0xA1])),          # scan response length immediate
         )),
         Recipe("bt_rumble", "Rumble over Bluetooth", ("bt_xbox",), (
-            Edit(0x18390, _blob("rumble.bin")),
+            Edit(0x18390, _blob("rumble.bin").ljust(0x70, b"\0"), accepts=(_blob("rumble02.bin").ljust(0x70, b"\0"),)),
         )),
         Recipe("cable_360", "Xbox 360 controller over cable", (), (
             Edit(0x17994, bytes.fromhex("ffffff")),              # class, subclass, protocol
@@ -93,10 +100,23 @@ def _make() -> dict[str, Recipe]:
         )),
         *(Recipe(key, title, (), (
             Edit(0xA3FA, b"\0"),                                 # the ring doesn't light up at startup
-            Edit(0xD4F0, _blob("ringhook.bin")),                 # LED task calls ring_led for the ring
-            Edit(0x7640, _blob("ring.bin").ljust(0x90, b"\0")),  # ring_led, run from RAM at 0x1640
-            Edit(0x76D0, level.to_bytes(2, "little")),           # its level, in thousandths
+            Edit(0xD4F0, _blob("ringhook.bin")),                 # LED task calls ring_tick for the ring
+            Edit(0xF83C, _blob("vhooka.bin")),                   # vendor commands reach ring_vendor
+            Edit(0xF842, _blob("vhookb.bin")),
+            Edit(0xA484, _blob("pollhook.bin")),                 # main loop samples the L4 + R4 chord
+            Edit(0x7640, bytes(0x90)),                           # dead RAM code, now the ring's state
+            Edit(0x76D0, level.to_bytes(2, "little")),           # the level installed
+            Edit(RING_CODE[0], _blob("ringtail.bin").ljust(RING_CODE[1] - RING_CODE[0], b"\xff")),
         ), "ring") for key, title, level in RING_LEVELS),
+        *(Recipe(f"{key}@0.2", title, (), (
+            Edit(0xA3FA, b"\0"),
+            Edit(0xD4F0, _blob("ringhook02.bin")),
+            Edit(0x7640, _blob("ring02.bin").ljust(0x90, b"\0")),
+            Edit(0x76D0, level.to_bytes(2, "little")),
+        ), "ring", earlier_form_of=key) for key, title, level in OLD_RING_LEVELS),
+        Recipe("battery_alerts", "Battery alerts", (), (
+            Edit(ALERTS_FLAG, b"\1"),
+        ), requires_group="ring"),
     )}
 
 
@@ -111,6 +131,11 @@ def _constants(stock_sha256, region_sha256, remainder_sha256):
     return stock_sha256, region_sha256, remainder_sha256
 
 
+def whole(img: bytes) -> bytes:
+    """The whole app area: a v1.09 payload gets its blank tail."""
+    return img + b"\xff" * (image.APP_SIZE - BANK_A_SIZE) if len(img) == BANK_A_SIZE else img
+
+
 def _sha(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
 
@@ -120,7 +145,7 @@ def _region(img: bytes, e: Edit) -> bytes:
 
 
 def masked(img: bytes) -> bytes:
-    """Bank A with every edit region zeroed: what no recipe touches."""
+    """The app area with every edit region zeroed: what no recipe touches."""
     out = bytearray(img)
     for r in RECIPES.values():
         for e in r.edits:
@@ -129,35 +154,40 @@ def masked(img: bytes) -> bytes:
 
 
 def build(stock: bytes, keys, stock_sha256=None, region_sha256=None, remainder_sha256=None) -> bytes:
-    """Stock bank A plus the chosen tweaks. Refuses anything but stock, an unknown tweak or a missing dependency."""
+    """The app area: stock plus the chosen tweaks. Refuses anything but stock, an unknown tweak or a missing dependency."""
     stock_sha, regions, _ = _constants(stock_sha256, region_sha256, remainder_sha256)
     if len(stock) != BANK_A_SIZE or _sha(stock) != stock_sha:
         raise RecipeError("the base image is not stock v1.09 bank A")
     keys = list(keys)
     for k in keys:
-        if k not in RECIPES:
+        if k not in RECIPES or RECIPES[k].earlier_form_of:
             raise RecipeError(f"unknown tweak {k!r}")
         for need in RECIPES[k].requires:
             if need not in keys:
                 raise RecipeError(f"{k} needs {need}")
+        if RECIPES[k].requires_group and not any(RECIPES[o].group == RECIPES[k].requires_group for o in keys):
+            raise RecipeError(f"{k} needs a Home ring level")
     groups = [RECIPES[k].group for k in keys if RECIPES[k].group]
     if len(groups) != len(set(groups)):
         raise RecipeError("choose only one Home ring level")
-    img = bytearray(stock)
+    base = whole(stock)
+    img = bytearray(base)
     for key, r in RECIPES.items():  # recipe order: a dependent's edit lands over the one it supersedes
         if key not in keys:
             continue
         for e in r.edits:
-            if _sha(_region(stock, e)) != regions[(e.addr, e.size)]:
+            if _sha(_region(base, e)) != regions[(e.addr, e.size)]:
                 raise RecipeError(f"{key}: stock bytes at {e.addr:#x} are not as expected")
             img[e.addr - BASE:e.addr - BASE + e.size] = e.new
     return bytes(img)
 
 
 def identify(bank_a: bytes, stock_sha256=None, region_sha256=None, remainder_sha256=None) -> State:
-    """Which tweaks a bank A holds, or unknown if any edit region is neither stock nor a tweak's, or the rest differs."""
+    """Which tweaks an app area holds, or unknown if any edit region is neither stock nor a tweak's, or the rest differs.
+    A bare payload counts as having a blank tail."""
     _, regions, remainder = _constants(stock_sha256, region_sha256, remainder_sha256)
-    if len(bank_a) != BANK_A_SIZE or _sha(masked(bank_a)) != remainder:
+    bank_a = whole(bank_a)
+    if len(bank_a) != image.APP_SIZE or _sha(masked(bank_a)) != remainder:
         return State(False)
 
     def edit_state(e):
@@ -186,4 +216,7 @@ def identify(bank_a: bytes, stock_sha256=None, region_sha256=None, remainder_sha
     for k in present:
         if any(need not in present for need in RECIPES[k].requires):
             return State(False)
-    return State(True, tuple(sorted(present)))
+        if RECIPES[k].requires_group and not any(RECIPES[o].group == RECIPES[k].requires_group for o in present):
+            return State(False)
+    names = {RECIPES[k].earlier_form_of or k for k in present}
+    return State(True, tuple(sorted(names)), any(RECIPES[k].earlier_form_of for k in present))

@@ -93,7 +93,7 @@ def cmd_backup(args, store):
 
 def cmd_identify(args, store):
     data = Path(args.file).read_bytes()
-    bank_a = data[image.BASE:image.BANK_A_END] if len(data) == image.FLASH_SIZE else data
+    bank_a = data[image.BASE:image.APP_END] if len(data) == image.FLASH_SIZE else data
     s = recipes.identify(bank_a)
     args.say(("original 1.09" + (f" with tweaks: {', '.join(s.recipes)}" if s.recipes else "")) if s.known else "unknown firmware")
 
@@ -168,7 +168,7 @@ def main(argv=None) -> int:
     sub.add_parser("report", parents=[common])
     p = sub.add_parser("identify", parents=[common]); p.add_argument("file")
     p = sub.add_parser("patch", parents=[common])
-    p.add_argument("--tweaks", default="", help="comma list of: " + ", ".join(recipes.RECIPES))
+    p.add_argument("--tweaks", default="", help="comma list of: " + ", ".join(k for k, r in recipes.RECIPES.items() if not r.earlier_form_of))
     p.add_argument("--backup"); p.add_argument("--download", action="store_true", help="use 8BitDo's v1.09 from its server")
     p = sub.add_parser("restore", parents=[common])
     p.add_argument("source", choices=["backup", "stock"]); p.add_argument("file", nargs="?")

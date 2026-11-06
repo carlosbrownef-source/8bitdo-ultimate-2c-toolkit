@@ -4,7 +4,7 @@
 
     make_constants.py ultimate-2c-controller-v1.09.dat
 
-Only SHA-256 hashes are written: of each edit region of stock bank A, and of bank A with all regions zeroed.
+Only SHA-256 hashes are written: of each edit region of the stock app area, and of that area with all regions zeroed.
 """
 import hashlib
 import sys
@@ -17,6 +17,7 @@ if hashlib.sha256(dat).hexdigest() != image.STOCK_DAT_SHA256:
     sys.exit("not 8BitDo's controller v1.09 .dat")
 stock = dat[0x1C:]
 assert hashlib.sha256(stock).hexdigest() == image.STOCK_SHA256
+stock = recipes.whole(stock)
 sha = lambda b: hashlib.sha256(b).hexdigest()
 regions = {(e.addr, e.size): sha(recipes._region(stock, e)) for r in recipes.RECIPES.values() for e in r.edits}
 out = Path(recipes.__file__).with_name("stock_hashes.py")

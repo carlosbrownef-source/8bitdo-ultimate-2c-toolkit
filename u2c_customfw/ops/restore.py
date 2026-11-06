@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Restore: put back this unit's backup, or 8BitDo's stock v1.09 bank A."""
 from .. import protocol
-from ..firmware import image
+from ..firmware import image, recipes
 from ..protocol import boot
 from .patch import check_unit, current_bank_a
 from .probe import detect_version
@@ -28,9 +28,8 @@ def plan_restore(ch, backup, source: str, stock, force_unknown: bool = False) ->
     if source == "stock":
         if stock is None or len(stock) != image.BANK_A_SIZE:
             raise OpError("There's no original firmware 1.09 to restore.")
-        target[image.BASE:image.BANK_A_END] = stock
-    target[image.BANK_A_END:image.BANK_A_ERASE_END] = b"\xff" * (image.BANK_A_ERASE_END - image.BANK_A_END)
-    want = bytes(target[image.BASE:image.BANK_A_END])
+        target[image.BASE:image.APP_END] = recipes.whole(stock)
+    want = bytes(target[image.BASE:image.APP_END])
     others = []
     if source == "backup":
         try:

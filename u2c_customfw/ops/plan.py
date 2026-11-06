@@ -44,7 +44,7 @@ def _runs(sectors):
 
 def apply(ch, plan: Plan, progress) -> None:
     check_ranges(plan)
-    total = (image.BANK_A_SIZE if plan.bank_a else 0) + len(plan.other_sectors) * image.SECTOR
+    total = (image.APP_SIZE if plan.bank_a else 0) + len(plan.other_sectors) * image.SECTOR
     done = 0
     try:
         if plan.bank_a:
@@ -54,7 +54,13 @@ def apply(ch, plan: Plan, progress) -> None:
                 boot.write_chunk(ch, a, image.BANK_A_SIZE, blk)
                 done += len(blk)
                 progress("write", done, total)
-            if boot.read(ch, image.BASE, image.BANK_A_ERASE_END - image.BASE) != plan.image[image.BASE:image.BANK_A_ERASE_END]:
+            for a in range(image.BANK_A_END, image.APP_END, boot.CHUNK):  # the same param worked here on hardware
+                blk = plan.image[a:min(a + boot.CHUNK, image.APP_END)]
+                if blk != b"\xff" * len(blk):
+                    boot.write_chunk(ch, a, image.BANK_A_SIZE, blk)
+                done += len(blk)
+                progress("write", done, total)
+            if boot.read(ch, image.BASE, image.APP_SIZE) != plan.image[image.BASE:image.APP_END]:
                 raise OpError("The firmware read back from the controller doesn't match what was written. " + INTERRUPTED)
         for lo, hi in _runs(plan.other_sectors):
             boot.erase(ch, lo, hi - lo)

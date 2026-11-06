@@ -93,10 +93,11 @@ def install(store, unknown: bool = False) -> None:
     flash[image.BASE:image.BANK_A_END] = stock
     for a in range(image.CONFIG_START, image.FLASH_SIZE, 0x1000):
         flash[a:a + 64] = rnd.randbytes(64)
+    whole = recipes.whole(stock)
     consts = (hashlib.sha256(stock).hexdigest(),
-              {(e.addr, e.size): hashlib.sha256(stock[e.addr - image.BASE:e.addr - image.BASE + e.size]).hexdigest()
+              {(e.addr, e.size): hashlib.sha256(whole[e.addr - image.BASE:e.addr - image.BASE + e.size]).hexdigest()
                for r in recipes.RECIPES.values() for e in r.edits},
-              hashlib.sha256(recipes.masked(stock)).hexdigest())
+              hashlib.sha256(recipes.masked(whole)).hexdigest())
     recipes._constants = lambda a=None, b=None, c=None: consts
     Path(store).mkdir(parents=True, exist_ok=True)
     (Path(store) / "controller-sim.bin").write_bytes(bytes(flash))

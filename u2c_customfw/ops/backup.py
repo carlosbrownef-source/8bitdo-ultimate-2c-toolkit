@@ -37,7 +37,7 @@ def _read_all(ch, mode, label, progress) -> bytes:
 
 
 def _state(data: bytes) -> recipes.State:
-    return recipes.identify(data[image.BASE:image.BANK_A_END])
+    return recipes.identify(data[image.BASE:image.APP_END])
 
 
 def backup(ch, mode: str, store: Path, progress) -> Backup:

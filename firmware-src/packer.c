@@ -8,7 +8,7 @@
  * low byte (LT 0x84340e, RT 0x8433e8); button word 0x84342c (bits: 0 Start, 1 L3, 2 R3, 3 Select, 4 X, 5 Y,
  * 6 right, 7 left, 8 down, 9 up, 10 L1, 11 R1, 12 B, 13 A, 17 Home). L4/R4 and digital L2/R2 are left out:
  * a real pad never sets buttons 3, 6, 9, 10. Build: build.sh (tc32); test: test.py (native, -DHOST).
- * Each tweak's code is its own section (packer.ld): pack_xbox, noop_write or rumble_write, main_tick. */
+ * Each tweak's code is its own section (packer.ld): pack_xbox, noop_write or rumble_write, main_tick, the Home ring. */
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
@@ -101,6 +101,12 @@ int noop_write(u8 *p)
 #define RUMBLE_CAP 255
 #endif
 void motor_set(u32 strong, u32 weak, u32 hold); /* 0xfa68 */
+void ring_command(u32 level, u32 save);         /* 0x18400 */
+#ifdef HOST
+extern u32 RING_CODE;
+#else
+#define RING_CODE (*(volatile u32 *)0x18400)    /* blank if the Home ring tweak isn't installed */
+#endif
 
 static u32 rumble_level(u32 m) /* Xbox 0-100 -> 360 0-255, capped */
 {
@@ -114,6 +120,11 @@ int rumble_write(u8 *p)
 
 	if ((p[2] | p[3] << 8) < 3 + 6) /* opcode + handle + at least 6 value bytes (up to the duration) */
 		return 0;
+	if (v[0] & 0x80) { /* no rumble mask uses this bit: a Home ring command, level then save */
+		if (RING_CODE != 0xffffffff && RING_CODE)
+			ring_command(v[1], v[2]);
+		return 0;
+	}
 	motor_set(rumble_level(v[0] & 2 ? v[3] : 0), rumble_level(v[0] & 1 ? v[4] : 0), v[5] ? v[5] : 1);
 	return 0;
 }
@@ -135,48 +146,275 @@ void main_tick(void)
 }
 #endif
 
-/* Home ring brightness: the LED task's call for the ring (0xd4f0, PB7) comes here instead of the stock driver 0xd36c.
- * Register use follows supercypok/ultimate2c-ring (MIT), reimplemented here. When the ring should be on (mode 1), PB7
- * is handed to PWM1 at the stored level, in thousandths; every other state goes back to GPIO and the stock driver, so
- * the blink modes (2, 3) keep working. Level 0 means off. Motors use PWM4/5 and share only the clock, which isn't touched.
- * The level lives in the RAM copy of this code, so it can be changed there without writing the flash. */
-#ifdef HOST
-extern unsigned char REGS[];
-extern volatile u16 RING_LEVEL;
-#define IO(a) (REGS + ((a) - 0x800000))
-#else
-#define RING_LEVEL (*(volatile u16 *)0x8416d0) /* image 0x76d0 */
-#define IO(a) ((u8 *)(a))
-#endif
-#define RING_PERIOD 1000
+/* Home ring: the LED task's call for the ring (0xd4f0, PB7) comes to ring_tick instead of the stock driver 0xd36c, every
+ * 200 ms. Register use follows supercypok/ultimate2c-ring (MIT), reimplemented here. The code runs in place from the
+ * blank 0x18400-0x18ff0, and its state lives in dead RAM code at 0x841640 (image 0x7640). The firmware's own blink modes
+ * (2, 3) keep their stock driver; otherwise PB7 goes to PWM1 at the current level, in thousandths. Motors use PWM4/5
+ * and share only the clock, which isn't touched.
+ *
+ * The level changes with L4 + R4 (the button word has L4 at bit 26 and R4 at bit 25, measured), the marked Bluetooth
+ * report in rumble_write, or 81 05 00 52 <level> by cable, where 81 05 00 53 saves. Settings field +25 keeps the level
+ * in its low nibble and, in the high one, the level installed when it was saved: installing another level wins, or the
+ * app's choice would be ignored after any save.
+ *
+ * Battery alerts, when 0x18ff0 is 1: slow blink while charging, fast blink at 15 % or less, and pulses. Charging is PD0
+ * high with the charged latch 0x843423 clear (see 0xb4fc). Values come from trying them on the controller. */
+#define RING_LEVELS 6
+#define RING_NORMAL 0xffff
+#define ALERT_LEVEL 10   /* for alerts when the ring is off */
+#define SAVE_TICKS 15    /* 3 s after the last change */
+#define START_TICKS 15   /* the percentage isn't reliable right after starting */
+#define CHARGE_MIN_TICKS 150 /* 30 s charging before "completed" counts */
+#define REPEAT_TICKS 1500    /* 5 minutes */
+#define PULSE_STRENGTH 200
+#define PULSE_SHORT 20   /* 10 ms units */
+#define PULSE_LONG 50
+#define SAMPLE_TICKS 160000 /* 10 ms at 16 MHz: taps count, contact bounce doesn't */
+#define L4 (1u << 26)
+#define R4 (1u << 25)
+
+enum { ALERT_NONE, ALERT_CHARGING, ALERT_LOW, ALERT_VERY_LOW };
+
+struct ring_state {
+	u8 init, level, installed, phase, alert, save_wait, q_short, q_long;
+	u8 stop_wait, gap, ext_prev, full_done;
+	u16 charge_ticks, repeat;
+	u32 prev_btn, sampled, ticks;
+};
+typedef char ring_state_fits[sizeof(struct ring_state) <= 0x90 ? 1 : -1];
 
 void led_driver(u32 mode, u32 pin, u8 *counter); /* 0xd36c */
+void save_settings(void);                        /* 0xd538 */
+void stock_chords(void);                         /* 0xcfa4, the main loop's Start + Select check */
+void stock_vendor_a(u8 *p);                      /* 0xf56c */
+void stock_vendor_b(u8 *p);                      /* 0xf594 */
 
-void ring_led(u32 mode, u32 pin, u8 *counter)
+#ifdef HOST
+#include <string.h>
+extern unsigned char REGS[];
+extern volatile u16 RING_LEVEL;
+extern u8 PCT, FULL, SAVED, ALERTS_FLAG;
+extern u32 TIMER;
+static struct ring_state ring_s;
+#define S ring_s
+#define IO(a) (REGS + ((a) - 0x800000))
+void ring_reset(void) { memset(&ring_s, 0, sizeof ring_s); }
+unsigned ring_level_now(void) { return ring_s.level; }
+#else
+#define S (*(volatile struct ring_state *)0x841640)
+#define RING_LEVEL (*(volatile u16 *)0x8416d0)  /* image 0x76d0: the level installed */
+#define PCT (*(volatile u8 *)0x843415)
+#define FULL (*(volatile u8 *)0x843423)
+#define SAVED (*(volatile u8 *)0x843929)        /* settings record +25 */
+#define ALERTS_FLAG (*(volatile u8 *)0x18ff0)
+#define TIMER (*(volatile u32 *)0x800740)
+#define IO(a) ((volatile u8 *)(a))
+#endif
+
+static const u16 ring_levels[RING_LEVELS] = {RING_NORMAL, 250, 50, 10, 1, 0};
+
+/* First in the blank area, at a fixed address: rumble_write calls it. */
+void ring_command(u32 level, u32 save)
+{
+	if (level < RING_LEVELS)
+		S.level = level;
+	if (save)
+		S.save_wait = 1; /* flash waits for the LED task, in the main loop */
+}
+
+static void ring_init(void)
+{
+	u32 i, saved = SAVED;
+
+	S.init = 1;
+	S.installed = 0;
+	for (i = 0; i < RING_LEVELS; i++)
+		if (ring_levels[i] == RING_LEVEL)
+			S.installed = i;
+	S.level = S.installed;
+	if (saved >> 4 == S.installed && (saved & 15) < RING_LEVELS)
+		S.level = saved & 15;
+	S.ext_prev = *IO(0x800518) & 1;
+}
+
+void main_poll(void)
+{
+	u32 now = TIMER, b, pressed;
+
+	if (now - S.sampled >= SAMPLE_TICKS) {
+		S.sampled = now;
+		b = BTN;
+		pressed = b & ~S.prev_btn;
+		S.prev_btn = b;
+		if (S.init && (b & L4) && (b & R4) && (pressed & (L4 | R4))) {
+			S.level = S.level + 1 < RING_LEVELS ? S.level + 1 : 0;
+			S.save_wait = SAVE_TICKS;
+		}
+	}
+	stock_chords();
+}
+
+static void pulse_now(u32 hold)
+{
+	u32 ticks = 1;
+
+	motor_set(PULSE_STRENGTH, PULSE_STRENGTH, hold);
+	while (hold >= 20) { /* 200 ms ticks */
+		hold -= 20;
+		ticks++;
+	}
+	S.stop_wait = ticks;
+}
+
+static void pulses(void)
+{
+	if (S.stop_wait) {
+		S.stop_wait = S.stop_wait - 1;
+		if (!S.stop_wait) {
+			motor_set(0, 0, 1);
+			S.gap = 1;
+		}
+	} else if (S.gap) {
+		S.gap = 0;
+	} else if (S.q_long) {
+		S.q_long = 0;
+		pulse_now(PULSE_LONG);
+	} else if (S.q_short) {
+		S.q_short = S.q_short - 1;
+		pulse_now(PULSE_SHORT);
+	}
+}
+
+static void alerts(void)
+{
+	u32 ext = *IO(0x800518) & 1, full = FULL, pct = PCT, a = S.alert;
+
+	if (ext && !S.ext_prev)
+		S.q_short = 1;
+	S.ext_prev = ext;
+	if (!ext) {
+		S.full_done = 0;
+		S.charge_ticks = 0;
+	} else if (!full) {
+		if (S.charge_ticks < CHARGE_MIN_TICKS)
+			S.charge_ticks = S.charge_ticks + 1;
+	} else if (!S.full_done) {
+		S.full_done = 1;
+		if (S.charge_ticks >= CHARGE_MIN_TICKS)
+			S.q_long = 1;
+	}
+
+	if (ext)
+		a = full ? ALERT_NONE : ALERT_CHARGING;
+	else if (S.ticks < START_TICKS)
+		a = ALERT_NONE;
+	else if (pct <= 5 || (a == ALERT_VERY_LOW && pct < 7))
+		a = ALERT_VERY_LOW;
+	else if (pct <= 15 || (a >= ALERT_LOW && pct < 18))
+		a = ALERT_LOW;
+	else
+		a = ALERT_NONE;
+	if (a == ALERT_VERY_LOW) {
+		if (S.alert != ALERT_VERY_LOW || S.repeat >= REPEAT_TICKS) {
+			S.q_short = 2;
+			S.repeat = 0;
+		}
+		S.repeat = S.repeat + 1;
+	}
+	S.alert = a;
+}
+
+static void pwm_off(void)
 {
 	volatile u8 *pwm = IO(0x800780), *pb = IO(0x800508);
 	u32 v;
 
-	if (mode == 1) {
-		v = RING_LEVEL;
-		if (v) {
-			*(volatile u32 *)(pwm + 0x18) = RING_PERIOD << 16 | v; /* PWM1 compare, period */
-			pwm[4] &= ~2;       /* PWM1 not inverted */
-			pwm[6] &= ~2;
-			v = pwm[0];         /* PWM1 on */
-			v |= 2;
-			pwm[0] = v;
-			pwm[0x30] &= ~8;    /* its frame interrupt masked */
-			pb[3] &= ~0x80;     /* PB7 latch low */
-			pb[0x4f] = 4;       /* PB7 function: PWM1 */
-			pb[6] &= ~0x80;     /* PB7 not GPIO */
-			return;
-		}
-		mode = 0;
-	}
 	pwm[0] &= ~2;
 	v = pb[6];
 	v |= 0x80;
 	pb[6] = v;
-	led_driver(mode, pin, counter);
+}
+
+static void pwm_on(u32 v)
+{
+	volatile u8 *pwm = IO(0x800780), *pb = IO(0x800508);
+
+	*(volatile u32 *)(pwm + 0x18) = 1000u << 16 | v; /* PWM1 compare, period */
+	pwm[4] &= ~2;       /* PWM1 not inverted */
+	pwm[6] &= ~2;
+	v = pwm[0];         /* PWM1 on */
+	v |= 2;
+	pwm[0] = v;
+	pwm[0x30] &= ~8;    /* its frame interrupt masked */
+	pb[3] &= ~0x80;     /* PB7 latch low */
+	pb[0x4f] = 4;       /* PB7 function: PWM1 */
+	pb[6] &= ~0x80;     /* PB7 not GPIO */
+}
+
+void ring_tick(u32 mode, u32 pin, u8 *counter)
+{
+	u32 on, v, phase;
+
+	if (!S.init)
+		ring_init();
+	S.ticks = S.ticks + 1;
+	phase = S.phase;
+	S.phase = phase + 1 < 10 ? phase + 1 : 0;
+
+	if (ALERTS_FLAG == 1) {
+		alerts();
+		pulses();
+	}
+	if (S.save_wait) {
+		S.save_wait = S.save_wait - 1;
+		if (!S.save_wait) {
+			SAVED = S.installed << 4 | S.level;
+			save_settings();
+		}
+	}
+
+	if (mode >= 2) {
+		pwm_off();
+		led_driver(mode, pin, counter);
+		return;
+	}
+	on = mode == 1;
+	if (S.alert == ALERT_CHARGING)
+		on = phase < 5; /* also with the controller off and plugged in */
+	else if (S.alert && on)
+		on = phase & 1;
+	v = ring_levels[S.level];
+	if (S.alert && !v)
+		v = ALERT_LEVEL;
+	if (on && v == RING_NORMAL) {
+		pwm_off();
+		led_driver(1, pin, counter);
+	} else if (on && v) {
+		pwm_on(v);
+	} else {
+		pwm_off();
+		led_driver(0, pin, counter);
+	}
+}
+
+static void ring_vendor(u8 *p)
+{
+	if (p[0] != 0x81 || p[1] != 5 || p[2] != 0)
+		return;
+	if (p[3] == 0x52)
+		ring_command(p[4], 0);
+	else if (p[3] == 0x53)
+		ring_command(0xff, 1);
+}
+
+void vendor_a(u8 *p)
+{
+	ring_vendor(p);
+	stock_vendor_a(p);
+}
+
+void vendor_b(u8 *p)
+{
+	ring_vendor(p);
+	stock_vendor_b(p);
 }

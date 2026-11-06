@@ -12,10 +12,21 @@ HARNESS = r"""
 typedef unsigned char u8; typedef unsigned short u16; typedef unsigned int u32;
 u32 BTN; u16 LX, LY, RX, RY, LT, RT;
 u8 REGS[0x1000] __attribute__((aligned(4))); volatile u16 RING_LEVEL;
-static int notifies, afters;
+u8 PCT, FULL, SAVED, ALERTS_FLAG; u32 TIMER, RING_CODE = 1;
+static int notifies, afters, stock_passes;
 int pack_xbox(void);
 int rumble_write(u8 *p);
-void ring_led(u32 mode, u32 pin, u8 *counter);
+void ring_tick(u32 mode, u32 pin, u8 *counter);
+void ring_command(u32 level, u32 save);
+void main_poll(void);
+void vendor_a(u8 *p);
+void vendor_b(u8 *p);
+void ring_reset(void);
+unsigned ring_level_now(void);
+void save_settings(void) { printf("SAVE %02x\n", SAVED); }
+void stock_chords(void) { stock_passes++; }
+void stock_vendor_a(u8 *p) { printf("VA\n"); }
+void stock_vendor_b(u8 *p) { printf("VB\n"); }
 void led_driver(u32 mode, u32 pin, u8 *counter) { printf("D %x %x %lx\n", mode, pin, (unsigned long)counter); }
 void motor_set(u32 s, u32 w, u32 h) { printf("M %u %u %u\n", s, w, h); }
 int ble_notify(int conn, int handle, u8 *p, int len) {
@@ -33,10 +44,43 @@ int main(void) {
             unsigned mode, level, fill;
             sscanf(line + 2, "%x %x %x", &mode, &level, &fill);
             for (int i = 0; i < 0x1000; i++) REGS[i] = fill;
+            ring_reset(); SAVED = 0xff; ALERTS_FLAG = 0;
             RING_LEVEL = level;
-            ring_led(mode, 0x180, (u8 *)0x3452);
+            ring_tick(mode, 0x180, (u8 *)0x3452);
             printf("%02x %02x %02x %02x %02x %02x %02x %02x%02x%02x%02x\n", REGS[0x780], REGS[0x784], REGS[0x786], REGS[0x7b0], REGS[0x50b], REGS[0x557], REGS[0x50e],
                    REGS[0x79b], REGS[0x79a], REGS[0x799], REGS[0x798]);
+            continue;
+        }
+        if (line[0] == 'I') { /* I <installed level> <saved> <alerts> <pct> <ext> <full> */
+            unsigned l, sv, al, pc, ex, fu;
+            sscanf(line + 2, "%x %x %x %u %u %u", &l, &sv, &al, &pc, &ex, &fu);
+            for (int i = 0; i < 0x1000; i++) REGS[i] = 0;
+            ring_reset(); RING_LEVEL = l; SAVED = sv; ALERTS_FLAG = al; PCT = pc; REGS[0x518] = ex; FULL = fu; BTN = 0; TIMER = 0; stock_passes = 0; RING_CODE = 1;
+            continue;
+        }
+        if (line[0] == 'X') { unsigned pc, ex, fu; sscanf(line + 2, "%u %u %u", &pc, &ex, &fu); PCT = pc; REGS[0x518] = ex; FULL = fu; continue; }
+        if (line[0] == 'B') { sscanf(line + 2, "%x", &BTN); continue; }
+        if (line[0] == 'N') { RING_CODE = 0; continue; } /* no ring code installed */
+        if (line[0] == 'P') { /* P <n>: n main-loop passes, 10 ms apart */
+            unsigned n; sscanf(line + 2, "%u", &n);
+            while (n--) { TIMER += 160000; main_poll(); }
+            continue;
+        }
+        if (line[0] == 'T') { /* T <mode> <n>: n LED ticks; each prints what the ring got, then E */
+            unsigned m, n; sscanf(line + 2, "%u %u", &m, &n);
+            while (n--) {
+                ring_tick(m, 0x180, (u8 *)0x3452);
+                if (REGS[0x780] & 2) printf("W %u\n", REGS[0x798] | REGS[0x799] << 8);
+                printf("E\n");
+            }
+            continue;
+        }
+        if (line[0] == 'C') { unsigned a, b; sscanf(line + 2, "%x %x", &a, &b); ring_command(a, b); continue; }
+        if (line[0] == 'G') { printf("G %u %d\n", ring_level_now(), stock_passes); continue; }
+        if (line[0] == 'A' || line[0] == 'Z') { /* vendor command hooks, by report bytes */
+            u8 pk[8] = {0}; int n = 0; unsigned x;
+            for (char *q = line + 2; n < 8 && sscanf(q, "%2x", &x) == 1; q += 2) pk[n++] = x;
+            if (line[0] == 'A') vendor_a(pk); else vendor_b(pk);
             continue;
         }
         if (line[0] == 'R') { /* R <ATT write packet hex>: one rumble_write call, then "-" */
@@ -157,7 +201,7 @@ def rumble_check():
     cases += [bytes([m, 50, 50, 80, 20, 0xFF, 0, 0]) for m in range(16)]
     cases += [rnd.randbytes(8) for _ in range(50)] + [bytes([0x0F, 0, 0, 90, 90, 0]), bytes([0x0F, 0, 0, 90, 90])]
     def want(v):
-        if len(v) < 6:
+        if len(v) < 6 or v[0] & 0x80:  # too short, or a Home ring command
             return "-"
         s, w = (v[3] if v[0] & 2 else 0), (v[4] if v[0] & 1 else 0)
         lvl = lambda m: min(m * 5 // 2, RUMBLE_CAP)  # Xbox 0-100 -> the 360's 0-255 that f93c expects
@@ -178,8 +222,9 @@ def rumble_check():
 
 
 def ring_check():
-    """ring_led against the Telink B80 PWM1 and PB7 registers (bits of each that must not change are checked with both fills)."""
+    """ring_tick against the Telink B80 PWM1 and PB7 registers (bits of each that must not change are checked with both fills)."""
     cases = [(m, lv, f) for m in (0, 1, 2, 3) for lv in (0, 1, 10, 250) for f in (0, 0xFF)]
+    # one ring_tick call per case, from fresh state; with the fill in the registers, PD0 reads as set when f is 0xFF
     out = _run_harness("".join("L %x %x %x\n" % c for c in cases)).splitlines()
     bad, i = [], 0
     for m, lv, f in cases:
@@ -198,6 +243,285 @@ def ring_check():
         i += len(want)
         if got != want:
             bad.append((("ring", m, lv, f), " | ".join(got), f"want {' | '.join(want)}"))
+    return bad
+
+
+L4, R4 = 1 << 26, 1 << 25
+NORMAL = 0xFFFF
+STRONG, SHORT, LONG = 200, 20, 50
+
+
+class Sim:
+    """A script for the harness. Levels by PWM compare value, in the order Normal, 25, 5, 1, 0.1 %, off."""
+
+    def __init__(self, level=50, saved=0xFF, alerts=1, pct=50, ext=0, full=0):
+        self.lines = [f"I {level:x} {saved:x} {alerts} {pct} {ext} {full}"]
+
+    def add(self, *lines):
+        self.lines += lines
+        return self
+
+    def btn(self, b): return self.add(f"B {b:x}")
+    def poll(self, n=1): return self.add(f"P {n}")
+    def tick(self, n=1, mode=1): return self.add(f"T {mode} {n}")
+    def bat(self, pct, ext=0, full=0): return self.add(f"X {pct} {ext} {full}")
+    def press(self, b): return self.btn(b).poll(2).btn(0).poll(2)
+    def out(self): return _run_harness("".join(x + "\n" for x in self.lines)).splitlines()
+
+    def ticks(self):
+        """What each tick did, as lists of lines."""
+        out, cur = [], []
+        for line in self.out():
+            if line == "E":
+                out.append(cur); cur = []
+            else:
+                cur.append(line)
+        return out
+
+
+def lit(t):
+    """Whether the ring is on in one tick's output."""
+    return any(x.startswith("W ") or x.startswith("D 1 ") for x in t)
+
+
+def duty(t):
+    return next((int(x[2:]) for x in t if x.startswith("W ")), None)
+
+
+def motors(ticks):
+    """The pulses started in these ticks, as (tick, hold)."""
+    return [(i, int(x.split()[3])) for i, t in enumerate(ticks) for x in t if x.startswith("M ") and x.split()[1] != "0"]
+
+
+def level_of(sim):
+    return int([x for x in sim.add("G").out() if x.startswith("G ")][-1].split()[1])
+
+
+def test_saved_level_wins_over_installed():
+    assert duty(Sim(level=50, saved=0x21 ).tick().ticks()[0]) == 250  # saved 25 % while 5 % (index 2) was installed
+
+
+def test_a_bad_saved_level_is_ignored():
+    for saved in (0xFF, 0x2F, 0x26, 0x27):
+        assert duty(Sim(level=50, saved=saved).tick().ticks()[0]) == 50, hex(saved)
+
+
+def test_installing_another_level_wins_over_a_saved_one():
+    assert duty(Sim(level=10, saved=0x21).tick().ticks()[0]) == 10  # saved under 5 %, and now 1 % is installed
+
+
+def test_chord_moves_one_level_per_press():
+    s = Sim(level=250).tick().btn(L4 | R4).poll(50).tick(3).btn(0).poll(2).tick()
+    assert duty(s.ticks()[-1]) == 50
+
+
+def test_chord_works_with_either_button_first():
+    assert duty(Sim(level=250).tick().btn(L4).poll(2).btn(L4 | R4).poll(2).btn(0).poll(2).tick().ticks()[-1]) == 50
+    assert duty(Sim(level=250).tick().btn(R4).poll(2).btn(L4 | R4).poll(2).btn(0).poll(2).tick().ticks()[-1]) == 50
+
+
+def test_chord_needs_both_buttons():
+    for b in (L4, R4):
+        assert duty(Sim(level=250).tick().press(b).tick().ticks()[-1]) == 250
+
+
+def test_a_tap_between_ticks_counts():
+    assert duty(Sim(level=250).tick().press(L4 | R4).tick().ticks()[-1]) == 50
+
+
+def test_chord_wraps_around():
+    s = Sim(level=NORMAL).tick()
+    seen = []
+    for _ in range(6):
+        s = s.press(L4 | R4).tick()
+    for t in s.ticks():
+        seen.append(duty(t) if duty(t) is not None else ("normal" if lit(t) else "off"))
+    assert seen == ["normal", 250, 50, 10, 1, "off", "normal"], seen
+
+
+def test_several_presses_make_one_save():
+    s = Sim(level=NORMAL).tick()
+    for _ in range(3):
+        s = s.press(L4 | R4).tick(5)
+    s.tick(20)
+    saves = [x for x in s.out() if x.startswith("SAVE")]
+    assert saves == ["SAVE 03"], saves  # installed Normal (index 0), now 1 % (index 3)
+
+
+def test_a_save_comes_three_seconds_after_the_last_press():
+    ticks = Sim(level=NORMAL).tick().press(L4 | R4).tick(20).ticks()
+    assert [i for i, t in enumerate(ticks) if any(x.startswith("SAVE") for x in t)] == [15]
+
+
+def test_the_firmwares_own_chord_check_keeps_running():
+    out = Sim().poll(7).add("G").out()
+    assert out[-1].split()[2] == "7", out[-1]
+
+
+def test_charging_blinks_slowly():
+    ticks = Sim(ext=1).tick(20).ticks()
+    assert [lit(t) for t in ticks] == ([True] * 5 + [False] * 5) * 2
+
+
+def test_low_battery_blinks_fast():
+    ticks = Sim(pct=15).tick(30).ticks()[20:]
+    assert [lit(a) != lit(b) for a, b in zip(ticks, ticks[1:])] == [True] * 9
+
+
+def test_battery_above_the_limit_stays_steady():
+    assert all(lit(t) for t in Sim(pct=16).tick(30).ticks())
+
+
+def test_a_charged_controller_is_steady():
+    assert all(lit(t) for t in Sim(ext=1, full=1).tick(30).ticks())
+
+
+def test_pairing_blink_takes_priority():
+    for t in Sim(pct=4).tick(30, mode=2).ticks():
+        assert any(x.startswith("D 2 ") for x in t) and duty(t) is None
+
+
+def test_off_level_still_alerts():
+    ticks = Sim(level=0, ext=1).tick(10).ticks()
+    assert [duty(t) for t in ticks[:5]] == [10] * 5 and not any(lit(t) for t in ticks[5:])
+    assert not any(lit(t) for t in Sim(level=0).tick(30).ticks())
+
+
+def test_normal_alerts_at_full_brightness():
+    ticks = Sim(level=NORMAL, ext=1).tick(10).ticks()
+    assert all(any(x.startswith("D 1 ") for x in t) for t in ticks[:5])
+
+
+def test_charging_shows_with_the_controller_off():
+    assert [lit(t) for t in Sim(ext=1).tick(10, mode=0).ticks()] == [True] * 5 + [False] * 5
+    assert not any(lit(t) for t in Sim(pct=4).tick(30, mode=0).ticks())
+
+
+def test_without_the_alerts_tweak_nothing_blinks_or_vibrates():
+    ticks = Sim(alerts=0, pct=4).tick(30).bat(4, 1).tick(30).ticks()
+    assert all(lit(t) for t in ticks) and not motors(ticks)
+
+
+def test_alert_state_has_hysteresis():
+    s = Sim(pct=50).tick(20).bat(15).tick(4).bat(17).tick(10)
+    t = s.ticks()[24:]
+    assert any(lit(a) != lit(b) for a, b in zip(t, t[1:])), "still low at 17 %"
+    t = Sim(pct=50).tick(20).bat(15).tick(4).bat(18).tick(10).ticks()[24:]
+    assert all(lit(x) for x in t), "clears at 18 %"
+    assert len(motors(Sim(pct=50).tick(20).bat(5).tick(10).bat(6).tick(10).ticks())) == 2, "very low stays at 6 %"
+    assert len(motors(Sim(pct=50).tick(20).bat(5).tick(10).bat(7).tick(10).bat(5).tick(10).ticks())) == 4, "clears at 7 %"
+
+
+def test_pulses_on_reaching_5_percent_then_every_5_minutes():
+    m = motors(Sim(pct=50).tick(20).bat(5).tick(1510).ticks())
+    assert [h for _, h in m] == [SHORT] * 4, m
+    assert m[2][0] - m[0][0] == 1500, m
+
+
+def test_two_short_pulses_are_apart():
+    m = motors(Sim(pct=50).tick(20).bat(5).tick(10).ticks())
+    assert m[1][0] - m[0][0] >= 3, m
+
+
+def test_a_pulse_is_stopped_afterwards():
+    ticks = Sim(ext=0).tick(20).bat(50, 1).tick(5).ticks()
+    assert any("M 0 0 1" in t for t in ticks), ticks
+
+
+def test_no_low_battery_pulses_on_external_power():
+    m = motors(Sim(pct=50, ext=1).tick(20).bat(4, 1).tick(1600).ticks())
+    assert not m, m
+
+
+def test_one_short_pulse_when_charging_starts():
+    m = motors(Sim().tick(20).bat(50, 1).tick(10).ticks())
+    assert [h for _, h in m] == [SHORT], m
+
+
+def test_one_long_pulse_when_charging_completes():
+    m = motors(Sim().tick(20).bat(50, 1).tick(160).bat(100, 1, 1).tick(10).ticks())
+    assert [h for _, h in m] == [SHORT, LONG], m
+
+
+def test_pulses_use_both_motors_at_the_chosen_strength():
+    out = Sim().tick(20).bat(50, 1).tick(1).out()
+    assert f"M {STRONG} {STRONG} {SHORT}" in out, out
+
+
+def test_starting_up_while_plugged_in_gives_no_pulse():
+    assert not motors(Sim(ext=1).tick(10).bat(100, 1, 1).tick(10).ticks())
+
+
+def test_a_wobbling_charge_state_pulses_once_until_unplugged():
+    s = Sim().tick(20).bat(50, 1).tick(160)
+    for _ in range(4):
+        s = s.bat(100, 1, 1).tick(5).bat(100, 1, 0).tick(5)
+    assert [h for _, h in motors(s.ticks())] == [SHORT, LONG]
+    assert [h for _, h in motors(s.bat(100, 0).tick(5).bat(100, 1).tick(160).bat(100, 1, 1).tick(5).ticks())] == [SHORT, LONG, SHORT, LONG]
+
+
+def test_unplugging_gives_no_pulse():
+    assert [h for _, h in motors(Sim().tick(20).bat(50, 1).tick(10).bat(50, 0).tick(10).ticks())] == [SHORT]
+
+
+def test_a_low_reading_right_after_starting_doesnt_alert():
+    ticks = Sim(pct=0).tick(10).ticks()
+    assert all(lit(t) for t in ticks) and not motors(ticks)
+
+
+def marked(level, save):
+    return "R " + rumble_packet(bytes([0x80, level, save, 0, 0, 0, 0, 0])).hex()
+
+
+def test_marked_report_sets_the_level():
+    assert duty(Sim(level=50).tick().add(marked(1, 0)).tick().ticks()[-1]) == 250
+
+
+def test_marked_report_can_save():
+    out = Sim(level=50).tick().add(marked(1, 1)).tick(2).out()
+    assert "SAVE 21" in out, out
+
+
+def test_marked_report_doesnt_touch_the_motors():
+    assert not [x for x in Sim().tick().add(marked(1, 0)).out() if x.startswith("M ")]
+
+
+def test_an_unknown_level_is_ignored():
+    for level in (6, 0x7F, 0xFF):
+        assert duty(Sim(level=50).tick().add(marked(level, 0)).tick().ticks()[-1]) == 50
+
+
+def test_marked_report_does_nothing_without_the_ring_code():
+    out = Sim(level=50).tick().add("N", marked(1, 1)).tick(2).ticks()
+    assert duty(out[-1]) == 50 and not any(x.startswith("SAVE") for t in out for x in t)
+
+
+def test_cable_command_sets_the_level():
+    for hook, stock in (("A", "VA"), ("Z", "VB")):
+        out = Sim(level=50).tick().add(f"{hook} 8105005201").tick().out()
+        assert stock in out and "W 250" in out, (hook, out)
+
+
+def test_cable_command_saves():
+    assert "SAVE 22" in Sim(level=50).tick().add("A 81050053").tick(2).out()
+
+
+def test_other_vendor_commands_only_reach_the_firmware():
+    for cmd in ("8105005101", "8105002101", "8205005201", "8104005201", "8105015201"):
+        out = Sim(level=50).tick().add(f"A {cmd}").tick().out()
+        assert "W 250" not in out and "VA" in out and not any(x.startswith("SAVE") for x in out), cmd
+
+
+RING_TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
+
+
+def ring_logic_check():
+    bad = []
+    for t in RING_TESTS:
+        try:
+            t()
+        except AssertionError as e:
+            bad.append(((t.__name__,), str(e)[:300], "failed"))
     return bad
 
 
@@ -221,12 +545,12 @@ def main():
         if run.returncode:
             sys.exit(f"FAIL: harness stopped after {len(out) - 1} reports: {run.stdout.splitlines()[-1]}")
     bad = [(v, o, why) for v, o in zip(vec, out) for why in [check(v, bytes.fromhex(o))] if why]
-    bad += rumble_check() + ring_check()
+    bad += rumble_check() + ring_check() + ring_logic_check()
     if len(out) != len(vec) or bad:
         for v, o, why in bad[:10]:
             print("input", [hex(x) if isinstance(x, int) else x for x in v], "got", o, "->", why)
         sys.exit(f"FAIL: {len(bad)} of {len(vec)} wrong ({len(out)} outputs)")
-    print(f"ok: {len(vec)} vectors, every field of report 1 as parsed from report-map.hex; rumble_write as modelled")
+    print(f"ok: {len(vec)} vectors, every field of report 1 as parsed from report-map.hex; rumble_write as modelled; {len(RING_TESTS)} ring checks")
 
 
 if __name__ == "__main__":

@@ -116,7 +116,7 @@ def make_server(store: Path, port: int = 0):
                 return self.send(200, json.dumps({"error": str(e)}))
             ring = [recipes.RECIPES[k].title for k in st.recipes if recipes.RECIPES[k].group == "ring"]
             self.send(200, json.dumps({"mode": f.mode, "known": st.known, "recipes": list(st.recipes), "version": version, "version_from": fw.version_from,
-                                       "pending": fw.pending, "boot_identity": fw.boot_identity,
+                                       "pending": fw.pending, "boot_identity": fw.boot_identity, "outdated": st.outdated,
                                        "titles": [recipes.RECIPES[k].title for k in st.recipes],
                                        "tweaks": [{"key": k, "title": r.title, "on": k in st.recipes}
                                                   for k, r in recipes.RECIPES.items() if not r.group]

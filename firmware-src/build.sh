@@ -13,12 +13,12 @@ tc32-elf-gcc -Os -Wall -Werror -ffreestanding -fno-builtin -ffunction-sections -
 tc32-elf-as hook.s -o "$out/hook.o"
 tc32-elf-ld -T packer.ld --no-check-sections \
 	--defsym ble_notify=0x1458c --defsym after_notify=0x1abc --defsym motor_set=0xfa68 --defsym motor_tick=0xfaa0 --defsym led_driver=0xd36c \
+	--defsym save_settings=0xd538 --defsym stock_chords=0xcfa4 --defsym stock_vendor_a=0xf56c --defsym stock_vendor_b=0xf594 \
 	"$out/packer.o" "$out/hook.o" -o "$out/packer.elf"
-for s in packer noop rumble led hook ring ringhook; do tc32-elf-objcopy -O binary -j ".$s" "$out/packer.elf" "$out/$s.bin"; done
+for s in packer noop rumble led hook ringtail ringhook vhooka vhookb pollhook; do tc32-elf-objcopy -O binary -j ".$s" "$out/packer.elf" "$out/$s.bin"; done
 tc32-elf-objdump -d "$out/packer.elf" > "$out/packer.dis"
 python3 -c "import sys; open(sys.argv[2],'wb').write(bytes.fromhex(open(sys.argv[1]).read()))" report-map.hex "$out/report-map.bin"
 mkdir -p "$blobs"
-cp "$out"/{packer,noop,rumble,led,hook,ring,ringhook,report-map}.bin "$blobs/"
-(cd "$blobs" && sha256sum packer.bin noop.bin rumble.bin led.bin hook.bin ring.bin ringhook.bin report-map.bin > MANIFEST 2>/dev/null \
-	|| shasum -a 256 packer.bin noop.bin rumble.bin led.bin hook.bin ring.bin ringhook.bin report-map.bin > MANIFEST)
+cp "$out"/{packer,noop,rumble,led,hook,ringtail,ringhook,vhooka,vhookb,pollhook,report-map}.bin "$blobs/"
+(cd "$blobs" && { sha256sum *.bin > MANIFEST 2>/dev/null || shasum -a 256 *.bin > MANIFEST; })  # the *02.bin are 0.2.0's, kept to recognise its firmware
 ls -l "$blobs"

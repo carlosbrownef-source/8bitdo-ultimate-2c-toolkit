@@ -35,7 +35,7 @@ def check_no_pending_update(ch) -> None:
 
 def current_bank_a(ch) -> bytes:
     try:
-        return boot.read(ch, image.BASE, image.BANK_A_SIZE)
+        return boot.read(ch, image.BASE, image.APP_SIZE)
     except protocol.ProtocolError as e:
         raise OpError(f"{e}. Nothing was written.") from e
 
@@ -51,7 +51,6 @@ def plan_patch(ch, backup, stock: bytes, keys) -> Plan:
     except recipes.RecipeError as e:
         raise OpError(str(e)) from e
     target = bytearray(image.FLASH_SIZE)
-    target[image.BASE:image.BANK_A_END] = new
-    target[image.BANK_A_END:image.BANK_A_ERASE_END] = b"\xff" * (image.BANK_A_ERASE_END - image.BANK_A_END)
+    target[image.BASE:image.APP_END] = new
     diff = sum(x != y for x, y in zip(cur, new))
     return Plan(bytes(target), diff > 0, [], diff, f"{count(diff, 'byte')} of the firmware will change. Tweaks: {', '.join(recipes.RECIPES[k].title for k in keys) or 'none'}.")

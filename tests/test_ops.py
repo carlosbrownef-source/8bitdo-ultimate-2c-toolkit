@@ -26,17 +26,18 @@ def make_stock():
 
 
 STOCK_A = make_stock()
+WHOLE = recipes.whole(STOCK_A)
 K = dict(stock_sha256=hashlib.sha256(STOCK_A).hexdigest(),
-         region_sha256={(e.addr, e.size): hashlib.sha256(STOCK_A[e.addr - image.BASE:e.addr - image.BASE + e.size]).hexdigest()
+         region_sha256={(e.addr, e.size): hashlib.sha256(WHOLE[e.addr - image.BASE:e.addr - image.BASE + e.size]).hexdigest()
                         for r in recipes.RECIPES.values() for e in r.edits},
-         remainder_sha256=hashlib.sha256(recipes.masked(STOCK_A)).hexdigest())
+         remainder_sha256=hashlib.sha256(recipes.masked(WHOLE)).hexdigest())
 
 
 def controller_flash(bank_a=STOCK_A):
     f = bytearray(b"\xff" * image.FLASH_SIZE)
     f[0:0x5000] = rnd.randbytes(0x5000)
-    f[image.BASE:image.BANK_A_END] = bank_a
-    f[0x40000:0x40000 + image.BANK_A_SIZE] = bank_a
+    f[image.BASE:image.BASE + len(bank_a)] = bank_a
+    f[0x40000:0x40000 + image.BANK_A_SIZE] = bank_a[:image.BANK_A_SIZE]
     f[0x3F000:0x3F034] = rnd.randbytes(0x34)
     f[0x3F00C] = 0x6D  # update record: firmware version 1.09
     f[0x3F018:0x3F01C] = bytes(4)  # no pending update
@@ -163,6 +164,63 @@ class OriginalFirmwareTest(Base):
         self.assertIn("8BitDo", str(e.exception))
 
 
+class TailTest(Base):
+    """Code past the payload: 0x18400-0x19000, erased with bank A."""
+
+    def setUp(self):
+        super().setUp()
+        self.flash = controller_flash()
+        self.backup = self.backup_of(self.flash)
+
+    def test_an_edit_past_the_payload_is_written_and_read_back(self):
+        dev = SimBoot(self.flash)
+        patch.apply(dev, patch.plan_patch(dev, self.backup, STOCK_A, ["ring_5"]), noprogress)
+        want = recipes.build(STOCK_A, ["ring_5"])
+        self.assertEqual(bytes(dev.f[image.BASE:image.APP_END]), want)
+        self.assertNotEqual(bytes(dev.f[0x18400:0x18404]), b"\xff" * 4)
+
+    def test_writing_in_the_tail_doesnt_touch_the_next_sector(self):
+        dev = SimBoot(self.flash)
+        patch.apply(dev, patch.plan_patch(dev, self.backup, STOCK_A, ["ring_5"]), noprogress)
+        self.assertEqual(bytes(dev.f[image.APP_END:]), self.flash[image.APP_END:])
+
+    def test_the_payload_keeps_the_proven_stream(self):
+        dev = SimBoot(self.flash)
+        patch.apply(dev, patch.plan_patch(dev, self.backup, STOCK_A, ["ring_5"]), noprogress)
+        writes = [o for o in dev.ops if o[0] == "write"]
+        self.assertEqual(writes[0][1], image.BASE)
+        addrs = [o[1] for o in writes]
+        self.assertEqual(addrs[:image.BANK_A_SIZE // 46 + 1], list(range(image.BASE, image.BANK_A_END, 46)))
+
+    def test_a_blank_tail_isnt_written(self):
+        dev = SimBoot(self.flash)
+        patch.apply(dev, patch.plan_patch(dev, self.backup, STOCK_A, ["dim_leds"]), noprogress)
+        self.assertLess(max(o[1] for o in dev.ops if o[0] == "write"), image.BANK_A_END)
+
+    def test_firmware_with_code_past_the_payload_can_be_patched(self):
+        dev = SimBoot(self.flash)
+        patch.apply(dev, patch.plan_patch(dev, self.backup, STOCK_A, ["ring_5"]), noprogress)
+        self.assertEqual(probe.read_firmware(dev, "boot").state.recipes, ("ring_5",))
+        patch.apply(dev, patch.plan_patch(dev, self.backup, STOCK_A, ["dim_leds"]), noprogress)
+        self.assertEqual(probe.read_firmware(dev, "boot").state.recipes, ("dim_leds",))
+        self.assertEqual(bytes(dev.f[image.BANK_A_END:image.APP_END]), b"\xff" * (image.APP_END - image.BANK_A_END))
+
+    def test_restoring_the_original_blanks_the_tail(self):
+        dev = SimBoot(self.flash)
+        patch.apply(dev, patch.plan_patch(dev, self.backup, STOCK_A, ["ring_5"]), noprogress)
+        patch.apply(dev, restore.plan_restore(dev, self.backup, "stock", STOCK_A), noprogress)
+        self.assertEqual(bytes(dev.f[image.BASE:image.APP_END]), recipes.whole(STOCK_A))
+
+    def test_restoring_a_backup_brings_its_tail_back(self):
+        dev = SimBoot(self.flash)
+        patch.apply(dev, patch.plan_patch(dev, self.backup, STOCK_A, ["ring_5"]), noprogress)
+        with_ring = bytes(dev.f[image.BASE:image.APP_END])
+        later = bkp.backup(dev, "boot", self.tmp, noprogress)
+        patch.apply(dev, patch.plan_patch(dev, later, STOCK_A, ["dim_leds"]), noprogress)
+        patch.apply(dev, restore.plan_restore(dev, later, "backup", None), noprogress)
+        self.assertEqual(bytes(dev.f[image.BASE:image.APP_END]), with_ring)
+
+
 class PatchTest(Base):
     def setUp(self):
         super().setUp()
@@ -187,7 +245,7 @@ class PatchTest(Base):
         dev = SimBoot(self.flash)
         for keys in (["dim_leds", "ring_25"], ["dim_leds", "ring_1"], ["dim_leds"]):
             patch.apply(dev, patch.plan_patch(dev, self.backup, STOCK_A, keys), noprogress)
-            self.assertEqual(recipes.identify(bytes(dev.f[0x6000:0x18400])).recipes, tuple(sorted(keys)))
+            self.assertEqual(recipes.identify(bytes(dev.f[image.BASE:image.APP_END])).recipes, tuple(sorted(keys)))
 
     def test_a_pending_update_refuses_the_patch_and_writes_nothing(self):
         for off in (0x3F018, 0x3F020):

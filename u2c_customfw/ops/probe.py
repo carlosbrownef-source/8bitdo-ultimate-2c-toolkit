@@ -61,7 +61,7 @@ def detect_version(ch, mode: str, bank_a: bytes | None = None) -> tuple[float | 
         if v is not None:
             return v, "update record"
         if bank_a is None:
-            bank_a = _read(ch, mode, image.BASE, image.BANK_A_SIZE)
+            bank_a = _read(ch, mode, image.BASE, image.APP_SIZE)
         if recipes.identify(bank_a).known:
             return image.SUPPORTED_VERSION, "bank A hash"
         if recipes.identify(_read(ch, mode, image.BANK_B, image.BANK_A_SIZE)).known:
@@ -75,7 +75,7 @@ def read_firmware(ch, mode: str) -> Firmware:
     identity = boot.identify(ch) if mode == "boot" else None
     try:
         _check_device(ch, mode, identity)
-        bank_a = _read(ch, mode, image.BASE, image.BANK_A_SIZE)
+        bank_a = _read(ch, mode, image.BASE, image.APP_SIZE)
         pending = pending_update(ch, mode)
     except protocol.ProtocolError as e:
         raise OpError(str(e)) from e
