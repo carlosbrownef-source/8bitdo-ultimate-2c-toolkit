@@ -138,6 +138,96 @@ class TabsTest(PageCase):
         self.assertIn("Replaces the firmware", text)
 
 
+class SettingsTabTest(PageCase):
+    READY = "&diagsim=cable&tweaks=1&settings=1&open=settings"
+
+    def control(self, dom, field):
+        return next(n for n in dom.find("settings-cards").walk() if n.attrs.get("data-field") == field)
+
+    def test_settings_tab_opens(self):
+        dom = self.server.dom(self.READY)
+        self.assertNotIn("hidden", dom.find("tab-settings").attrs)
+        self.assertIn("hidden", dom.find("tab-firmware").attrs)
+        self.assertIn("on", dom.find("strip-settings").classes())
+        self.assertNotIn("hidden", dom.find("settings-cards").attrs)
+        self.assertIn("Vibration", dom.find("settings-cards").all_text())
+
+    def test_tabs_are_in_order(self):
+        strip = self.server.dom(self.READY).find("strip-firmware")
+        self.assertIsNotNone(strip)
+        ids = [n.attrs["id"] for n in self.server.dom(self.READY).walk() if n.attrs.get("id", "").startswith("strip-") and n.attrs["id"] != "strip-alert"]
+        self.assertEqual(ids, ["strip-firmware", "strip-settings", "strip-diagnostics"])
+
+    def test_ring_card_moved_to_settings(self):
+        dom = self.server.dom(self.READY)
+        self.assertIsNotNone(dom.find("tab-settings").find("ring-card"))
+        self.assertIsNone(dom.find("tab-diagnostics").find("ring-card"))
+
+    def test_shows_what_the_controller_keeps(self):
+        dom = self.server.dom(self.READY)
+        self.assertIn("on", next(n for n in self.control(dom, "vibration").walk() if n.attrs.get("data-value") == "100").classes())
+
+    def explains(self, query, text):
+        dom = self.server.dom(query)
+        self.assertIn("hidden", dom.find("settings-cards").attrs, query)
+        self.assertIn(text, dom.find("settings-note").all_text(), query)
+
+    def test_tab_explains_bluetooth(self):
+        self.explains("&diagsim=bt&open=settings", "by cable")
+
+    def test_tab_explains_missing_tweak(self):
+        self.explains("&diagsim=cable&tweaks=1&open=settings", "install Controller settings")
+
+    def test_tab_explains_update_mode(self):
+        self.explains("&diagsim=boot&open=settings", "update mode")
+
+    def test_tab_explains_firmware_from_an_earlier_version(self):
+        self.explains("&diagsim=cable&tweaks=1&outdated=1&open=settings", "install Controller settings")
+
+    def test_tab_says_nothing_is_sent_during_a_job(self):
+        dom = self.server.dom("&diagsim=busy&open=settings", 7000)
+        self.assertIn("task", dom.find("settings-note").all_text())
+
+    def test_a_change_goes_to_the_app_and_unsaved_note_appears(self):
+        dom = self.server.dom(self.READY + "&scenario=setvibration")
+        self.assertIn('{"set":{"vibration":50}}', dom.find("diag-posted").all_text())
+        self.assertIn("on", next(n for n in self.control(dom, "vibration").walk() if n.attrs.get("data-value") == "50").classes())
+        self.assertNotIn("hidden", dom.find("settings-unsaved").attrs)
+
+    def test_unsaved_note_appears_and_clears(self):
+        dom = self.server.dom(self.READY + "&scenario=setandsave")
+        self.assertIn('"save":true', dom.find("diag-posted").all_text())
+        self.assertIn('"vibration":50', dom.find("diag-posted").all_text())
+        self.assertIn("hidden", dom.find("settings-unsaved").attrs)
+        self.assertIn("Saved", dom.find("settings-message").all_text())
+
+    def test_failed_change_returns_control_to_true_value(self):
+        dom = self.server.dom(self.READY + "&settingsfail=1&scenario=setvibration")
+        self.assertIn("on", next(n for n in self.control(dom, "vibration").walk() if n.attrs.get("data-value") == "100").classes())
+        self.assertIn("said no", dom.find("settings-message").all_text())
+        self.assertIn("hidden", dom.find("settings-unsaved").attrs)
+
+    def test_a_failed_save_stays_unsaved(self):
+        dom = self.server.dom(self.READY + "&scenario=setandfailsave")
+        self.assertNotIn("hidden", dom.find("settings-unsaved").attrs)
+        self.assertIn("said no", dom.find("settings-message").all_text())
+
+    def test_reset_asks_first(self):
+        dom = self.server.dom(self.READY + "&scenario=resetopen")
+        self.assertNotIn('"reset"', dom.find("diag-posted").all_text())
+        self.assertIn("open", dom.find("confirm").attrs)
+        dom = self.server.dom(self.READY + "&scenario=resetyes")
+        self.assertIn('{"reset":true}', dom.find("diag-posted").all_text())
+
+    def test_installing_includes_settings_by_default_with_the_ring_code(self):
+        dom = self.server.dom("&diagsim=boot&scenario=installed")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,ring_normal")
+
+    def test_controls_are_off_while_a_change_is_on_its_way(self):
+        dom = self.server.dom(self.READY + "&slow=1&scenario=setvibration", 1200)
+        self.assertIn("disabled", next(n for n in self.control(dom, "vibration").walk() if n.attrs.get("data-value") == "50").attrs)
+
+
 class ControllerTestCard(PageCase):
     def body(self, query, budget=4000):
         dom = self.server.dom("&diagsim=" + query, budget)
@@ -261,7 +351,7 @@ class ControllerTestCard(PageCase):
 
     def test_original_firmware_keeps_the_suggested_tweaks(self):
         dom, _, _ = self.body("boot&scenario=installed")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,ring_normal")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,ring_normal")
 
     def ring_button(self, dom, index):
         return next(n for n in dom.find("ring-card").walk() if n.attrs.get("data-live") == str(index))

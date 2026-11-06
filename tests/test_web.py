@@ -172,6 +172,105 @@ class WebTest(unittest.TestCase):
         release.set()
         self.events()
 
+    def settings_device(self, record=None, installed=True, mode="cable"):
+        from tests.test_settings import flash_with
+        dev = SimApp(flash_with(installed, record))
+        info = transport.DeviceInfo(0x2DC8, 0x310A, 0xFF7A, "USB", "x", None)
+        finder = mock.patch.object(cli, "find", lambda: [devices.Found(info, mode)])
+        opener = mock.patch.object(cli, "open_channel", lambda i, rid: dev)
+        finder.start(); opener.start()
+        self.addCleanup(finder.stop); self.addCleanup(opener.stop)
+        return dev
+
+    def test_settings_lists_fields_and_values(self):
+        self.settings_device()
+        code, body = self.call("GET", "/api/settings")
+        got = json.loads(body)
+        self.assertEqual(code, 200)
+        self.assertTrue(got["available"])
+        self.assertEqual(got["values"]["dz_l"], 14)
+        self.assertIn({"name": "vibration", "low": 0, "high": 100, "default": 100, "choices": [0, 25, 50, 75, 100]}, got["fields"])
+
+    def test_settings_change_and_save(self):
+        dev = self.settings_device()
+        self.assertEqual(self.call("POST", "/api/settings", {"set": {"dz_l": 7}})[0], 200)
+        self.assertEqual(dev.fields[0], 7)
+        from u2c_customfw import settings
+        values = dict({f.name: f.default for f in settings.FIELDS}, dz_l=7)
+        self.assertEqual(self.call("POST", "/api/settings", {"save": True, "values": values})[0], 200)
+        self.assertEqual(settings.parse(dev.flash[settings.SECTOR:settings.SECTOR + settings.SIZE]), values)
+
+    def test_save_reports_failure_when_read_back_differs(self):
+        from u2c_customfw import settings
+        from u2c_customfw.ops import settings as ops
+        dev = self.settings_device()
+        dev.drop_saves = True
+        with mock.patch.object(ops, "CONFIRM_SECONDS", 0.05):
+            code, body = self.call("POST", "/api/settings", {"save": True, "values": {f.name: f.default for f in settings.FIELDS}})
+        self.assertEqual(code, 409)
+        self.assertIn("confirm", json.loads(body)["error"])
+
+    def test_cable_lost_during_save_is_an_error(self):
+        from u2c_customfw import settings
+        dev = self.settings_device()
+        self.assertEqual(self.call("GET", "/api/settings")[0], 200)
+        real = dev.xfer
+        dev.xfer = lambda req, timeout=0.5: real(req, timeout) if req[3] == 0x55 else None  # the save goes out, then nothing answers
+        code, body = self.call("POST", "/api/settings", {"save": True, "values": {f.name: f.default for f in settings.FIELDS}})
+        self.assertEqual(code, 409)
+        self.assertNotIn("Saved", body)
+
+    def test_settings_refused_during_a_job(self):
+        self.settings_device()
+        release = threading.Event()
+        jobs.ACTIONS["backup"] = lambda args, store: release.wait(5)
+        self.call("POST", "/api/backup")
+        code, _ = self.call("POST", "/api/settings", {"set": {"dz_l": 7}})
+        release.set()
+        self.assertEqual(code, 409)
+
+    def test_out_of_range_refused_before_the_device(self):
+        dev = self.settings_device()
+        sent = len(dev.sent)
+        for body in ({"set": {"dz_l": 31}}, {"set": {"nothing": 1}}, {"set": {}}, {"set": 5}, {"values": {}}, {}, {"save": True}, {"save": True, "values": {"dz_l": 7}}):
+            self.assertEqual(self.call("POST", "/api/settings", body)[0], 400, body)
+        self.assertEqual(len(dev.sent), sent)
+
+    def test_wrong_type_refused(self):
+        dev = self.settings_device()
+        for v in (True, "7", 7.0, None, [7]):
+            self.assertEqual(self.call("POST", "/api/settings", {"set": {"dz_l": v}})[0], 400, v)
+        self.assertEqual(dev.fields[0], 14)
+
+    def test_mask_outside_allowed_bits_refused(self):
+        self.settings_device()
+        for m in ({"slot": "r4", "mask": 1 << 16}, {"slot": "x", "mask": 1}, {"slot": "l4", "mask": -1}, {"slot": "l4", "mask": True}, {"mask": 1}):
+            self.assertEqual(self.call("POST", "/api/settings", {"mapping": m})[0], 400, m)
+        self.assertEqual(self.call("POST", "/api/settings", {"dead_zone_off": 1})[0], 400)
+
+    def test_not_available_without_the_tweak(self):
+        self.settings_device(installed=False)
+        got = json.loads(self.call("GET", "/api/settings")[1])
+        self.assertFalse(got["available"])
+        self.assertIn("Controller settings", got["note"])
+        self.assertEqual(self.call("POST", "/api/settings", {"set": {"dz_l": 7}})[0], 409)
+
+    def test_not_available_in_update_mode(self):
+        self.settings_device(mode="boot")
+        self.assertFalse(json.loads(self.call("GET", "/api/settings")[1])["available"])
+        self.assertEqual(self.call("POST", "/api/settings", {"set": {"dz_l": 7}})[0], 409)
+
+    def test_never_sends_dangerous_commands(self):
+        dev = self.settings_device()
+        self.call("GET", "/api/settings")
+        self.call("POST", "/api/settings", {"set": {"dz_l": 7}})
+        self.call("POST", "/api/settings", {"reset": True})
+        self.call("POST", "/api/settings", {"mapping": {"slot": "r4", "mask": 1}})
+        self.call("POST", "/api/settings", {"dead_zone_off": True})
+        allowed = ("81050021", "810505", "8105c1", "81050052", "81050053", "81050054", "81050055", "81050056", "81050057", "81050058")
+        for s in dev.sent:
+            self.assertTrue(s.startswith(allowed), s)
+
     def test_firmware_endpoint_names_the_tweaks(self):
         built = recipes.build(STOCK_A, ["bt_xbox", "cable_360"], **K)
         info = transport.DeviceInfo(0x2DC8, 0x310A, 0xFF7A, "USB", "x", None)

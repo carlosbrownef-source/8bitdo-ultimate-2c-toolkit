@@ -38,10 +38,10 @@ let st = null, fw = null, reading = false, busy = false, base = "backup";
 const tweakBoxes = () => [...document.querySelectorAll(".tweak")];
 const ringButtons = () => [...document.querySelectorAll("#ring button")];
 const ringChoice = () => ringButtons().find((b) => b.classList.contains("on"));
-const alertsOn = () => tweakBoxes().some((x) => x.value === "battery_alerts" && x.checked);
-const tweaks = () => [...tweakBoxes().filter((x) => x.checked).map((x) => x.value), ...(ringChoice().dataset.ring ? [ringChoice().dataset.ring] : alertsOn() ? ["ring_normal"] : [])];
+const needsRingCode = () => tweakBoxes().some((x) => (x.value === "battery_alerts" || x.value === "settings") && x.checked);
+const tweaks = () => [...tweakBoxes().filter((x) => x.checked).map((x) => x.value), ...(ringChoice().dataset.ring ? [ringChoice().dataset.ring] : needsRingCode() ? ["ring_normal"] : [])];
 const tweakTitles = () => [...tweakBoxes().filter((x) => x.checked).map((x) => x.parentElement.lastElementChild.firstChild.textContent),
-  ...(ringChoice().dataset.ring || alertsOn() ? [`Home ring: ${ringChoice().textContent.toLowerCase()}`] : [])];
+  ...(ringChoice().dataset.ring || needsRingCode() ? [`Home ring: ${ringChoice().textContent.toLowerCase()}`] : [])];
 
 function lastBackup(names) {  // controller-YYYYMMDD-HHMMSS….bin, oldest first
   const m = names.length && names[names.length - 1].match(/controller-(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)/);
@@ -112,17 +112,19 @@ function render() {
   $("force-hint").hidden = !hot;
   $("strip-alert").hidden = !(hot && tab === "firmware");
   details();
+  settingsRender();
   diagnosticsRender();
 }
 
+const TABS = ["firmware", "settings", "diagnostics"];
 let tab = "firmware";
 function showTab(name) {
   if (name !== tab) (name === "diagnostics" ? diagnosticsShow : diagnosticsHide)();
   tab = name;
-  $("tab-firmware").hidden = name !== "firmware";
-  $("tab-diagnostics").hidden = name !== "diagnostics";
-  $("strip-firmware").classList.toggle("on", name === "firmware");
-  $("strip-diagnostics").classList.toggle("on", name === "diagnostics");
+  for (const t of TABS) {
+    $(`tab-${t}`).hidden = name !== t;
+    $(`strip-${t}`).classList.toggle("on", name === t);
+  }
   render();
 }
 
@@ -250,8 +252,7 @@ $("disclaimer").oncancel = (e) => e.preventDefault();
 $("accept").onclick = async () => { await api("POST", "/api/accept"); $("disclaimer").close(); refresh(); };
 $("refresh").onclick = refresh;
 $("details-refresh").onclick = refresh;
-$("strip-firmware").onclick = () => showTab("firmware");
-$("strip-diagnostics").onclick = () => showTab("diagnostics");
+TABS.forEach((t) => ($(`strip-${t}`).onclick = () => showTab(t)));
 $("force-go").onclick = () => showTab("diagnostics");
 $("help-open").onclick = () => $("help").showModal();
 $("help-close").onclick = () => $("help").close();
@@ -306,4 +307,4 @@ setInterval(async () => {
   try { now = await api("GET", "/api/state"); } catch (e) { return; }
   if (!busy && !reading && !refreshing && deviceKey(now) !== deviceKey(st)) refresh();
 }, WATCH_MS);
-if (new URLSearchParams(location.search).has("diagsim")) showTab("diagnostics");
+if (new URLSearchParams(location.search).has("diagsim")) showTab(new URLSearchParams(location.search).get("open") || "diagnostics");

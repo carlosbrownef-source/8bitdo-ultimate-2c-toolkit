@@ -9,10 +9,20 @@
     const path = String(url);
     document.getElementById("diag-fetch").textContent += path + " ";
     const device = window.simReplugged ? "bluetooth_xbox" : { bt: "bluetooth_xbox", btstock: "bluetooth", cable: "cable", web: "cable", none: "bluetooth_xbox", background: "bluetooth_xbox", noext: "bluetooth_xbox", busy: "bluetooth_xbox" }[mode];
+    if (path.startsWith("/api/settings") && options && options.method === "POST") {
+      document.getElementById("diag-posted").textContent += options.body + " ";
+      if (query.get("slow")) await new Promise((r) => setTimeout(r, 2000));
+      if (query.get("settingsfail") || (window.simFailSave && options.body.includes('"save"'))) return new Response(JSON.stringify({ error: "The controller said no." }), { status: 409 });
+      return json({ ok: true, values: Object.fromEntries((await (await realFetch(url.split("?")[0] + "?" + location.search.slice(1), { headers: options.headers })).json()).fields.map((f) => [f.name, f.default])) });
+    }
+    if (path.startsWith("/api/settings") && query.get("settings")) {
+      const answer = await (await realFetch(url, options)).json();
+      return json({ ...answer, available: true, note: "", values: Object.fromEntries(answer.fields.map((f) => [f.name, f.default])), dead_zone_off: false, mapping: { r4: 0, l4: 0 } });
+    }
     if (path.startsWith("/api/ring")) return query.get("ringfail") ? new Response(JSON.stringify({ error: "The controller said no." }), { status: 409 }) : json({ ok: true });
     if (path.startsWith("/api/firmware") && device === "bluetooth_xbox") return json({ note: "The controller firmware cannot be read over Bluetooth. Connect the controller by cable for firmware diagnostics." });
     const answer = await realFetch(url, options);
-    if (path.startsWith("/api/firmware") && query.get("tweaks")) return json({ ...(await answer.json()), recipes: ["bt_xbox", "ring_5"], titles: ["Dimmer LEDs", "Home ring: 5 %"], ring_level: 2, outdated: !!query.get("outdated") });
+    if (path.startsWith("/api/firmware") && query.get("tweaks")) return json({ ...(await answer.json()), recipes: ["bt_xbox", "ring_5", ...(query.get("settings") ? ["settings"] : [])], titles: ["Dimmer LEDs", "Home ring: 5 %"], ring_level: 2, outdated: !!query.get("outdated") });
     if (path.startsWith("/api/firmware") && query.get("identity") === "none") return json({ ...(await answer.json()), boot_identity: null });
     if (path.startsWith("/api/state") && device) return json({ ...(await answer.json()), devices: [{ mode: device, name: "simulated" }] });
     return answer;
@@ -47,7 +57,12 @@
     replugged: () => { window.simReplugged = true; },
     installed: () => { document.getElementById("diag-snap").textContent = tweaks().join(); },
     keptchoice: () => { document.querySelector('[data-ring="ring_1"]').click(); refresh(); setTimeout(() => { document.getElementById("diag-snap").textContent = tweaks().join(); }, 1000); },
-    noalerts: () => { document.querySelector('.tweak[value="battery_alerts"]').click(); document.getElementById("diag-snap").textContent = tweaks().join(); },
+    noalerts: () => { document.querySelector('.tweak[value="battery_alerts"]').click(); document.querySelector('.tweak[value="settings"]').click(); document.getElementById("diag-snap").textContent = tweaks().join(); },
+    setvibration: () => document.querySelector('[data-field="vibration"] [data-value="50"]').click(),
+    setandsave: () => { document.querySelector('[data-field="vibration"] [data-value="50"]').click(); setTimeout(() => $("settings-save").click(), 200); },
+    setandfailsave: () => { window.simFailSave = true; document.querySelector('[data-field="vibration"] [data-value="50"]').click(); setTimeout(() => $("settings-save").click(), 200); },
+    resetopen: () => $("settings-reset").click(),
+    resetyes: () => { $("settings-reset").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); }, 200); },  // headless Chrome holds back the close event
     ringlevel: () => document.querySelector('[data-live="1"]').click(),
     ringreread: () => { document.querySelector('[data-live="1"]').click(); setTimeout(refresh, 300); },
     ringsave: () => document.getElementById("ring-save").click(),
@@ -65,7 +80,7 @@
         window.u2cDiagnostics(scenario === "vibrateerror" ? { type: "result", op: m.op, id: m.id, ok: false, error: "The engine failed" } : { type: "result", op: m.op, id: m.id, ok: true });
     } } } };
   }
-  for (const id of ["diag-sent", "diag-snap", "diag-fetch"]) { const p = document.createElement("pre"); p.id = id; p.hidden = true; document.body.append(p); }
+  for (const id of ["diag-sent", "diag-snap", "diag-fetch", "diag-posted"]) { const p = document.createElement("pre"); p.id = id; p.hidden = true; document.body.append(p); }
   addEventListener("DOMContentLoaded", () => {
     if (mode === "busy") setTimeout(() => { busy = true; render(); }, 300);
     if (SCRIPTS[scenario]) setTimeout(SCRIPTS[scenario], 1000);

@@ -13,7 +13,7 @@
   <div class="barr"><span class="only">8BitDo Ultimate 2C Wireless · firmware 1.09 only</span><button id="help-open" class="sec small">Help</button></div>
 </header>
 
-<nav class="strip"><button class="t on" id="strip-firmware">Firmware</button><button class="t" id="strip-diagnostics">Diagnostics<span class="alert" id="strip-alert" hidden></span></button>
+<nav class="strip"><button class="t on" id="strip-firmware">Firmware</button><button class="t" id="strip-settings">Settings</button><button class="t" id="strip-diagnostics">Diagnostics<span class="alert" id="strip-alert" hidden></span></button>
   <span class="badge" id="badge"><i></i><span id="badge-text">Not connected</span></span></nav>
 
 <main><div class="wrap">
@@ -47,6 +47,7 @@
       <label class="tw"><input type="checkbox" class="tweak" value="cable_360" checked><span class="sw"></span><span>Xbox 360 controller over cable</span></label>
       <label class="tw"><input type="checkbox" class="tweak" value="dim_leds" checked><span class="sw"></span><span>Dimmer LEDs</span></label>
       <label class="tw"><input type="checkbox" class="tweak" value="battery_alerts" checked><span class="sw"></span><span>Battery alerts<em>(on the ring and motors)</em></span></label>
+      <label class="tw"><input type="checkbox" class="tweak" value="settings" checked><span class="sw"></span><span>Controller settings<em>(changed in the Settings tab)</em></span></label>
       <div class="base"><span>Home ring brightness:</span>
         <div class="seg" id="ring"><button data-ring="" class="on">Normal</button><button data-ring="ring_25">25 %</button><button data-ring="ring_5">5 %</button><button data-ring="ring_1">1 %</button><button data-ring="ring_0_1">0.1 %</button><button data-ring="ring_off">Off</button></div></div>
       <div class="base"><span>Take the original firmware 1.09 from:</span>
@@ -68,17 +69,27 @@
 
   </div>
 
-  <div id="tab-diagnostics" hidden>
-    <section class="cd" id="test-card">
-      <h2>Controller test<span class="tag">Nothing is written to the controller</span></h2>
-      <div id="test-body"></div>
-    </section>
-    <section class="cd wide" id="ring-card">
+  <div id="tab-settings" hidden>
+    <section class="cd" id="ring-card">
       <h2>Home ring<span class="tag">Changes at once</span></h2>
       <div class="ring-row"><div class="seg" id="ring-live">
         <button data-live="0">Normal</button><button data-live="1">25 %</button><button data-live="2">5 %</button><button data-live="3">1 %</button><button data-live="4">0.1 %</button><button data-live="5">Off</button>
       </div><button id="ring-save" class="sec small">Save</button></div>
       <p class="res" id="ring-note"></p>
+    </section>
+    <p class="set-note" id="settings-note"></p>
+    <div class="set-cards" id="settings-cards" hidden></div>
+    <div class="set-actions" id="settings-actions" hidden>
+      <button id="settings-save" class="small">Save to controller</button><button id="settings-reset" class="sec small">Reset to defaults</button>
+      <span class="hint" id="settings-unsaved" hidden>You have changes that aren't saved. They last until you turn the controller off.</span>
+      <span class="hint" id="settings-message"></span>
+    </div>
+  </div>
+
+  <div id="tab-diagnostics" hidden>
+    <section class="cd" id="test-card">
+      <h2>Controller test<span class="tag">Nothing is written to the controller</span></h2>
+      <div id="test-body"></div>
     </section>
     <div class="cols even">
       <section class="cd" id="firmware-details"><h2>Firmware details</h2><div id="details-body"></div>
@@ -172,6 +183,7 @@
 </dialog>
 <script>if (new URLSearchParams(location.search).has("diagsim")) document.write('<script src="/static/diagsim.js"><\/script>');</script>
 <script src="/static/diagnostics.js"></script>
+<script src="/static/settings.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

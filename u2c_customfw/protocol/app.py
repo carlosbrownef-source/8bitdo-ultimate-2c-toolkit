@@ -41,6 +41,36 @@ def save_ring(ch) -> None:
     ch.xfer(bytes([0x81, 0x05, 0x00, 0x53]).ljust(64, b"\0"), 0.3)
 
 
+def _command(ch, *data: int) -> None:
+    """A command with no reply, so nothing to wait for once it has gone out."""
+    ch.xfer(bytes([0x81, 0x05, 0x00, *data]).ljust(64, b"\0"), 0.05)
+
+
+def set_field(ch, number: int, value: int) -> None:
+    """A controller setting, in RAM, where it applies at once."""
+    _command(ch, 0x54, number, value)
+
+
+def settings_save(ch) -> None:
+    """Asks the firmware to keep the settings. It does so on its next 100 ms pass."""
+    _command(ch, 0x55)
+
+
+def settings_reset(ch) -> None:
+    """Asks the firmware to go back to its defaults, and keep them."""
+    _command(ch, 0x56)
+
+
+def set_mapping(ch, slot: int, mask: int) -> None:
+    """What L4 (slot 1) or R4 (slot 0) presses, as button word bits."""
+    _command(ch, 0x57, slot, *mask.to_bytes(4, "little"))
+
+
+def set_dead_zone(ch, off: bool) -> None:
+    """The firmware's own dead zone switch, the one Start + Select changes."""
+    _command(ch, 0x58, 1 if off else 0)
+
+
 def open_session(ch) -> str | None:
     """Make reads work. Returns 'cold', 'session' or 'unprotect' (what had to be sent), or None."""
     if read(ch, 0x10000, 16, tries=2) is not None:

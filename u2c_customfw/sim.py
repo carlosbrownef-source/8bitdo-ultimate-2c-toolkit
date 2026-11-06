@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Simulated devices that answer like the controller's firmware and bootloader, for tests and U2C_SIM=1 UI checks."""
+from . import settings as settings_record
 from .protocol.boot import crc16
 
 
@@ -8,14 +9,16 @@ class SimApp:
 
     def __init__(self, flash: bytes, needs_session=False, needs_unprotect=False):
         self.flash, self.open, self.unprot, self.sent = bytes(flash), not needs_session, needs_unprotect, []
+        self.drop_saves, self.mapping, self.dead_zone_off = False, {}, None
+        kept = settings_record.parse(self.flash[settings_record.SECTOR:settings_record.SECTOR + settings_record.SIZE]) if len(self.flash) > 0x7A000 else None
+        self.fields = [(kept or settings_record.DEFAULTS)[f.name] for f in settings_record.FIELDS]  # the settings in its RAM
 
     def xfer(self, req: bytes, timeout: float = 0.5):
         self.sent.append(req[:5].hex())
         if req[0:2] != b"\x81\x05" or req[2:4] == b"\x00\x51":
             raise AssertionError(f"unexpected request {req[:5].hex()}")
         if req[2] == 0x00:
-            self.open = not self.unprot
-            return bytes([0x02, 0x22]).ljust(64, b"\0")
+            return self._short_command(req)
         if req[2] == 0xC1:
             self.open = True
             return bytes([0x02, 0x05]).ljust(64, b"\0")
@@ -25,6 +28,28 @@ class SimApp:
         hdr = bytearray(req[2:18])
         hdr[2:4], hdr[0], hdr[1] = hdr[0:2], 0, 0
         return (b"\x02\x05" + bytes(hdr) + self.flash[a:a + n]).ljust(64, b"\0")
+
+    def _short_command(self, req: bytes):
+        cmd = req[3]
+        if cmd == 0x21:
+            self.open = not self.unprot
+            return bytes([0x02, 0x22]).ljust(64, b"\0")
+        if cmd == 0x54:
+            fields = settings_record.FIELDS
+            if req[4] < len(fields) and settings_record.valid(fields[req[4]].name, req[5]):
+                self.fields[req[4]] = req[5]
+        elif cmd == 0x56:
+            self.fields = [f.default for f in settings_record.FIELDS]
+        elif cmd == 0x57:
+            self.mapping[req[4]] = int.from_bytes(req[5:9], "little")
+        elif cmd == 0x58:
+            self.dead_zone_off = req[4]
+        elif cmd not in (0x52, 0x53, 0x55):
+            raise AssertionError(f"unexpected request {req[:5].hex()}")
+        if cmd in (0x55, 0x56) and not self.drop_saves:
+            raw = settings_record.encode({f.name: v for f, v in zip(settings_record.FIELDS, self.fields)})
+            self.flash = self.flash[:settings_record.SECTOR] + raw + self.flash[settings_record.SECTOR + len(raw):]
+        return None
 
     def close(self):
         pass

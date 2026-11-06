@@ -7,16 +7,18 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from .. import __version__, disclaimer, state
+from .. import __version__, disclaimer, settings, state
 from .. import cli
 from ..firmware import recipes
 from ..ops import probe, report as report_mod
+from ..ops import settings as settings_ops
 from ..ops.plan import OpError
 from ..protocol import app
 from ..transport import PermissionDenied
 from . import jobs
 
 STATIC = Path(__file__).parent / "static"
+SETTINGS_MISSING = "To change these settings, install Controller settings in the Firmware tab."
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css"}
 
 
@@ -55,12 +57,10 @@ def make_server(store: Path, port: int = 0):
             if not self.host_ok():
                 return self.send(403, "forbidden", "text/plain")
             path = self.path.split("?")[0]
-            if path == "/api/state":
-                return self.api_state()
-            if path == "/api/events":
-                return self.api_events()
-            if path == "/api/firmware":
-                return self.api_firmware()
+            route = {"/api/state": self.api_state, "/api/events": self.api_events, "/api/firmware": self.api_firmware,
+                     "/api/settings": self.api_settings_read}.get(path)
+            if route:
+                return route()
             name = "index.html" if path == "/" else path.lstrip("/").removeprefix("static/")
             f = (STATIC / name).resolve()
             if f.parent == STATIC.resolve() and f.is_file():
@@ -97,6 +97,20 @@ def make_server(store: Path, port: int = 0):
             level, save = req.get("level"), req.get("save") is True
             if (level is None and not save) or (level is not None and (type(level) is not int or not 0 <= level < len(recipes.RING_ORDER))):
                 return self.send(400, json.dumps({"error": "bad request"}))
+
+            def work(ch):
+                if app.read(ch, recipes.RING_CODE[0], 4) in (None, b"\xff" * 4):
+                    raise OpError("Install a Home ring brightness in Tweaks first.")
+                if level is not None:
+                    app.set_ring(ch, level)
+                if save:
+                    app.save_ring(ch)
+                return {"ok": True}
+
+            self.by_cable(work)
+
+        def by_cable(self, work):
+            """Runs work(channel) on the one controller connected by cable, holding the device, and sends its answer."""
             if not runner.claim():
                 return self.send(409, json.dumps({"error": "Another task is running."}))
             try:
@@ -105,19 +119,83 @@ def make_server(store: Path, port: int = 0):
                     return self.send(409, json.dumps({"error": "Connect the controller by cable, without other controllers."}))
                 ch = cli.open_channel(ours[0].info, 0x81)
                 try:
-                    if app.open_session(ch) is None or app.read(ch, recipes.RING_CODE[0], 4) in (None, b"\xff" * 4):
-                        return self.send(409, json.dumps({"error": "Install a Home ring brightness in Tweaks first."}))
-                    if level is not None:
-                        app.set_ring(ch, level)
-                    if save:
-                        app.save_ring(ch)
+                    if app.open_session(ch) is None:
+                        raise OpError(settings_ops.NO_ANSWER)
+                    answer = work(ch)
                 finally:
                     ch.close()
-                self.send(200, json.dumps({"ok": True}))
+                self.send(200, json.dumps(answer))
             except (OpError, PermissionDenied, OSError) as e:
                 self.send(409, json.dumps({"error": str(e)}))
             finally:
                 runner.release()
+
+        def api_settings_read(self):
+            """Always answers with the fields, which the page builds its controls from, and says if they can be changed now."""
+            if not self.auth():
+                return
+            fields = [{"name": f.name, "low": f.low, "high": f.high, "default": f.default, "choices": list(f.choices) if f.choices else None}
+                      for f in settings.FIELDS]
+            for f in fields:
+                if f["choices"] is None:
+                    del f["choices"]
+
+            def answer(**rest):
+                self.send(200, json.dumps({"fields": fields, "available": False, "note": "", **rest}))
+
+            if not runner.claim():
+                return answer(note="Another task is running.")
+            try:
+                ours = [f for f in cli.find() if f.mode in ("cable", "cable_360")]
+                if len(ours) != 1:
+                    return answer(note="Connect the controller by cable to change these settings.")
+                ch = cli.open_channel(ours[0].info, 0x81)
+                try:
+                    if app.open_session(ch) is None:
+                        return answer(note=settings_ops.NO_ANSWER)
+                    if not settings_ops.installed(ch):
+                        return answer(note=SETTINGS_MISSING)
+                    answer(available=True, **settings_ops.read(ch))
+                finally:
+                    ch.close()
+            except (OpError, PermissionDenied, OSError) as e:
+                answer(note=str(e))
+            finally:
+                runner.release()
+
+        def api_settings(self, req):
+            """One request: change fields, a mapping or the dead zone switch, save, or reset."""
+            changes, mapping, dead_zone = req.get("set"), req.get("mapping"), req.get("dead_zone_off")
+            values, save, reset = req.get("values"), req.get("save") is True, req.get("reset") is True
+            good = sum(x is not None for x in (changes, mapping, dead_zone)) + save + reset == 1
+            if changes is not None:
+                good = good and isinstance(changes, dict) and bool(changes) and all(settings.valid(n, v) for n, v in changes.items())
+            if mapping is not None:
+                good = good and isinstance(mapping, dict) and mapping.get("slot") in ("r4", "l4") and type(mapping.get("mask")) is int \
+                    and mapping["mask"] >= 0 and not mapping["mask"] & ~settings.MAP_MASK
+            if dead_zone is not None:
+                good = good and type(dead_zone) is bool
+            if save:
+                good = good and isinstance(values, dict) and set(values) == set(settings.BY_NAME) and all(settings.valid(n, v) for n, v in values.items())
+            if not good:
+                return self.send(400, json.dumps({"error": "bad request"}))
+
+            def work(ch):
+                if not settings_ops.installed(ch):
+                    raise OpError(SETTINGS_MISSING)
+                if changes is not None:
+                    settings_ops.change(ch, changes)
+                elif mapping is not None:
+                    app.set_mapping(ch, 1 if mapping["slot"] == "l4" else 0, mapping["mask"])
+                elif dead_zone is not None:
+                    app.set_dead_zone(ch, dead_zone)
+                elif save and not settings_ops.save(ch, values):
+                    raise OpError("The controller didn't confirm the save. Check the cable and try again.")
+                elif reset:
+                    return {"ok": True, "values": settings_ops.reset(ch)}
+                return {"ok": True}
+
+            self.by_cable(work)
 
         def firmware_report(self):
             found = cli.find()
@@ -185,6 +263,8 @@ def make_server(store: Path, port: int = 0):
                 return self.send(200, json.dumps({"accepted": True}))
             if route == "/api/ring":
                 return self.api_ring(req)
+            if route == "/api/settings":
+                return self.api_settings(req)
             if route == "/api/report":
                 return self.send(200, json.dumps({"text": report_mod.report(cli.find(), None, report_mod.log_tail(store), report_mod.clean_extras(req))}))
             if route in ("/api/patch", "/api/restore") and not state.accepted(store):
