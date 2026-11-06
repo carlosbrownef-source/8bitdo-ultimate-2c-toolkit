@@ -176,6 +176,8 @@ static void stack_answer(void)
 	r[1] = n;
 	r[2] = n >> 8;
 	r[3] = *(volatile u8 *)0x8416cc; /* the witness in hook.s: 1 if anything entered the dead code at 0x1210 */
+	for (n = 0; n < 8; n++) /* 100 ms passes at 0x8416c4, main loop passes at 0x8416c8, since starting */
+		r[4 + n] = ((volatile u8 *)0x8416c4)[n];
 	stock_send(r, 63, 2);
 }
 #endif
@@ -211,6 +213,9 @@ static void store(void)
 /* From the main loop's slow branch, every 100 ms: flash only ever happens here. */
 void settings_poll(void)
 {
+#ifdef STACK_TEST
+	*(volatile u32 *)0x8416c4 += 1; /* 100 ms passes, to turn main_tick's count into a rate */
+#endif
 	if (SETTINGS_FLAG != 1)
 		return;
 	if (!S.loaded) {

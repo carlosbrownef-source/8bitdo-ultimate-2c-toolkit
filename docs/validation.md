@@ -75,3 +75,4 @@ Nothing here has run on a controller yet. Each write needs its own go-ahead.
 7. Connection request: reports per second over 60 s, then 30 minutes with rumble. Soft start: low strengths from rest, both motors.
 8. 30 minutes of a game over Bluetooth with rumble on code running from the tail.
 9. Before publishing, the main stack's margin with a build compiled with `-DSTACK_TEST` (`firmware-src/settings.c`): how much stays unused after playing by cable and over Bluetooth, with every setting changed, saving, and rumble running. At least 100 of its 784 bytes should stay unused.
+10. With the same build, whether the CPU ever sleeps: main-loop passes per second over Bluetooth and by cable, against about 66 radio events per second at 15 ms. Also how long a full charge lasts idle and while playing, as a baseline. This only measures.

@@ -151,6 +151,9 @@ void motor_tick(void); /* 0xfaa0 */
 
 void main_tick(void)
 {
+#ifdef STACK_TEST
+	*(volatile u32 *)0x8416c8 += 1; /* passes of the main loop: does the CPU ever sleep? settings.c answers with it */
+#endif
 	*(volatile u8 *)0x80050d &= ~0x80; /* PB7 */
 	*(volatile u8 *)0x80051d &= ~0x20; /* PD5 */
 	*(volatile u8 *)0x80052d &= ~0x02; /* PF1 */

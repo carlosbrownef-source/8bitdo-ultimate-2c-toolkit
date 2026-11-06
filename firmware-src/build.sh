@@ -9,7 +9,7 @@ out=$(cd "${1:-/tmp/u2c-blobs}" && pwd)
 blobs="$here/../u2c_customfw/firmware/blobs"
 cd "$here"
 rm -f "$out"/*.o "$out"/*.elf "$out"/*.bin "$out"/packer.dis
-tc32-elf-gcc -Os -Wall -Werror -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -c packer.c -o "$out/packer.o"
+tc32-elf-gcc -Os -Wall -Werror -ffreestanding -fno-builtin -ffunction-sections -fdata-sections ${EXTRA_CFLAGS:-} -c packer.c -o "$out/packer.o"
 tc32-elf-gcc -Os -Wall -Werror -ffreestanding -fno-builtin -ffunction-sections -fdata-sections ${EXTRA_CFLAGS:-} -c settings.c -o "$out/settings.o"
 tc32-elf-as ${EXTRA_ASFLAGS:-} hook.s -o "$out/hook.o"
 tc32-elf-ld -T packer.ld --no-check-sections \
