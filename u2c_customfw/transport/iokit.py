@@ -64,7 +64,9 @@ def _cfstr(s):
 
 
 def _prop(dev, key):
-    v = iok.IOHIDDeviceGetProperty(dev, _cfstr(key))
+    k = _cfstr(key)
+    v = iok.IOHIDDeviceGetProperty(dev, k)
+    cf.CFRelease(k)
     if not v:
         return None
     if cf.CFGetTypeID(v) == cf.CFNumberGetTypeID():
@@ -89,9 +91,11 @@ def list_devices():
     n = cf.CFSetGetCount(devs)
     arr = (P * n)()
     cf.CFSetGetValues(devs, arr)
-    return [DeviceInfo(vendor=_prop(d, "VendorID") or 0, product=_prop(d, "ProductID") or 0,
-                       usage_page=_prop(d, "PrimaryUsagePage") or 0, transport=_prop(d, "Transport") or "",
-                       name=_prop(d, "Product") or "", handle=d) for d in arr]
+    found = [DeviceInfo(vendor=_prop(d, "VendorID") or 0, product=_prop(d, "ProductID") or 0,
+                        usage_page=_prop(d, "PrimaryUsagePage") or 0, transport=_prop(d, "Transport") or "",
+                        name=_prop(d, "Product") or "", handle=d) for d in arr]
+    cf.CFRelease(devs)
+    return found
 
 
 class IOKitChannel:
