@@ -8,11 +8,14 @@ Our own code for the controller (Telink TC32, firmware 1.09). The built binaries
 | `packer.bin` | image `0xb908` (the stock Bluetooth packer's slot, up to `0xbad4`) | `pack_xbox`: the 16-byte Xbox Series X\|S input report |
 | `report-map.bin` | `0x18274` (zero tail after the image) | the Xbox Series X\|S HID report map (283 bytes, captured by xpadneo) |
 | `noop.bin` | `0x18390` | `noop_write`: accept output-report writes and ignore them |
-| `rumble.bin` | `0x18390` | `rumble_write`: Xbox rumble to the motor setter `0xfa68`, the Xbox duration as its hold |
+| `rumble.bin` | `0x18390` | `rumble_write`: Xbox rumble to the motor setter `0xfa68`, the Xbox duration as its hold. A report with bit 7 of its first byte set is a Home ring command instead |
 | `led.bin` | image `0x7738`, run address `0x1738` | `main_tick`: LED pins to weak drive strength, then the motor routine `0xfaa0` |
 | `hook.bin` | `0xa43c` | the main loop's call, redirected from `0xfaa0` to `main_tick` |
-| `ring.bin` | image `0x7640`, run address `0x1640` | `ring_led`: the Home ring on PWM1 at the level stored at image `0x76d0` (RAM `0x8416d0`), otherwise the stock LED driver |
-| `ringhook.bin` | `0xd4f0` | the LED task's call for the ring, redirected from `0xd36c` to `ring_led` |
+| `ringtail.bin` | `0x18400`, up to `0x18ff0` (blank on stock), run in place | the Home ring: `ring_command` first, then `ring_tick` (PWM1 at the level, alerts and pulses, every 200 ms), `main_poll` (the L4 + R4 chord, every 10 ms) and the vendor commands. Its state is at RAM `0x841640` (dead RAM code, zeroed at image `0x7640`), the level installed at image `0x76d0`, and the saved level in settings field `+25` |
+| `ringhook.bin` | `0xd4f0` | the LED task's call for the ring, redirected from `0xd36c` to `ring_tick` |
+| `pollhook.bin` | `0xa484` | the main loop's call, redirected from `0xcfa4` to `main_poll`, which still calls it |
+| `vhooka.bin`, `vhookb.bin` | `0xf83c`, `0xf842` | the vendor command checks, redirected from `0xf56c` and `0xf594` to `vendor_a` and `vendor_b`, which still call them |
+| `ring02.bin`, `ringhook02.bin`, `rumble02.bin` | not installed | 0.2.0's versions, kept to recognise firmware it installed |
 
 ## Build
 

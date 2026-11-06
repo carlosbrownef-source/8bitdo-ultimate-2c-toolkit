@@ -11,7 +11,8 @@ Everything your **8BitDo Ultimate 2C Wireless** needs on a Mac, in one app. Firm
 
 - **Works as a native controller.** Over Bluetooth it presents itself as an Xbox Series X|S controller, and by cable as an Xbox 360 controller, so macOS and its games recognise it.
 - **Rumble over Bluetooth.** The original firmware doesn't vibrate over Bluetooth, and this makes it respond to games.
-- **Adjustable light.** Choose how bright the ring around the Home button is, or turn it off, and dim the other lights.
+- **Adjustable light.** Choose how bright the ring around the Home button is, or turn it off, and change it at any time from the app or with L4 + R4 on the controller. You can also dim the other lights.
+- **Battery alerts.** The ring and motors tell you when the battery is low, and when charging starts and completes.
 - **Tests the controller.** See what macOS reports, including the battery, check every button, stick and trigger, and try the vibration.
 - **Backs up and restores.** Save a full copy of the controller's memory first, and go back to it or to 8BitDo's original firmware at any time.
 
@@ -66,7 +67,8 @@ The controller test is only available in the Mac app for now, because it uses ma
 | Rumble over Bluetooth | Rumble works over Bluetooth (the original firmware switches the motors off in that mode). Needs the Xbox tweak as it uses it's profile. May hang the controller, though I haven't seen it happen. |
 | Xbox 360 controller over cable | Plugged in by cable it presents as a wired Xbox 360 pad (`045e:028e`), which Apple's own driver takes. This is the simplest tweak if you want to avoid modding too much of the controller's code |
 | Dimmer LEDs | The three LEDs use weak drive strength: a little dimmer. The effect is barely noticable, but the LEDs are so bright everything helps IMO. |
-| Home ring brightness | Sets the ring around the Home button while connected: 25 %, 5 %, 1 %, 0.1 % or off (the percentage is PWM duty, not perceived brightness). It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. You choose one level, and changing it means installing again. |
+| Home ring brightness | Sets the ring around the Home button while connected: 25 %, 5 %, 1 %, 0.1 % or off (the percentage is PWM duty, not perceived brightness). It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. You can change the level at once with L4 + R4 on the controller, or in the Diagnostics tab, and save it without installing anything. Installing another level replaces a saved one. |
+| Battery alerts | The ring blinks slowly while charging and quickly at 15 % or less, even if you turned it off. The motors give one short pulse when charging starts, one long pulse when it completes, and two short pulses at 5 % or less, again every 5 minutes. With this on and the brightness on Normal, the ring's code is installed at full brightness. |
 
 Each tweak is a hash-checked set of byte edits to the stock v1.09 image; nothing else in the firmware changes, and the controller's bootloader, MAC, calibration and pairings are never written.
 
