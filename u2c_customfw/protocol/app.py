@@ -2,7 +2,7 @@
 """Normal-mode reads through the running controller's update channel (output report 0x81, input report 0x02).
 
 Reads are `81 05 05` (any address, at most 46 bytes). The only other commands sent are the Home ring's two, which
-only the ring tweak answers: `81 05 00 52 <level>` and `81 05 00 53` (see docs/firmware-notes.md). Reads are tried
+only the ring tweak acts on, with no reply: `81 05 00 52 <level>` and `81 05 00 53` (see docs/firmware-notes.md). Reads are tried
 first; if they get no answer, the session start `81 05 00 21 01` (it only replies) is sent, and if reads still fail,
 `81 05 c1`, which turns the flash's write protection off until the controller restarts and changes no data.
 `81 05 00 51` (reboot into the bootloader) is never sent.
