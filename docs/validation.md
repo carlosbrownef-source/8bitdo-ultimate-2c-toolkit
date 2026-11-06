@@ -32,7 +32,9 @@ read back and identified afterwards.
   Apple Games again after leaving the tab or quitting the app.
 - **Cable:** all controls respond, vibration through macOS works, and Direct report is disabled. Switching to another app
   pauses the test, and it continues on returning.
-- **Sticks:** they stay inside the circle at the diagonals, over Bluetooth and by cable.
+- **Sticks:** recorded at the time as staying inside the circle at the diagonals, over Bluetooth and by cable. Start + Select
+  switches a 14 % dead zone on and off; it doesn't limit the sticks to a circle. What was seen was the sticks' range with the
+  unit's setting as it stood, which wasn't recorded.
 - **Name:** macOS shows "8BitDo Ultimate 2C (X/S)" without pairing again.
 - **Detection:** turning the controller off, connecting it and entering update mode are noticed without pressing Refresh.
 
