@@ -89,7 +89,8 @@ def _make() -> dict[str, Recipe]:
             Edit(0xA214, bytes([len(NAME) + 2, 0xA1])),          # scan response length immediate
         )),
         Recipe("bt_rumble", "Rumble over Bluetooth", ("bt_xbox",), (
-            Edit(0x18390, _blob("rumble.bin").ljust(0x70, b"\0"), accepts=(_blob("rumble02.bin").ljust(0x70, b"\0"),)),
+            Edit(0x18390, _blob("rumble.bin").ljust(0x70, b"\0"),
+                 accepts=(_blob("rumble02.bin").ljust(0x70, b"\0"), _blob("rumble03.bin").ljust(0x70, b"\0"))),
         )),
         Recipe("cable_360", "Xbox 360 controller over cable", (), (
             Edit(0x17994, bytes.fromhex("ffffff")),              # class, subclass, protocol
@@ -99,16 +100,17 @@ def _make() -> dict[str, Recipe]:
             Edit(0x7738, _blob("led.bin")),                      # main_tick, run from RAM at 0x1738
             Edit(0xA43C, _blob("hook.bin")),                     # main loop calls main_tick instead of 0xfaa0
         )),
-        *(Recipe(key, title, (), (
+        *(Recipe(key + at, title, (), (
             Edit(0xA3FA, b"\0"),                                 # the ring doesn't light up at startup
-            Edit(0xD4F0, _blob("ringhook.bin")),                 # LED task calls ring_tick for the ring
-            Edit(0xF83C, _blob("vhooka.bin")),                   # vendor commands reach ring_vendor
-            Edit(0xF842, _blob("vhookb.bin")),
-            Edit(0xA484, _blob("pollhook.bin")),                 # main loop samples the L4 + R4 chord
-            Edit(0x7640, bytes(0x90)),                           # dead RAM code, now the ring's state
+            Edit(0xD4F0, _blob(f"ringhook{form}.bin")),          # LED task calls ring_tick for the ring
+            Edit(0xF83C, _blob(f"vhooka{form}.bin")),            # vendor commands reach ring_vendor
+            Edit(0xF842, _blob(f"vhookb{form}.bin")),
+            Edit(0xA484, _blob(f"pollhook{form}.bin")),          # main loop samples the L4 + R4 chord
+            Edit(0x7640, bytes(0x90)),                           # dead RAM code, now the ring's and settings' state
             Edit(0x76D0, level.to_bytes(2, "little")),           # the level installed
-            Edit(RING_CODE[0], _blob("ringtail.bin").ljust(RING_CODE[1] - RING_CODE[0], b"\xff")),
-        ), "ring") for key, title, level in RING_LEVELS),
+            Edit(RING_CODE[0], _blob(f"ringtail{form}.bin").ljust(RING_CODE[1] - RING_CODE[0], b"\xff")),
+        ), "ring", earlier_form_of=key if form else None)
+            for form, at in (("", ""), ("03", "@0.3")) for key, title, level in RING_LEVELS),
         *(Recipe(f"{key}@0.2", title, (), (
             Edit(0xA3FA, b"\0"),
             Edit(0xD4F0, _blob("ringhook02.bin")),
@@ -117,6 +119,13 @@ def _make() -> dict[str, Recipe]:
         ), "ring", earlier_form_of=key) for key, title, level in OLD_RING_LEVELS),
         Recipe("battery_alerts", "Battery alerts", (), (
             Edit(ALERTS_FLAG, b"\1"),
+        ), requires_group="ring"),
+        Recipe("settings", "Controller settings", (), (
+            Edit(0xDCE6, _blob("hgamea.bin")),                   # the games' rumble over 2.4 GHz ...
+            Edit(0xEAF4, _blob("hgameb.bin")),                   # ... and by cable, at the chosen intensity
+            Edit(0xA0F8, _blob("hbuzza.bin")),                   # vibrating on connecting, Bluetooth ...
+            Edit(0xDAA8, _blob("hbuzzb.bin")),                   # ... and 2.4 GHz
+            Edit(0xD1C8, _blob("hidle.bin")),                    # the idle limit, from the settings
         ), requires_group="ring"),
     )}
 

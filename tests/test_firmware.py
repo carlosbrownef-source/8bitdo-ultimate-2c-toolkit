@@ -184,6 +184,52 @@ class FromEarlierVersionsTest(unittest.TestCase):
                 self.assertEqual((st.known, st.recipes), (True, tuple(sorted(keys + [ring]))), ring)
                 self.assertTrue(st.outdated, ring)
 
+    def from_0_3(self, tweaks, ring):
+        img = bytearray(recipes.build(self.stock, tweaks + [ring], **self.k))
+        for addr, name in ((0xD4F0, "ringhook03"), (0xF83C, "vhooka03"), (0xF842, "vhookb03"), (0xA484, "pollhook03")):
+            img[addr - image.BASE:addr - image.BASE + 4] = (recipes.BLOBS / f"{name}.bin").read_bytes()
+        tail = (recipes.BLOBS / "ringtail03.bin").read_bytes().ljust(recipes.RING_CODE[1] - recipes.RING_CODE[0], b"\xff")
+        img[recipes.RING_CODE[0] - image.BASE:recipes.RING_CODE[1] - image.BASE] = tail
+        if "bt_rumble" in tweaks:
+            img[0x18390 - image.BASE:0x18400 - image.BASE] = (recipes.BLOBS / "rumble03.bin").read_bytes().ljust(0x70, b"\0")
+        return bytes(img)
+
+    def test_firmware_from_0_3_is_still_recognised(self):
+        for ring in list(RING) + ["ring_normal"]:
+            for keys in ([], ["dim_leds"], KEYS, ["battery_alerts"]):
+                st = recipes.identify(self.from_0_3(keys, ring), **self.k)
+                self.assertEqual((st.known, st.recipes), (True, tuple(sorted(keys + [ring]))), ring)
+                self.assertTrue(st.outdated, ring)
+
+    def test_settings_need_a_ring_level(self):
+        with self.assertRaises(RecipeError) as e:
+            recipes.build(self.stock, ["settings"], **self.k)
+        self.assertIn("Home ring", str(e.exception))
+
+    def test_settings_build_and_identify_with_any_level(self):
+        for ring in list(RING) + ["ring_normal"]:
+            for keys in ([], KEYS):
+                img = recipes.build(self.stock, keys + [ring, "settings"], **self.k)
+                st = recipes.identify(img, **self.k)
+                self.assertEqual((st.known, st.outdated, st.recipes), (True, False, tuple(sorted(keys + [ring, "settings"]))), ring)
+
+    def test_settings_without_the_tail_is_unknown(self):
+        bad = bytearray(recipes.build(self.stock, ["ring_5", "settings"], **self.k))
+        bad[recipes.RING_CODE[0] - image.BASE:recipes.RING_CODE[1] - image.BASE] = b"\xff" * (recipes.RING_CODE[1] - recipes.RING_CODE[0])
+        self.assertFalse(recipes.identify(bytes(bad), **self.k).known)
+
+    def test_every_settings_hook_is_one_call_into_the_tail(self):
+        def target(addr, b):
+            hi, lo = int.from_bytes(b[:2], "little"), int.from_bytes(b[2:], "little")
+            self.assertEqual((hi >> 11, lo >> 11), (0x12, 0x13), hex(addr))  # TC32's tjl
+            off = (hi & 0x7FF) << 12 | (lo & 0x7FF) << 1
+            return addr + 4 + (off - (1 << 23) if off & (1 << 22) else off)
+        for e in recipes.RECIPES["settings"].edits:
+            run = e.addr - 0x6000 if e.addr < 0x8500 else e.addr  # 0x6000-0x8500 runs from RAM, 0x6000 lower
+            self.assertEqual(e.size, 4, hex(e.addr))
+            t = target(run, e.new)
+            self.assertTrue(recipes.RING_CODE[0] < t < recipes.RING_CODE[1], hex(e.addr))
+
     def test_current_firmware_is_not_outdated(self):
         self.assertFalse(recipes.identify(recipes.build(self.stock, ["ring_5"], **self.k), **self.k).outdated)
 

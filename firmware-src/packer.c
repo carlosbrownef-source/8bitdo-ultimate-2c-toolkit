@@ -101,7 +101,9 @@ int noop_write(u8 *p)
 #define RUMBLE_CAP 255
 #endif
 void motor_set(u32 strong, u32 weak, u32 hold); /* 0xfa68 */
-void ring_command(u32 level, u32 save);         /* 0x18400 */
+void ring_command(u32 level, u32 save);
+void rumble_tail(u8 *p);                        /* 0x18400 */
+void game_motor(u32 strong, u32 weak, u32 hold);
 #ifdef HOST
 extern u32 RING_CODE;
 #else
@@ -120,13 +122,23 @@ int rumble_write(u8 *p)
 
 	if ((p[2] | p[3] << 8) < 3 + 6) /* opcode + handle + at least 6 value bytes (up to the duration) */
 		return 0;
-	if (v[0] & 0x80) { /* no rumble mask uses this bit: a Home ring command, level then save */
-		if (RING_CODE != 0xffffffff && RING_CODE)
-			ring_command(v[1], v[2]);
-		return 0;
-	}
-	motor_set(rumble_level(v[0] & 2 ? v[3] : 0), rumble_level(v[0] & 1 ? v[4] : 0), v[5] ? v[5] : 1);
+	if (RING_CODE != 0xffffffff && RING_CODE)
+		rumble_tail(p);
+	else if (!(v[0] & 0x80))
+		motor_set(rumble_level(v[0] & 2 ? v[3] : 0), rumble_level(v[0] & 1 ? v[4] : 0), v[5] ? v[5] : 1);
 	return 0;
+}
+
+/* First in the blank area, at a fixed address: rumble_write calls it when that code is there. No rumble mask uses bit 7,
+ * which marks a Home ring command: level, then save. Otherwise the games' rumble, at the chosen intensity. */
+void rumble_tail(u8 *p)
+{
+	u8 *v = p + 9;
+
+	if (v[0] & 0x80)
+		ring_command(v[1], v[2]);
+	else
+		game_motor(rumble_level(v[0] & 2 ? v[3] : 0), rumble_level(v[0] & 1 ? v[4] : 0), v[5] ? v[5] : 1);
 }
 
 /* Dimmer LEDs: the LED task (0xd4d0 -> 0xd36c) switches three plain GPIO outputs on and off (PB7, PD5, PF1; pin ID
@@ -152,7 +164,7 @@ void main_tick(void)
  * (2, 3) keep their stock driver; otherwise PB7 goes to PWM1 at the current level, in thousandths. Motors use PWM4/5
  * and share only the clock, which isn't touched.
  *
- * The level changes with L4 + R4 (the button word has L4 at bit 26 and R4 at bit 25, measured), the marked Bluetooth
+ * The level changes with L4 + R4 (the physical word has L4 at bit 26 and R4 at bit 25, measured), the marked Bluetooth
  * report in rumble_write, or 81 05 00 52 <level> by cable, where 81 05 00 53 saves. Settings field +25 keeps the level
  * in its low nibble and, in the high one, the level installed when it was saved: installing another level wins and
  * replaces the save, or the app's choice would be ignored after any save, and an old save could come back later.
@@ -182,39 +194,41 @@ struct ring_state {
 	u16 charge_ticks, repeat;
 	u32 prev_btn, stop_at, ticks;
 };
-typedef char ring_state_fits[sizeof(struct ring_state) <= 0x90 ? 1 : -1];
+typedef char ring_state_fits[sizeof(struct ring_state) <= 0x40 ? 1 : -1]; /* the settings follow, at 0x841680 */
 
 void led_driver(u32 mode, u32 pin, u8 *counter); /* 0xd36c */
 void save_settings(void);                        /* 0xd538 */
 void stock_chords(void);                         /* 0xcfa4, the main loop's Start + Select check */
 void stock_vendor_a(u8 *p);                      /* 0xf56c */
 void stock_vendor_b(u8 *p);                      /* 0xf594 */
+void settings_poll(void);
+void settings_vendor(u8 *p);
 
 #ifdef HOST
 #include <string.h>
 extern unsigned char REGS[];
 extern volatile u16 RING_LEVEL;
 extern u8 PCT, FULL, SAVED, ALERTS_FLAG;
-extern u32 TIMER;
+extern u32 TIMER, RAW_BTN;
 static struct ring_state ring_s;
 #define S ring_s
 #define IO(a) (REGS + ((a) - 0x800000))
 void ring_reset(void) { memset(&ring_s, 0, sizeof ring_s); }
 unsigned ring_level_now(void) { return ring_s.level; }
 #else
-#define S (*(volatile struct ring_state *)0x841640)
+#define S (*(struct ring_state *)0x841640) /* not volatile: nothing here waits in a loop for another context's change */
 #define RING_LEVEL (*(volatile u16 *)0x8416d0)  /* image 0x76d0: the level installed */
 #define PCT (*(volatile u8 *)0x843415)
 #define FULL (*(volatile u8 *)0x843423)
 #define SAVED (*(volatile u8 *)0x843929)        /* settings record +25 */
 #define ALERTS_FLAG (*(volatile u8 *)0x18ff0)
 #define TIMER (*(volatile u32 *)0x800740)
+#define RAW_BTN (*(volatile u32 *)0x84344c)     /* what's physically pressed: stock clears a mapped paddle's bit in BTN */
 #define IO(a) ((volatile u8 *)(a))
 #endif
 
 static const u16 ring_levels[RING_LEVELS] = {RING_NORMAL, 250, 50, 10, 1, 0};
 
-/* First in the blank area, at a fixed address: rumble_write calls it. */
 void ring_command(u32 level, u32 save)
 {
 	if (level < RING_LEVELS)
@@ -243,7 +257,7 @@ static void ring_init(void)
 /* From the main loop's slow branch, every 100 ms (0xa460). */
 void main_poll(void)
 {
-	u32 b = BTN, pressed = b & ~S.prev_btn;
+	u32 b = RAW_BTN, pressed = b & ~S.prev_btn;
 
 	S.prev_btn = b;
 	if (S.init && (b & L4) && (b & R4) && (pressed & (L4 | R4))) {
@@ -255,6 +269,7 @@ void main_poll(void)
 		S.stop_at = 0;
 		motor_set(0, 0, 1);
 	}
+	settings_poll();
 	stock_chords();
 }
 
@@ -400,6 +415,7 @@ static void ring_vendor(u8 *p)
 		ring_command(p[4], 0);
 	else if (p[3] == 0x53)
 		ring_command(0xff, 1);
+	settings_vendor(p);
 }
 
 void vendor_a(u8 *p)

@@ -10,7 +10,7 @@ HARNESS = r"""
 #include <stdio.h>
 #include <stdlib.h>
 typedef unsigned char u8; typedef unsigned short u16; typedef unsigned int u32;
-u32 BTN; u16 LX, LY, RX, RY, LT, RT;
+u32 BTN, RAW_BTN; u16 LX, LY, RX, RY, LT, RT;
 u8 REGS[0x1000] __attribute__((aligned(4))); volatile u16 RING_LEVEL;
 u8 PCT, FULL, SAVED, ALERTS_FLAG; u32 TIMER, RING_CODE = 1;
 static int notifies, afters, stock_passes;
@@ -24,6 +24,11 @@ void vendor_b(u8 *p);
 void ring_reset(void);
 unsigned ring_level_now(void);
 void save_settings(void) { printf("SAVE %02x\n", SAVED); }
+void flash_unlock(void) {}
+void flash_erase(u32 a) { printf("ERASE %x\n", a); }
+void flash_write(u32 a, u32 n, u8 *d) { printf("WRITE %x\n", a); }
+void flash_read(u32 a, u32 n, u8 *d) { for (u32 i = 0; i < n; i++) d[i] = 0xff; }
+u32 stock_crc(u8 *p, u32 n) { return 0; }
 void stock_chords(void) { stock_passes++; }
 void stock_vendor_a(u8 *p) { printf("VA\n"); }
 void stock_vendor_b(u8 *p) { printf("VB\n"); }
@@ -55,11 +60,13 @@ int main(void) {
             unsigned l, sv, al, pc, ex, fu;
             sscanf(line + 2, "%x %x %x %u %u %u", &l, &sv, &al, &pc, &ex, &fu);
             for (int i = 0; i < 0x1000; i++) REGS[i] = 0;
-            ring_reset(); RING_LEVEL = l; SAVED = sv; ALERTS_FLAG = al; PCT = pc; REGS[0x518] = ex; FULL = fu; BTN = 0; TIMER = 0; stock_passes = 0; RING_CODE = 1;
+            ring_reset(); RING_LEVEL = l; SAVED = sv; ALERTS_FLAG = al; PCT = pc; REGS[0x518] = ex; FULL = fu; BTN = RAW_BTN = 0; TIMER = 0; stock_passes = 0; RING_CODE = 1;
             continue;
         }
         if (line[0] == 'X') { unsigned pc, ex, fu; sscanf(line + 2, "%u %u %u", &pc, &ex, &fu); PCT = pc; REGS[0x518] = ex; FULL = fu; continue; }
-        if (line[0] == 'B') { sscanf(line + 2, "%x", &BTN); continue; }
+        if (line[0] == 'B') { sscanf(line + 2, "%x", &BTN); RAW_BTN = BTN; continue; }
+        if (line[0] == 'K') { sscanf(line + 2, "%x", &RAW_BTN); continue; } /* the physical word alone */
+        if (line[0] == 'Y') { sscanf(line + 2, "%x", &BTN); continue; }     /* the mapped word alone */
         if (line[0] == 'N') { RING_CODE = 0; continue; } /* no ring code installed */
         if (line[0] == 'P') { /* P <n>: n main-loop passes, 100 ms apart */
             unsigned n; sscanf(line + 2, "%u", &n);
@@ -191,7 +198,7 @@ def _run_harness(stdin):
     with tempfile.TemporaryDirectory() as d:
         open(os.path.join(d, "h.c"), "w").write(HARNESS)
         exe = os.path.join(d, "t")
-        subprocess.run(["cc", "-DHOST", "-O1", "-o", exe, os.path.join(HERE, "packer.c"), os.path.join(d, "h.c")], check=True)
+        subprocess.run(["cc", "-DHOST", "-O1", "-o", exe, os.path.join(HERE, "packer.c"), os.path.join(HERE, "settings.c"), os.path.join(d, "h.c")], check=True)
         return subprocess.run([exe], input=stdin, capture_output=True, text=True).stdout
 
 
@@ -210,7 +217,7 @@ def rumble_check():
     with tempfile.TemporaryDirectory() as d:
         open(os.path.join(d, "h.c"), "w").write(HARNESS)
         exe = os.path.join(d, "t")
-        subprocess.run(["cc", "-DHOST", "-O1", "-o", exe, os.path.join(HERE, "packer.c"), os.path.join(d, "h.c")], check=True)
+        subprocess.run(["cc", "-DHOST", "-O1", "-o", exe, os.path.join(HERE, "packer.c"), os.path.join(HERE, "settings.c"), os.path.join(d, "h.c")], check=True)
         raw = subprocess.run([exe], input="".join("R " + rumble_packet(v).hex() + "\n" for v in cases),
                              capture_output=True, text=True).stdout.splitlines()
     got, cur = [], []
@@ -319,6 +326,13 @@ def test_chord_moves_one_level_per_press():
 def test_chord_works_with_either_button_first():
     assert duty(Sim(level=250).tick().btn(L4).poll(2).btn(L4 | R4).poll(2).btn(0).poll(2).tick().ticks()[-1]) == 50
     assert duty(Sim(level=250).tick().btn(R4).poll(2).btn(L4 | R4).poll(2).btn(0).poll(2).tick().ticks()[-1]) == 50
+
+
+def test_chord_reads_the_physical_word():
+    s = Sim(level=50).tick().add("Y 0").add(f"K {1 << 26 | 1 << 25:x}").tick()
+    assert duty(s.ticks()[-1]) != 50  # stock clears a mapped paddle's bit in the other word
+    s = Sim(level=50).tick().add(f"Y {1 << 26 | 1 << 25:x}").add("K 0").tick()
+    assert duty(s.ticks()[-1]) == 50  # and a mapped button pressing them isn't a chord
 
 
 def test_chord_needs_both_buttons():
@@ -515,6 +529,16 @@ def test_an_unknown_level_is_ignored():
         assert duty(Sim(level=50).tick().add(marked(level, 0)).tick().ticks()[-1]) == 50
 
 
+def test_settings_are_loaded_once_and_commands_reach_them():
+    out = Sim(level=50).tick().add("A 81050055").tick(2).out()
+    assert out.count("WRITE 7a000") == 1 and out.count("ERASE 7a000") == 1, out
+
+
+def test_rumble_without_the_tail_still_works():
+    out = Sim().add("N", "R " + rumble_packet(bytes([3, 0, 0, 40, 20, 9, 0, 0])).hex()).out()
+    assert "M 100 50 9" in out, out
+
+
 def test_marked_report_does_nothing_without_the_ring_code():
     out = Sim(level=50).tick().add("N", marked(1, 1)).tick(2).ticks()
     assert duty(out[-1]) == 50 and not any(x.startswith("SAVE") for t in out for x in t)
@@ -537,6 +561,15 @@ def test_other_vendor_commands_only_reach_the_firmware():
 
 
 RING_TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
+
+
+def settings_check():
+    """firmware-src/test_settings.c: the settings code's own tests, in C. Each failure is one line."""
+    with tempfile.TemporaryDirectory() as d:
+        exe = os.path.join(d, "s")
+        subprocess.run(["cc", "-DHOST", "-O1", "-o", exe, os.path.join(HERE, "settings.c"), os.path.join(HERE, "test_settings.c")], check=True)
+        run = subprocess.run([exe], capture_output=True, text=True)
+    return [] if run.returncode == 0 else [(("settings",), run.stdout, "failed")]
 
 
 def ring_logic_check():
@@ -563,13 +596,13 @@ def main():
     with tempfile.TemporaryDirectory() as d:
         open(os.path.join(d, "h.c"), "w").write(HARNESS)
         exe = os.path.join(d, "t")
-        subprocess.run(["cc", "-DHOST", "-O1", "-o", exe, os.path.join(HERE, "packer.c"), os.path.join(d, "h.c")], check=True)
+        subprocess.run(["cc", "-DHOST", "-O1", "-o", exe, os.path.join(HERE, "packer.c"), os.path.join(HERE, "settings.c"), os.path.join(d, "h.c")], check=True)
         run = subprocess.run([exe], input="".join("%x %x %x %x %x %x %x\n" % v for v in vec), capture_output=True, text=True)
         out = run.stdout.split()
         if run.returncode:
             sys.exit(f"FAIL: harness stopped after {len(out) - 1} reports: {run.stdout.splitlines()[-1]}")
     bad = [(v, o, why) for v, o in zip(vec, out) for why in [check(v, bytes.fromhex(o))] if why]
-    bad += rumble_check() + ring_check() + ring_logic_check()
+    bad += rumble_check() + ring_check() + ring_logic_check() + settings_check()
     if len(out) != len(vec) or bad:
         for v, o, why in bad[:10]:
             print("input", [hex(x) if isinstance(x, int) else x for x in v], "got", o, "->", why)
