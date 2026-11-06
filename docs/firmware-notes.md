@@ -16,11 +16,11 @@ What was established by disassembling 8BitDo's v1.09 image. Addresses are image 
 | `0x6000-0x18400` | app bank A (the running firmware) |
 | `0x3f000` | update record (52 bytes: version at `+0x0c`, pending magic at `+0x18`, staging address `0x40000` at `+0x1c`, pending length at `+0x20`, CRC at `+0x30`). A patch is refused while a pending field is set. |
 | `0x40000-0x52400` | app bank B (normal-mode updates are staged here and applied by the bootloader) |
-| `0x73000-0x77000`, `0x79000`, `0x7c000`, `0x7f000` | configuration, Bluetooth address (`0x76000`), edition (`0x77000`: 2 means WUKONG), Bluetooth pairings (`0x7c000`, 64-byte records) |
+| `0x73000-0x77000`, `0x79000`, `0x7c000-0x7e000`, `0x7f000` | configuration, Bluetooth address (`0x76000`), edition (`0x77000`: 2 means WUKONG), a 12-byte record that only the bootloader uses (`0x79000`), Bluetooth pairings (`0x7c000` and, once the first sector fills, `0x7d000`; the second sector is erased at every start if it isn't blank, so nothing else can live there) |
 
 ## Update channel (running controller)
 
-USB interface with vendor usage page `0xff7a`, 64-byte reports: output report `0x81`, input report `0x02`. Read command `81 05 05` (length at byte 6, address at bytes 14-17, at most 46 bytes), reply `02 05` with status, echoes and data from byte 18; no checksum. Some firmware states ignore reads until a session start `81 05 00 21 01`. `81 05 c1` lifts the flash write protection until restart. `81 05 00 51 00` makes the app reboot into the bootloader (not used by this app).
+USB interface with vendor usage page `0xff7a`, 64-byte reports: output report `0x81`, input report `0x02`. Read command `81 05 05` (length at byte 6, address at bytes 14-17, at most 46 bytes), reply `02 05` with status, echoes and data from byte 18; no checksum. In v1.09 the handler has no state gate and the session start `81 05 00 21 01` only replies; other firmware states weren't checked. `81 05 c1` lifts the flash write protection until restart. `81 05 00 51 00` makes the app reboot into the bootloader (not used by this app).
 
 ## Bootloader (`2dc8:3208`)
 
@@ -30,6 +30,16 @@ Enter by powering the controller fully off and holding L1+R1 while plugging in t
 
 - Main loop (`0xa430`): the button/stick/rumble tasks; in Bluetooth mode it calls the motor setter with zero strength on every pass, which is why rumble is off in stock Bluetooth mode.
 - Battery: `0x843415` holds the percentage and `0x843424` the voltage in mV. PD0 (`0x800518` bit 0) is external power, and `0x843423` latches when charged. The button word `0x84342c` has L4 at bit 26 and R4 at bit 25, which don't reach the Bluetooth report. A save (`0xd538`) doesn't interrupt Bluetooth: the longest gap between reports was 44 ms.
-- The app area runs up to `0x19000`: `0x18400-0x19000` is blank on stock, erased with bank A, and the bootloader writes it like the rest with the same parameter.
+- The app area runs up to `0x19000`: `0x18400-0x19000` is blank on stock, erased with bank A, and the bootloader writes it like the rest with the same parameter. `0x19000` is where an 8BitDo update stops erasing, not a limit of the bootloader; flash above it is blank and nothing refers to it.
 - LEDs are three plain GPIO outputs (PB7, PD5, PF1) switched by the LED task every 200 ms; weak drive strength dims them slightly, and the Home ring (PB7) can also be driven by PWM1 for real brightness control (`firmware-src/packer.c`, `ring_tick`). Its level is a word at image `0x76d0`, copied to RAM at `0x8416d0`.
-- The Bluetooth stack is a closed Telink library; the firmware never requests a connection-parameter update, so macOS runs the link at a 15 ms interval.
+- The Bluetooth stack is a closed Telink library; after a connection the firmware asks for a 7.5 ms interval, latency 59 and a 2 s supervision timeout (`0xa0de` calls `0x14834`, which stores the request); the link on macOS still runs at a 15 ms interval.
+
+## Home ring protocol (our additions)
+
+Everything here is ours, in `firmware-src/packer.c`; none of it exists in stock. The ring code sits at `0x18400` and is only present when a ring recipe is installed.
+
+- **Level by cable**: `81 05 00 52 <level>` sets the ring level (0-5, anything higher is ignored) without saving it. `81 05 00 53` saves the current level to the settings record about three seconds later, from the LED task, so the flash write never interrupts the main loop. Both are checked after the stock handlers' dispatch in `vendor_a` and `vendor_b`, and the stock handler still runs, so the replies are the stock ones.
+- **Level over Bluetooth**: the Xbox rumble output report, with the high bit (`0x80`) set in the first value byte (`p[9]`), which no rumble mask uses. `p[10]` is the level and `p[11]` is non-zero to save. `rumble_write` handles it and never starts a motor for it. It needs the ring code to be present.
+- **Settings record `+25`** (`0x73019`, RAM `0x843929`): the low nibble is the saved level and the high nibble is the level installed when it was saved. A save made under another installed level is ignored at start and replaced by the installed level, so choosing a level in the app wins over an old save.
+- **Alerts flag** at `0x18ff0`: `1` turns battery alerts on (slow blink while charging, fast blink at 15 % or less, pulses); anything else, including blank, leaves them off. The firmware reads it and never writes it; the app changes it with the "Battery alerts" tweak.
+- **Level by buttons**: L4 and R4 pressed together step to the next level and save after 3 seconds. The button word it reads is being corrected, so don't rely on the bit numbers.
