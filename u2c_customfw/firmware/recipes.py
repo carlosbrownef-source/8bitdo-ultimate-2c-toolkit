@@ -24,6 +24,7 @@ OLD_RING_LEVELS = RING_LEVELS[:5]                             # what 0.2.0 could
 RING_ORDER = ("ring_normal", "ring_25", "ring_5", "ring_1", "ring_0_1", "ring_off")  # the firmware's level numbers
 RING_CODE = (0x18400, 0x18FF0)                                # blank on stock
 ALERTS_FLAG = 0x18FF0
+STICK_THRESHOLD = 8                                           # stock's is 20; not measured yet on a real controller
 
 
 class RecipeError(Exception):
@@ -130,6 +131,21 @@ def _make() -> dict[str, Recipe]:
             Edit(0x6ABC, _blob("hstickr.bin")),                  # ... and 0xabc
             Edit(0xC910, _blob("hscan.bin")),                    # the button scan: triggers, and later remapping
         ), requires_group="ring"),
+        Recipe("fixes", "Fixes", (), (
+            Edit(0xA480, _blob("hidletask.bin")),                # sticks count as activity; a lost connection searches for its full time
+            Edit(0xEA88, _blob("hunplug.bin")),                  # unplugging in the Bluetooth position restarts, to find the Mac at once
+            Edit(0x178CC, _blob("hota.bin")),                    # the unencrypted Bluetooth firmware update's write handler
+        ), requires_group="ring"),
+        Recipe("stick_precision", "Finer stick movement", (), (
+            *(Edit(a, bytes([STICK_THRESHOLD])) for a in (0xB1F2, 0xB208, 0xB220, 0xB238)),  # the jitter filter's threshold
+            Edit(0xA2DC, _blob("hsweep.bin")),                   # two ADC passes per report, so its average means something
+        ), requires_group="ring"),
+        Recipe("ble_interval", "Standard Bluetooth connection request", (), (
+            Edit(0xA0DE, bytes.fromhex("09a00ca100a2c8a3")),     # min 11.25 ms, max 15 ms, latency 0, timeout 2 s, instead of 7.5 ms and latency 59
+        )),
+        Recipe("soft_rumble", "Softer rumble start", (), (
+            Edit(0xF968, bytes.fromhex("01aa")),                 # the 95 % start lasts 2 ticks rather than 4
+        )),
     )}
 
 

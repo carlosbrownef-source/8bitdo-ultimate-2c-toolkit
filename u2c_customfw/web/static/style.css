@@ -58,6 +58,7 @@ main{flex:1;overflow:auto;padding:18px 22px 22px}
 .set-map{align-items:flex-start}.set-chips{display:flex;flex-wrap:wrap;gap:5px;flex:1;justify-content:flex-end}.set-chips button.on{background:var(--accent);color:var(--on-accent);border-color:transparent}
 .set-steps{margin:0;padding-left:20px;font-size:14px;color:var(--dim)}.set-steps li{margin:4px 0}
 .set-row>span{max-width:75%}
+.set-remap{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:0 24px}.set-remap select{background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:4px 6px;font:inherit;font-size:13px}
 .set-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:16px}
 .cols{display:grid;grid-template-columns:1.1fr 1fr;gap:16px;margin-top:16px;align-items:start}
 .cd{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px}

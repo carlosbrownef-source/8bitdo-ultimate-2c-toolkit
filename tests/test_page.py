@@ -221,7 +221,7 @@ class SettingsTabTest(PageCase):
 
     def test_installing_includes_settings_by_default_with_the_ring_code(self):
         dom = self.server.dom("&diagsim=boot&scenario=installed")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,ring_normal")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,fixes,ring_normal")
 
     def test_sticks_and_triggers_have_their_controls(self):
         dom = self.server.dom(self.READY)
@@ -304,6 +304,23 @@ class SettingsTabTest(PageCase):
         self.assertIn("Start + Select + L1 + R1", text)
         self.assertIn("7 seconds", text)
         self.assertEqual(dom.find("diag-posted").all_text().strip(), "")
+
+    def test_remap_shows_every_button_once(self):
+        dom = self.server.dom(self.READY)
+        rows = [n for n in dom.find("settings-cards").walk() if n.attrs.get("data-field", "").startswith("remap_")]
+        self.assertEqual(sorted(n.attrs["data-field"] for n in rows), sorted(f"remap_{i}" for i in range(14)))
+        self.assertEqual({len([o for o in n.walk() if o.tag == "option"]) for n in rows}, {15})
+
+    def test_remap_shows_the_kept_choice_and_sends_a_change(self):
+        dom = self.server.dom(self.READY + "&scenario=remap")
+        self.assertIn('{"set":{"remap_13":12}}', dom.find("diag-posted").all_text())
+        row = self.control(dom, "remap_13")
+        self.assertEqual(row.attrs.get("data-now"), "12")
+
+    def test_remap_can_be_reset(self):
+        dom = self.server.dom(self.READY + "&scenario=remapreset")
+        self.assertEqual(self.control(dom, "remap_13").attrs.get("data-now"), "13")
+        self.assertIn("hidden", dom.find("settings-unsaved").attrs)
 
     def test_controls_are_off_while_a_change_is_on_its_way(self):
         dom = self.server.dom(self.READY + "&slow=1&scenario=setvibration", 1200)
@@ -433,7 +450,7 @@ class ControllerTestCard(PageCase):
 
     def test_original_firmware_keeps_the_suggested_tweaks(self):
         dom, _, _ = self.body("boot&scenario=installed")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,ring_normal")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,fixes,ring_normal")
 
     def ring_button(self, dom, index):
         return next(n for n in dom.find("ring-card").walk() if n.attrs.get("data-live") == str(index))

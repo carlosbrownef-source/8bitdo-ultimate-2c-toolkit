@@ -38,7 +38,8 @@ let st = null, fw = null, reading = false, busy = false, base = "backup";
 const tweakBoxes = () => [...document.querySelectorAll(".tweak")];
 const ringButtons = () => [...document.querySelectorAll("#ring button")];
 const ringChoice = () => ringButtons().find((b) => b.classList.contains("on"));
-const needsRingCode = () => tweakBoxes().some((x) => (x.value === "battery_alerts" || x.value === "settings") && x.checked);
+const RING_CODE_USERS = ["battery_alerts", "settings", "fixes", "stick_precision"];
+const needsRingCode = () => tweakBoxes().some((x) => RING_CODE_USERS.includes(x.value) && x.checked);
 const tweaks = () => [...tweakBoxes().filter((x) => x.checked).map((x) => x.value), ...(ringChoice().dataset.ring ? [ringChoice().dataset.ring] : needsRingCode() ? ["ring_normal"] : [])];
 const tweakTitles = () => [...tweakBoxes().filter((x) => x.checked).map((x) => x.parentElement.lastElementChild.firstChild.textContent),
   ...(ringChoice().dataset.ring || needsRingCode() ? [`Home ring: ${ringChoice().textContent.toLowerCase()}`] : [])];

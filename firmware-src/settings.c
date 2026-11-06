@@ -14,6 +14,12 @@ u32 stock_isqrt(u32 v);                         /* 0x84c */
 void stock_scan(u32 *word, u8 *lt, u8 *rt);     /* 0xc3a8: digital triggers, mapping and turbo */
 void stock_save_mappings(void);                 /* 0xd7d4: into stock's record, if they changed */
 void save_settings(void);                       /* 0xd538: stock's record */
+void stock_idle(void);                          /* 0xd190 */
+int stock_connected_bt(void);                   /* 0xa28c */
+int stock_connected_24g(void);                  /* 0xe088 */
+void stock_da58(u32 a);                         /* 0xda58 */
+void stock_reboot(void);                        /* 0xd056: inside stock's mode switch check; interrupts off, saves mappings, restarts */
+void stock_sweep(void);                         /* 0xb388: one pass over the ADC channels */
 
 #ifdef HOST
 #include <string.h>
@@ -24,7 +30,9 @@ void flash_erase(u32 addr);
 void flash_write(u32 addr, u32 n, u8 *data);
 void flash_read(u32 addr, u32 n, u8 *data);
 u32 stock_crc(u8 *p, u32 n);
-extern u8 DZ_OFF, RECORD_DZ, MAP_TABLE[];
+extern u8 DZ_OFF, RECORD_DZ, MAP_TABLE[], PD;
+extern u16 IDLE_COUNT, STICK_LX, STICK_LY, STICK_RX, STICK_RY;
+extern u32 RAW_WORD;
 extern u32 MAP_R4_A, MAP_R4_B, MAP_L4_A, MAP_L4_B;
 #define S settings_ram
 void settings_reset_for_test(void) { memset(&S, 0, sizeof S); IDLE_LIMIT = 0; }
@@ -39,6 +47,13 @@ u32 stock_crc(u8 *p, u32 n);   /* 0xaf80 */
 #define MAP_R4_B (*(volatile u32 *)0x843460)   /* +17, the Bluetooth position */
 #define MAP_L4_B (*(volatile u32 *)0x843474)   /* +21 */
 #define MAP_TABLE ((u8 *)0x843874)             /* the button scan's table: R4 in halfwords at +134 and +136, L4 unaligned at +147 */
+#define IDLE_COUNT (*(volatile u16 *)0x843438) /* counts up in stock_idle until the limit, then off */
+#define STICK_LX (*(volatile u16 *)0x8433ec)
+#define STICK_LY (*(volatile u16 *)0x8433f6)
+#define STICK_RX (*(volatile u16 *)0x8433e4)
+#define STICK_RY (*(volatile u16 *)0x8433e6)
+#define RAW_WORD (*(volatile u32 *)0x84344c)   /* what's physically pressed; bit 28 set is the Bluetooth position */
+#define PD (*(volatile u8 *)0x800518)          /* bit 0: external power */
 #define flash_write(a, n, d) ((void (*)(u32, u32, u8 *))*(volatile u32 *)0x842e3c)(a, n, d)
 #define flash_read(a, n, d) ((void (*)(u32, u32, u8 *))*(volatile u32 *)0x842e50)(a, n, d)
 #define S (*(struct settings *)0x841680) /* not volatile: nothing here waits in a loop for another context's change */
@@ -79,6 +94,10 @@ static void changed(void)
 		S.stick_custom[i] = S.f[F_DZ_L + i] != defaults[F_DZ_L] || S.f[F_OUTER_L + i] != 100 || S.f[F_CURVE_L + i]
 			|| (S.f[F_INVERT] >> (2 * i) & 3);
 	S.triggers_custom = S.f[F_LT_START] || S.f[F_RT_START] || S.f[F_LT_END] != 100 || S.f[F_RT_END] != 100;
+	S.remap_custom = 0;
+	for (i = 0; i < REMAP_SIZE; i++)
+		if (S.f[F_REMAP + i] != i)
+			S.remap_custom = 1;
 }
 
 static int stored_ok(void)
@@ -266,6 +285,13 @@ void scan_hook(u32 *word, u8 *lt, u8 *rt)
 		*lt = trigger(*lt, S.f[F_LT_START], S.f[F_LT_END]);
 		*rt = trigger(*rt, S.f[F_RT_START], S.f[F_RT_END]);
 	}
+	if (S.remap_custom) {
+		u32 w = *word, out = w & ~((1u << REMAP_SIZE) - 1), i;
+		for (i = 0; i < REMAP_SIZE; i++)
+			if ((w >> i & 1) && S.f[F_REMAP + i] != 0xff)
+				out |= 1u << S.f[F_REMAP + i];
+		*word = out;
+	}
 	stock_scan(word, lt, rt);
 }
 
@@ -284,4 +310,52 @@ void connect_buzz(u32 strong, u32 weak, u32 hold)
 {
 	if (!S.loaded || S.f[F_BUZZ])
 		motor_set(strong, weak, hold);
+}
+
+/* Fixes. Moving a stick counts as using the controller, which stock only sees through buttons, so stick-only play doesn't
+ * end at the limit. A worn stick drifting past the threshold isn't kept alive for long: the reference follows it. And a
+ * dropped connection gets its full search time, since stock goes on counting from wherever it was. */
+#define MOVED 0x1000
+
+void idle_task(void)
+{
+	static volatile u16 *const sticks[4] = {&STICK_LX, &STICK_LY, &STICK_RX, &STICK_RY};
+	u32 connected = stock_connected_bt() || stock_connected_24g(), change = 0, i;
+
+	for (i = 0; i < 4; i++) {
+		u32 d = *sticks[i] - S.reference[i] + MOVED;
+		if (d > 2 * MOVED)
+			change = 1;
+	}
+	if (change)
+		for (i = 0; i < 4; i++)
+			S.reference[i] = *sticks[i];
+	if ((change && connected) || (!connected && S.was_connected))
+		IDLE_COUNT = 0;
+	S.was_connected = connected;
+	stock_idle();
+}
+
+/* The cable stopped being a USB host. In the Bluetooth position, with no power left on it, restart: that finds the Mac at
+ * once, where the firmware otherwise stays searching. PD0 tells this from a sleeping Mac, which comes through here too. */
+void unplug_task(u32 a)
+{
+	stock_da58(a);
+	if ((RAW_WORD >> 28 & 1) && !(PD & 1))
+		stock_reboot();
+}
+
+/* Replaces the Bluetooth firmware update's write handler, which needs no encryption: any device that connects could write
+ * to 0x20000-0x3f000, and finishing an update writes zeros at flash 8. */
+int no_write(u8 *p)
+{
+	(void)p;
+	return 0;
+}
+
+/* Two conversions per report, so stock's averaging in 0xb14c has something to average. */
+void two_sweeps(void)
+{
+	stock_sweep();
+	stock_sweep();
 }

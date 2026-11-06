@@ -57,7 +57,7 @@
     replugged: () => { window.simReplugged = true; },
     installed: () => { document.getElementById("diag-snap").textContent = tweaks().join(); },
     keptchoice: () => { document.querySelector('[data-ring="ring_1"]').click(); refresh(); setTimeout(() => { document.getElementById("diag-snap").textContent = tweaks().join(); }, 1000); },
-    noalerts: () => { document.querySelector('.tweak[value="battery_alerts"]').click(); document.querySelector('.tweak[value="settings"]').click(); document.getElementById("diag-snap").textContent = tweaks().join(); },
+    noalerts: () => { document.querySelector('.tweak[value="battery_alerts"]').click(); document.querySelector('.tweak[value="settings"]').click(); document.querySelector('.tweak[value="fixes"]').click(); document.getElementById("diag-snap").textContent = tweaks().join(); },
     setvibration: () => document.querySelector('[data-field="vibration"] [data-value="50"]').click(),
     setandsave: () => { document.querySelector('[data-field="vibration"] [data-value="50"]').click(); setTimeout(() => $("settings-save").click(), 200); },
     setandfailsave: () => { window.simFailSave = true; document.querySelector('[data-field="vibration"] [data-value="50"]').click(); setTimeout(() => $("settings-save").click(), 200); },
@@ -68,6 +68,8 @@
     settingstodiag: () => showTab("diagnostics"),
     mapa: () => { document.querySelector('[data-slot="r4"][data-bit="13"]').click(); setTimeout(() => document.querySelector('[data-slot="r4"][data-bit="12"]').click(), 200); },
     dzoff: () => document.getElementById("dead-zone-off").click(),
+    remap: () => { const c = document.querySelector('[data-field="remap_13"]'); c.value = 12; c.dispatchEvent(new Event("change")); },
+    remapreset: () => { const c = document.querySelector('[data-field="remap_13"]'); c.value = 12; c.dispatchEvent(new Event("change")); setTimeout(() => { $("settings-reset").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); }, 200); }, 200); },
     resetopen: () => $("settings-reset").click(),
     resetyes: () => { $("settings-reset").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); }, 200); },  // headless Chrome holds back the close event
     ringlevel: () => document.querySelector('[data-live="1"]').click(),

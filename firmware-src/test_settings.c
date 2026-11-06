@@ -16,7 +16,13 @@ u32 stick_left(int x, int y);
 u32 stick_right(int x, int y);
 u32 stick_shape(int x, int y, u32 side);
 void scan_hook(u32 *word, u8 *lt, u8 *rt);
-u8 DZ_OFF, RECORD_DZ;
+u8 DZ_OFF, RECORD_DZ, PD;
+u16 IDLE_COUNT, STICK_LX, STICK_LY, STICK_RX, STICK_RY;
+u32 RAW_WORD;
+void idle_task(void);
+void unplug_task(u32 a);
+int no_write(u8 *p);
+void two_sweeps(void);
 u32 MAP_R4_A, MAP_R4_B, MAP_L4_A, MAP_L4_B;
 u8 MAP_TABLE[0x9c] __attribute__((aligned(4)));
 u32 stock_isqrt(u32 v);
@@ -68,7 +74,13 @@ u32 stock_crc(u8 *p, u32 n)
 	}
 	return (c >> 8 | c << 8) & 0xffff;
 }
-static int mapping_saves, record_saves;
+static int mapping_saves, record_saves, idle_calls, da58_calls, reboots, sweeps, bt_on, radio_on;
+void stock_idle(void) { idle_calls++; }
+int stock_connected_bt(void) { return bt_on; }
+int stock_connected_24g(void) { return radio_on; }
+void stock_da58(u32 a) { da58_calls++; if (a != 0) abort(); }
+void stock_reboot(void) { reboots++; }
+void stock_sweep(void) { sweeps++; }
 void stock_save_mappings(void) { mapping_saves++; }
 void save_settings(void) { record_saves++; }
 void motor_set(u32 s, u32 w, u32 h) { motors++; last_s = s; last_w = w; last_h = h; }
@@ -627,6 +639,189 @@ static void start_applies_the_stored_dead_zone_switch(void)
 	CHECK(DZ_OFF == 0);
 }
 
+static void centre_sticks(void) { STICK_LX = STICK_LY = STICK_RX = STICK_RY = 0x7fff; }
+
+static void stick_move_past_threshold_clears_counter(void)
+{
+	bt_on = 1;
+	centre_sticks();
+	idle_task();
+	IDLE_COUNT = 500;
+	STICK_RY = 0x7fff + 0x1001;
+	idle_task();
+	CHECK(IDLE_COUNT == 0 && idle_calls == 2);
+	IDLE_COUNT = 500;
+	idle_task(); /* the reference moved with it, so holding it there doesn't keep it alive */
+	CHECK(IDLE_COUNT == 500);
+	STICK_RY = 0x7fff - 0x1001;
+	idle_task();
+	CHECK(IDLE_COUNT == 0);
+}
+
+static void small_drift_doesnt(void)
+{
+	bt_on = 1;
+	centre_sticks();
+	idle_task();
+	IDLE_COUNT = 500;
+	STICK_LX = 0x7fff + 0x1000;
+	idle_task();
+	STICK_LX = 0x7fff - 0x1000;
+	idle_task();
+	CHECK(IDLE_COUNT == 500);
+}
+
+static void only_while_connected(void)
+{
+	centre_sticks();
+	idle_task();
+	IDLE_COUNT = 500;
+	STICK_LX = 0;
+	idle_task();
+	CHECK(IDLE_COUNT == 500);
+	radio_on = 1;
+	STICK_LX = 0x7fff;
+	idle_task();
+	CHECK(IDLE_COUNT == 0);
+}
+
+static void disconnect_clears_counter(void)
+{
+	bt_on = 1;
+	centre_sticks();
+	idle_task();
+	IDLE_COUNT = 700;
+	bt_on = 0;
+	idle_task();
+	CHECK(IDLE_COUNT == 0);
+	IDLE_COUNT = 700;
+	idle_task(); /* once, on the change */
+	CHECK(IDLE_COUNT == 700);
+}
+
+static void stock_idle_always_runs(void)
+{
+	idle_task();
+	bt_on = 1;
+	idle_task();
+	CHECK(idle_calls == 2);
+}
+
+#define BLUETOOTH_POSITION (1u << 28)
+
+static void unplug_in_bluetooth_position_reboots(void)
+{
+	RAW_WORD = BLUETOOTH_POSITION;
+	PD = 0;
+	unplug_task(0);
+	CHECK(da58_calls == 1 && reboots == 1);
+}
+
+static void unplug_on_external_power_doesnt(void)
+{
+	/* USB suspend comes through the same path with the cable still in: a sleeping Mac */
+	RAW_WORD = BLUETOOTH_POSITION;
+	PD = 1;
+	unplug_task(0);
+	CHECK(da58_calls == 1 && reboots == 0);
+}
+
+static void the_2_4ghz_position_doesnt(void)
+{
+	RAW_WORD = 0;
+	PD = 0;
+	unplug_task(0);
+	CHECK(da58_calls == 1 && reboots == 0);
+}
+
+static void no_write_returns_0(void)
+{
+	u8 p[4] = {0};
+	CHECK(no_write(p) == 0);
+}
+
+static void two_sweeps_calls_twice(void)
+{
+	two_sweeps();
+	CHECK(sweeps == 2);
+}
+
+static void scan_word(u32 in)
+{
+	u32 w = in;
+	u8 lt = 0, rt = 0;
+	scan_hook(&w, &lt, &rt);
+	stock_seen_word = w; /* what stock got is what's left in the word */
+}
+
+static void identity_table_skips_work(void)
+{
+	start();
+	scan_word(0x0fffffff);
+	CHECK(stock_seen_word == 0x0fffffff);
+	CHECK(S.remap_custom == 0);
+}
+
+static void swap_a_b(void)
+{
+	start();
+	SET(F_REMAP + 13, 12);
+	SET(F_REMAP + 12, 13);
+	CHECK(S.remap_custom == 1);
+	scan_word(1u << 13);
+	CHECK(stock_seen_word == 1u << 12);
+	scan_word(1u << 12);
+	CHECK(stock_seen_word == 1u << 13);
+	scan_word(3u << 12);
+	CHECK(stock_seen_word == 3u << 12);
+}
+
+static void button_to_nothing(void)
+{
+	start();
+	SET(F_REMAP + 4, 0xff);
+	scan_word(1u << 4 | 1u << 5);
+	CHECK(stock_seen_word == 1u << 5);
+}
+
+static void two_to_one_ors(void)
+{
+	start();
+	SET(F_REMAP + 5, 4);
+	scan_word(1u << 5);
+	CHECK(stock_seen_word == 1u << 4);
+	scan_word(1u << 4 | 1u << 5);
+	CHECK(stock_seen_word == 1u << 4);
+	scan_word(0);
+	CHECK(stock_seen_word == 0);
+}
+
+static void bits_above_13_pass(void)
+{
+	start();
+	SET(F_REMAP, 1);
+	scan_word(1u << 14 | 1u << 15 | 1u << 17 | 1u << 25 | 1u << 26 | 1u << 28);
+	CHECK(stock_seen_word == (1u << 14 | 1u << 15 | 1u << 17 | 1u << 25 | 1u << 26 | 1u << 28));
+}
+
+static void remap_goes_in_before_stock(void)
+{
+	u32 w = 1u << 13;
+	u8 lt = 0, rt = 0;
+	start();
+	SET(F_REMAP + 13, 12);
+	scan_hook(&w, &lt, &rt);
+	CHECK(stock_scan_calls == 1 && w == 1u << 12);
+}
+
+static void back_to_identity_stops_remapping(void)
+{
+	start();
+	SET(F_REMAP + 13, 12);
+	SET(F_REMAP + 13, 13);
+	CHECK(S.remap_custom == 0);
+}
+
 typedef void (*test_fn)(void);
 static const test_fn tests[] = {
 	load_defaults_on_blank, load_defaults_on_bad_crc, load_defaults_on_future_version, load_defaults_on_field_out_of_range,
@@ -641,6 +836,9 @@ static const test_fn tests[] = {
 	mapping_sets_four_variables_and_live_table, mapping_to_none_restores_default, mapping_refuses_bad_slot_and_bits, save_persists_mappings_with_stock,
 	dead_zone_command_sets_both_places, save_keeps_the_dead_zone_switch_only_when_it_changed, reset_restores_mappings_and_dead_zone,
 	start_applies_the_stored_dead_zone_switch,
+	stick_move_past_threshold_clears_counter, small_drift_doesnt, only_while_connected, disconnect_clears_counter, stock_idle_always_runs,
+	unplug_in_bluetooth_position_reboots, unplug_on_external_power_doesnt, the_2_4ghz_position_doesnt, no_write_returns_0, two_sweeps_calls_twice,
+	identity_table_skips_work, swap_a_b, button_to_nothing, two_to_one_ors, bits_above_13_pass, remap_goes_in_before_stock, back_to_identity_stops_remapping,
 };
 
 int main(void)
@@ -652,6 +850,9 @@ int main(void)
 		last_s = last_w = last_h = 0;
 		stock_limit_calls = stock_scan_calls = 0;
 		DZ_OFF = RECORD_DZ = 0;
+		idle_calls = da58_calls = reboots = sweeps = bt_on = radio_on = 0;
+		IDLE_COUNT = 0;
+		STICK_LX = STICK_LY = STICK_RX = STICK_RY = 0;
 		mapping_saves = record_saves = 0;
 		memset(MAP_TABLE, 0, sizeof MAP_TABLE);
 		settings_reset_for_test();

@@ -26,6 +26,7 @@ const SETTINGS_CARDS = [
     { field: "idle_min", label: "Turn off after", kind: "seg", format: (v) => `${v} min` },
     { field: "buzz", label: "Vibrate when connecting", kind: "toggle" },
   ] },
+  { title: "Button remapping", wide: true, kind: "remap", text: "Choose what each button does. This changes it in every game, and also what you map to L4 and R4. Home and the triggers can't be changed. If this leaves you stuck, Reset to defaults works without pressing any buttons on the controller." },
   { title: "Calibration", wide: true, kind: "calibration", text: "If a stick doesn't reach its full range or doesn't return to the centre, the controller can measure them again. This uses a function of its own, and the app doesn't send it anything." },
 ];
 const CALIBRATION_STEPS = [
@@ -34,6 +35,8 @@ const CALIBRATION_STEPS = [
   "Move both sticks all around their range, and press both triggers fully.",
   "Press Start + Select + L1 + R1 once more to save. The light stops blinking.",
 ];
+const REMAP_NAMES = ["Menu", "LS", "RS", "View", "X", "Y", "Right", "Left", "Down", "Up", "LB", "RB", "B", "A"];
+const REMAP_ORDER = [13, 12, 4, 5, 10, 11, 1, 2, 3, 0, 9, 8, 7, 6];
 const MAP_BUTTONS = [["A", 13], ["B", 12], ["X", 4], ["Y", 5], ["LB", 10], ["RB", 11], ["LT", 14], ["RT", 15], ["LS", 1], ["RS", 2], ["View", 3], ["Menu", 0], ["Up", 9], ["Down", 8], ["Left", 7], ["Right", 6]];
 
 let settingsData = null, settingsValues = {}, settingsDirty = false, settingsBusy = false, settingsMessage = "", settingsLoading = false, settingsRead = null;
@@ -59,6 +62,12 @@ function settingsMount() {
     section.querySelector("p").textContent = card.text;
     if (card.title === "Sticks") section.append(deadZoneRow());
     if (card.kind === "mapping") section.append(...[["R4", "r4"], ["L4", "l4"]].map(mappingRow));
+    if (card.kind === "remap") {
+      const grid = document.createElement("div");
+      grid.className = "set-remap";
+      grid.append(...REMAP_ORDER.map(remapRow));
+      section.append(grid);
+    }
     if (card.kind === "calibration") {
       const steps = document.createElement("ol");
       steps.className = "set-steps";
@@ -108,6 +117,21 @@ function mappingRow([name, slot]) {
     box.append(b);
   });
   line.append(label, box);
+  return line;
+}
+
+function remapRow(bit) {
+  const line = document.createElement("div"), label = document.createElement("span"), pick = document.createElement("select"), name = `remap_${bit}`;
+  line.className = "set-row";
+  label.textContent = REMAP_NAMES[bit];
+  pick.dataset.field = name;
+  pick.setAttribute("aria-label", `What ${REMAP_NAMES[bit]} does`);
+  REMAP_ORDER.forEach((b) => { const o = document.createElement("option"); o.value = b; o.textContent = REMAP_NAMES[b]; pick.append(o); });
+  const nothing = document.createElement("option");
+  nothing.value = 255; nothing.textContent = "Nothing";
+  pick.append(nothing);
+  pick.onchange = () => settingsChange(name, +pick.value);
+  line.append(label, pick);
   return line;
 }
 
@@ -163,6 +187,8 @@ function settingsPaint() {
       c.querySelectorAll("button").forEach((b) => { b.classList.toggle("on", +b.dataset.value === v); b.disabled = settingsBusy; });
     } else if (c.type === "checkbox") {
       c.checked = c.dataset.bit === undefined ? !!v : !!(v >> +c.dataset.bit & 1); c.disabled = settingsBusy;
+    } else if (c.tagName === "SELECT") {
+      c.value = v; c.dataset.now = v; c.disabled = settingsBusy;
     } else if (c.type === "range") {
       c.value = v; c.setAttribute("value", v); c.paintOut(v); c.disabled = settingsBusy;
     }

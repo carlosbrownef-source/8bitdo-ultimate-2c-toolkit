@@ -15,12 +15,12 @@ tc32-elf-as hook.s -o "$out/hook.o"
 tc32-elf-ld -T packer.ld --no-check-sections \
 	--defsym ble_notify=0x1458c --defsym after_notify=0x1abc --defsym motor_set=0xfa68 --defsym motor_tick=0xfaa0 --defsym led_driver=0xd36c \
 	--defsym save_settings=0xd538 --defsym stock_chords=0xcfa4 --defsym stock_vendor_a=0xf56c --defsym stock_vendor_b=0xf594 \
-	--defsym flash_unlock=0xbd00 --defsym flash_erase=0xfe98 --defsym stock_crc=0xaf80 --defsym stock_limit=0x890 --defsym stock_isqrt=0x84c --defsym stock_scan=0xc3a8 --defsym stock_save_mappings=0xd7d4 --defsym __udivsi3=0x850c --defsym __divsi3=0x8504 \
+	--defsym flash_unlock=0xbd00 --defsym flash_erase=0xfe98 --defsym stock_crc=0xaf80 --defsym stock_limit=0x890 --defsym stock_isqrt=0x84c --defsym stock_scan=0xc3a8 --defsym stock_save_mappings=0xd7d4 --defsym stock_idle=0xd190 --defsym stock_connected_bt=0xa28c --defsym stock_connected_24g=0xe088 --defsym stock_da58=0xda58 --defsym stock_reboot=0xd056 --defsym stock_sweep=0xb388 --defsym __udivsi3=0x850c --defsym __divsi3=0x8504 \
 	"$out/packer.o" "$out/settings.o" "$out/hook.o" -o "$out/packer.elf"
-for s in packer noop rumble led hook ringtail ringhook vhooka vhookb pollhook hgamea hgameb hbuzza hbuzzb hidle hstickl hstickr hscan; do tc32-elf-objcopy -O binary -j ".$s" "$out/packer.elf" "$out/$s.bin"; done
+for s in packer noop rumble led hook ringtail ringhook vhooka vhookb pollhook hgamea hgameb hbuzza hbuzzb hidle hstickl hstickr hscan hidletask hunplug hota hsweep; do tc32-elf-objcopy -O binary -j ".$s" "$out/packer.elf" "$out/$s.bin"; done
 tc32-elf-objdump -d "$out/packer.elf" > "$out/packer.dis"
 python3 -c "import sys; open(sys.argv[2],'wb').write(bytes.fromhex(open(sys.argv[1]).read()))" report-map.hex "$out/report-map.bin"
 mkdir -p "$blobs"
-cp "$out"/{packer,noop,rumble,led,hook,ringtail,ringhook,vhooka,vhookb,pollhook,hgamea,hgameb,hbuzza,hbuzzb,hidle,hstickl,hstickr,hscan,report-map}.bin "$blobs/"
+cp "$out"/{packer,noop,rumble,led,hook,ringtail,ringhook,vhooka,vhookb,pollhook,hgamea,hgameb,hbuzza,hbuzzb,hidle,hstickl,hstickr,hscan,hidletask,hunplug,hota,hsweep,report-map}.bin "$blobs/"
 (cd "$blobs" && { sha256sum *.bin > MANIFEST 2>/dev/null || shasum -a 256 *.bin > MANIFEST; })  # the *02.bin are 0.2.0's, kept to recognise its firmware
 ls -l "$blobs"

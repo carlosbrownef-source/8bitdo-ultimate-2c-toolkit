@@ -286,7 +286,7 @@ class WebTest(unittest.TestCase):
         self.assertEqual((data["version"], data["version_from"]), (1.09, "update record"))
         self.assertEqual((data["pending"], data["boot_identity"]), (False, None))
         self.assertEqual([(t["key"], t["on"]) for t in data["tweaks"]],
-                         [("bt_xbox", True), ("bt_rumble", False), ("cable_360", True), ("dim_leds", False), ("battery_alerts", False), ("settings", False), ("ring", False)])
+                         [("bt_xbox", True), ("bt_rumble", False), ("cable_360", True), ("dim_leds", False), ("battery_alerts", False), ("settings", False), ("fixes", False), ("stick_precision", False), ("ble_interval", False), ("soft_rumble", False), ("ring", False)])
 
     def test_firmware_endpoint_with_only_bluetooth_explains(self):
         info = transport.DeviceInfo(0x045E, 0x0B13, 1, "Bluetooth Low Energy", "x", None)

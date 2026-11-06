@@ -22,6 +22,10 @@ SECTIONS
 	.hstickl 0xa90 : AT(0x6a90) { *(.hstickl) }
 	.hstickr 0xabc : AT(0x6abc) { *(.hstickr) }
 	.hscan 0xc910 : { *(.hscan) }
+	.hidletask 0xa480 : { *(.hidletask) }
+	.hunplug 0xea88 : { *(.hunplug) }
+	.hota 0x178cc : { *(.hota) }
+	.hsweep 0xa2dc : { *(.hsweep) }
 	.ringtail 0x18400 : { *(.text.rumble_tail) *(.text*) *(.rodata*) }
 	.rest : { *(.text*) *(.data*) *(.bss*) *(COMMON) }
 	/DISCARD/ : { *(.comment) }

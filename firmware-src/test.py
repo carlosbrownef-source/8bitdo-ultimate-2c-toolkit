@@ -35,6 +35,13 @@ void stock_scan(u32 *w, u8 *lt, u8 *rt) {}
 u8 DZ_OFF, RECORD_DZ, MAP_TABLE[0x9c];
 u32 MAP_R4_A, MAP_R4_B, MAP_L4_A, MAP_L4_B;
 void stock_save_mappings(void) {}
+u8 PD; u16 IDLE_COUNT, STICK_LX, STICK_LY, STICK_RX, STICK_RY; u32 RAW_WORD;
+void stock_idle(void) {}
+int stock_connected_bt(void) { return 0; }
+int stock_connected_24g(void) { return 0; }
+void stock_da58(u32 a) {}
+void stock_reboot(void) {}
+void stock_sweep(void) {}
 void stock_chords(void) { stock_passes++; }
 void stock_vendor_a(u8 *p) { printf("VA\n"); }
 void stock_vendor_b(u8 *p) { printf("VB\n"); }

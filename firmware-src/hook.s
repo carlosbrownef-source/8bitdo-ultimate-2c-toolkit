@@ -37,6 +37,18 @@
 	.section .hscan, "ax"
 	tjl	scan_hook
 
+@ Fixes: the main loop's call to the idle task, the end of a USB connection, and the Bluetooth update's write handler.
+	.section .hidletask, "ax"
+	tjl	idle_task
+	.section .hunplug, "ax"
+	tjl	unplug_task
+	.section .hota, "a"
+	.word	no_write + 1
+
+@ Finer stick movement: the ADC pass before each report.
+	.section .hsweep, "ax"
+	tjl	two_sweeps
+
 @ 0xd1c8 loaded the idle counter into r2 and the limit 8999 into r3 for the compare after it. This loads the limit from the
 @ settings, or the stock value until they're loaded. It doesn't touch the other registers.
 	.section .hidle, "ax"

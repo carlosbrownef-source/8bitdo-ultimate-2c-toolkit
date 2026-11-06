@@ -230,6 +230,38 @@ class FromEarlierVersionsTest(unittest.TestCase):
             t = target(run, e.new)
             self.assertTrue(recipes.RING_CODE[0] < t < recipes.RING_CODE[1], hex(e.addr))
 
+    def test_fixes_need_a_ring_level_and_identify(self):
+        with self.assertRaises(RecipeError):
+            recipes.build(self.stock, ["fixes"], **self.k)
+        st = recipes.identify(recipes.build(self.stock, ["ring_5", "fixes"], **self.k), **self.k)
+        self.assertEqual(st.recipes, ("fixes", "ring_5"))
+
+    def test_fixes_points_the_update_handler_into_the_tail(self):
+        img = recipes.build(self.stock, ["ring_5", "fixes"], **self.k)
+        pointer = int.from_bytes(img[0x178CC - image.BASE:0x178D0 - image.BASE], "little")
+        self.assertTrue(pointer & 1 and recipes.RING_CODE[0] < pointer < recipes.RING_CODE[1], hex(pointer))
+
+    def test_fixed_tweaks_change_exactly_their_bytes(self):
+        want = {"ble_interval": {0xA0DE: "09a00ca100a2c8a3"}, "soft_rumble": {0xF968: "01aa"}}
+        for key, edits in want.items():
+            self.assertEqual({e.addr: e.new.hex() for e in recipes.RECIPES[key].edits}, edits, key)
+
+    def test_finer_sticks_change_the_threshold_in_all_four_places(self):
+        edits = {e.addr: e.new for e in recipes.RECIPES["stick_precision"].edits}
+        for addr in (0xB1F2, 0xB208, 0xB220, 0xB238):
+            self.assertEqual(edits[addr], bytes([recipes.STICK_THRESHOLD]), hex(addr))
+        self.assertEqual(recipes.STICK_THRESHOLD, 8)
+        self.assertEqual(len(edits[0xA2DC]), 4)
+
+    def test_finer_sticks_need_the_tail(self):
+        with self.assertRaises(RecipeError):
+            recipes.build(self.stock, ["stick_precision"], **self.k)
+
+    def test_all_new_tweaks_together_with_every_other(self):
+        keys = KEYS + ["ring_5", "battery_alerts", "settings", "fixes", "stick_precision", "ble_interval", "soft_rumble"]
+        st = recipes.identify(recipes.build(self.stock, keys, **self.k), **self.k)
+        self.assertEqual((st.known, st.recipes), (True, tuple(sorted(keys))))
+
     def test_current_firmware_is_not_outdated(self):
         self.assertFalse(recipes.identify(recipes.build(self.stock, ["ring_5"], **self.k), **self.k).outdated)
 
