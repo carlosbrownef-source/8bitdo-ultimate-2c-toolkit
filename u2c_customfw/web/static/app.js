@@ -119,7 +119,12 @@ function render() {
 const TABS = ["firmware", "settings", "diagnostics"];
 let tab = "firmware";
 function showTab(name) {
-  if (name !== tab) (name === "diagnostics" ? diagnosticsShow : diagnosticsHide)();
+  if (name !== tab) {  // both tabs listen to the bridge, so the one being left stops first
+    if (tab === "diagnostics") diagnosticsHide();
+    if (tab === "settings") settingsHide();
+    if (name === "diagnostics") diagnosticsShow();
+    if (name === "settings") settingsShow();
+  }
   tab = name;
   for (const t of TABS) {
     $(`tab-${t}`).hidden = name !== t;

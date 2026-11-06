@@ -150,6 +150,11 @@ function finishVibrate(line) {
 }
 
 window.u2cDiagnostics = (e) => {
+  if (e.type === "result" && e.op === "ring") {  // the Home ring card is in another tab
+    if (ringAsked && e.id === ringAsked.id) ringDone(e.ok ? null : e.error || "It couldn't be sent.", ringAsked.level, ringAsked.save);
+    return;
+  }
+  if (e.type === "input" && tab === "settings") return settingsLive(e);
   if (!testVisible) return;
   if (e.type === "state") {
     if (e.connected && testName && e.name !== testName) testSeen = new Set();
@@ -167,8 +172,6 @@ window.u2cDiagnostics = (e) => {
     if (e.rt > TRIGGER_SEEN) testSeen.add("RT");
     paintInput(e);
     paintSeen();
-  } else if (e.type === "result" && e.op === "ring") {
-    if (ringAsked && e.id === ringAsked.id) ringDone(e.ok ? null : e.error || "It couldn't be sent.", ringAsked.level, ringAsked.save);
   } else if (e.type === "result" && testPending && e.id === testId) {
     const direct = testPending === "direct";
     finishVibrate(!e.ok ? e.error || "It couldn't be sent." : direct ? "Sent. You'll only feel it if Rumble over Bluetooth is installed." : "Sent. Did you feel it?");

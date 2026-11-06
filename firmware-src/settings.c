@@ -9,6 +9,9 @@
 #define VERSION 1
 
 void motor_set(u32 strong, u32 weak, u32 hold); /* 0xfa68 */
+u32 stock_limit(int x, int y);                  /* 0x890, the stock dead zone: the same arguments and result as stick_left */
+u32 stock_isqrt(u32 v);                         /* 0x84c */
+void stock_scan(u32 *word, u8 *lt, u8 *rt);     /* 0xc3a8: digital triggers, mapping and turbo */
 
 #ifdef HOST
 #include <string.h>
@@ -19,12 +22,14 @@ void flash_erase(u32 addr);
 void flash_write(u32 addr, u32 n, u8 *data);
 void flash_read(u32 addr, u32 n, u8 *data);
 u32 stock_crc(u8 *p, u32 n);
+extern u8 DZ_OFF;
 #define S settings_ram
 void settings_reset_for_test(void) { memset(&S, 0, sizeof S); IDLE_LIMIT = 0; }
 #else
 void flash_unlock(void);       /* 0xbd00 */
 void flash_erase(u32 addr);    /* 0xfe98 */
 u32 stock_crc(u8 *p, u32 n);   /* 0xaf80 */
+#define DZ_OFF (*(volatile u8 *)0x8433d6)      /* the firmware's dead zone switch, flipped by Start + Select */
 #define flash_write(a, n, d) ((void (*)(u32, u32, u8 *))*(volatile u32 *)0x842e3c)(a, n, d)
 #define flash_read(a, n, d) ((void (*)(u32, u32, u8 *))*(volatile u32 *)0x842e50)(a, n, d)
 #define S (*(struct settings *)0x841680) /* not volatile: nothing here waits in a loop for another context's change */
@@ -58,7 +63,13 @@ static void set_defaults(void)
 /* What the hooks use, worked out once rather than on every pass. */
 static void changed(void)
 {
+	u32 i;
+
 	IDLE_LIMIT = S.f[F_IDLE_MIN] * 600 - 1;
+	for (i = 0; i < 2; i++)
+		S.stick_custom[i] = S.f[F_DZ_L + i] != defaults[F_DZ_L] || S.f[F_OUTER_L + i] != 100 || S.f[F_CURVE_L + i]
+			|| (S.f[F_INVERT] >> (2 * i) & 3);
+	S.triggers_custom = S.f[F_LT_START] || S.f[F_RT_START] || S.f[F_LT_END] != 100 || S.f[F_RT_END] != 100;
 }
 
 static int stored_ok(void)
@@ -133,6 +144,80 @@ void settings_vendor(u8 *p)
 	} else if (p[3] == 0x56) {
 		S.reset = 1;
 	}
+}
+
+#define FULL 32767
+#define BIGGEST 46340 /* its square, twice, still fits in 32 bits */
+
+static int limit(int v)
+{
+	return v > BIGGEST ? BIGGEST : v < -BIGGEST ? -BIGGEST : v;
+}
+
+/* One axis: scale, centre, clamp, and maybe invert. m is at most 0xffff and |v| at most BIGGEST, so the product fits unsigned. */
+static u32 axis(int v, u32 m, u32 r, u32 invert)
+{
+	u32 a = (v < 0 ? -v : v) * m / r;
+	int o = v < 0 ? 0x7fff - (int)a : 0x7fff + (int)a;
+
+	o = o > 0xffff ? 0xffff : o < 0 ? 0 : o;
+	return invert ? 0xffff - o : o;
+}
+
+/* The stock code's shape, with a size and a curve: nothing inside the dead zone, then the distance from the centre rescaled to
+ * full range at the outer limit. Past that it keeps growing, as stock does, so the corners stay reachable. */
+u32 stick_shape(int x, int y, u32 side)
+{
+	u32 dz = DZ_OFF == 1 ? 0 : S.f[F_DZ_L + side] * FULL / 100;
+	u32 outer = S.f[F_OUTER_L + side] * FULL / 100, r, m, inv = S.f[F_INVERT] >> (2 * side);
+
+	x = limit(x);
+	y = limit(y);
+	r = stock_isqrt((u32)(x * x) + (u32)(y * y));
+	if (r <= dz) {
+		r = 1;
+		m = 0;
+	} else {
+		m = (r - dz) * FULL / (outer - dz);
+		if (m > 0xffff)
+			m = 0xffff;
+		if (m < FULL) {
+			u32 sq = m * m / (2 * FULL);
+			if (S.f[F_CURVE_L + side] == 1)
+				m = m / 2 + sq;
+			else if (S.f[F_CURVE_L + side] == 2)
+				m = m + m / 2 - sq;
+		}
+	}
+	return axis(x, m, r, inv & 1) | axis(y, m, r, inv & 2) << 16;
+}
+
+u32 stick_left(int x, int y)
+{
+	return S.stick_custom[0] ? stick_shape(x, y, 0) : stock_limit(x, y);
+}
+
+u32 stick_right(int x, int y)
+{
+	return S.stick_custom[1] ? stick_shape(x, y, 1) : stock_limit(x, y);
+}
+
+static u32 trigger(u32 v, u32 start, u32 end)
+{
+	u32 lo = start * 255 / 100, hi = end * 255 / 100;
+
+	return v <= lo ? 0 : v >= hi ? 255 : (v - lo) * 255 / (hi - lo);
+}
+
+/* The button scan's call to stock_scan, every 5 ms: changes go in before it, so it still works out the digital triggers,
+ * mapping and turbo from them. */
+void scan_hook(u32 *word, u8 *lt, u8 *rt)
+{
+	if (S.triggers_custom) {
+		*lt = trigger(*lt, S.f[F_LT_START], S.f[F_LT_END]);
+		*rt = trigger(*rt, S.f[F_RT_START], S.f[F_RT_END]);
+	}
+	stock_scan(word, lt, rt);
 }
 
 /* The games' rumble: the 2.4 GHz and cable calls to 0xfa68, and Bluetooth through rumble_tail. */

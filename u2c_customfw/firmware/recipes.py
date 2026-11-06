@@ -126,6 +126,9 @@ def _make() -> dict[str, Recipe]:
             Edit(0xA0F8, _blob("hbuzza.bin")),                   # vibrating on connecting, Bluetooth ...
             Edit(0xDAA8, _blob("hbuzzb.bin")),                   # ... and 2.4 GHz
             Edit(0xD1C8, _blob("hidle.bin")),                    # the idle limit, from the settings
+            Edit(0x6A90, _blob("hstickl.bin")),                  # each stick's dead zone code, run from RAM at 0xa90 ...
+            Edit(0x6ABC, _blob("hstickr.bin")),                  # ... and 0xabc
+            Edit(0xC910, _blob("hscan.bin")),                    # the button scan: triggers, and later remapping
         ), requires_group="ring"),
     )}
 

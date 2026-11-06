@@ -61,6 +61,11 @@
     setvibration: () => document.querySelector('[data-field="vibration"] [data-value="50"]').click(),
     setandsave: () => { document.querySelector('[data-field="vibration"] [data-value="50"]').click(); setTimeout(() => $("settings-save").click(), 200); },
     setandfailsave: () => { window.simFailSave = true; document.querySelector('[data-field="vibration"] [data-value="50"]').click(); setTimeout(() => $("settings-save").click(), 200); },
+    dragdz: () => { const c = document.querySelector('[data-field="dz_l"]'); c.value = 5; c.dispatchEvent(new Event("input")); c.value = 9; c.dispatchEvent(new Event("input")); c.dispatchEvent(new Event("change")); },
+    invert: () => { document.querySelector('[data-field="invert"][data-bit="0"]').click(); setTimeout(() => document.querySelector('[data-field="invert"][data-bit="2"]').click(), 200); },
+    liveinput: () => window.u2cDiagnostics({ type: "input", ...REST, lx: 0.5, ly: -0.5, lt: 0.5 }),
+    leavesettings: () => showTab("firmware"),
+    settingstodiag: () => showTab("diagnostics"),
     resetopen: () => $("settings-reset").click(),
     resetyes: () => { $("settings-reset").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); }, 200); },  // headless Chrome holds back the close event
     ringlevel: () => document.querySelector('[data-live="1"]').click(),

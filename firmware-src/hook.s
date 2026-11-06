@@ -27,6 +27,16 @@
 	.section .hbuzzb, "ax"
 	tjl	connect_buzz
 
+@ Two calls in the code that runs from RAM (run address 0xa90 and 0xabc, image 0x6a90 and 0x6abc), once for each stick.
+	.section .hstickl, "ax"
+	tjl	stick_left
+	.section .hstickr, "ax"
+	tjl	stick_right
+
+@ The button scan's call to 0xc3a8.
+	.section .hscan, "ax"
+	tjl	scan_hook
+
 @ 0xd1c8 loaded the idle counter into r2 and the limit 8999 into r3 for the compare after it. This loads the limit from the
 @ settings, or the stock value until they're loaded. It doesn't touch the other registers.
 	.section .hidle, "ax"

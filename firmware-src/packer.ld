@@ -19,6 +19,9 @@ SECTIONS
 	.hbuzza 0xa0f8 : { *(.hbuzza) }
 	.hbuzzb 0xdaa8 : { *(.hbuzzb) }
 	.hidle 0xd1c8 : { *(.hidle) }
+	.hstickl 0xa90 : AT(0x6a90) { *(.hstickl) }
+	.hstickr 0xabc : AT(0x6abc) { *(.hstickr) }
+	.hscan 0xc910 : { *(.hscan) }
 	.ringtail 0x18400 : { *(.text.rumble_tail) *(.text*) *(.rodata*) }
 	.rest : { *(.text*) *(.data*) *(.bss*) *(COMMON) }
 	/DISCARD/ : { *(.comment) }
@@ -32,5 +35,5 @@ ASSERT(SIZEOF(.hook) == 4, "hook is one tjl")
 ASSERT(rumble_tail == 0x18400, "rumble_tail is not first in the blank area")
 ASSERT(SIZEOF(.ringtail) <= 0x18ff0 - 0x18400, "the Home ring's code overflows the blank area")
 ASSERT(SIZEOF(.ringhook) == 4 && SIZEOF(.vhooka) == 4 && SIZEOF(.vhookb) == 4 && SIZEOF(.pollhook) == 4, "a hook isn't one tjl")
-ASSERT(SIZEOF(.hgamea) == 4 && SIZEOF(.hgameb) == 4 && SIZEOF(.hbuzza) == 4 && SIZEOF(.hbuzzb) == 4 && SIZEOF(.hidle) == 4, "a settings hook isn't one tjl")
+ASSERT(SIZEOF(.hgamea) == 4 && SIZEOF(.hgameb) == 4 && SIZEOF(.hbuzza) == 4 && SIZEOF(.hbuzzb) == 4 && SIZEOF(.hidle) == 4 && SIZEOF(.hstickl) == 4 && SIZEOF(.hstickr) == 4 && SIZEOF(.hscan) == 4, "a settings hook isn't one tjl")
 ASSERT(SIZEOF(.rest) == 0, "unplaced code or data")

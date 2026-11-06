@@ -223,6 +223,51 @@ class SettingsTabTest(PageCase):
         dom = self.server.dom("&diagsim=boot&scenario=installed")
         self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,ring_normal")
 
+    def test_sticks_and_triggers_have_their_controls(self):
+        dom = self.server.dom(self.READY)
+        for field in ("dz_l", "dz_r", "outer_l", "outer_r", "curve_l", "curve_r", "lt_start", "lt_end", "rt_start", "rt_end"):
+            self.assertIsNotNone(self.control(dom, field), field)
+        dz = self.control(dom, "dz_l")
+        self.assertEqual((dz.attrs["min"], dz.attrs["max"], dz.attrs["value"]), ("0", "30", "14"))
+        self.assertEqual(sum(n.attrs.get("data-field") == "invert" for n in dom.find("settings-cards").walk()), 4)
+
+    def test_a_slider_sends_when_it_is_let_go(self):
+        dom = self.server.dom(self.READY + "&scenario=dragdz")
+        self.assertEqual(dom.find("diag-posted").all_text().strip(), '{"set":{"dz_l":9}}')
+        self.assertEqual(self.control(dom, "dz_l").attrs["value"], "9")
+        self.assertIn("9 %", dom.find("settings-cards").all_text())
+
+    def test_an_axis_changes_one_bit_of_the_invert_field(self):
+        dom = self.server.dom(self.READY + "&scenario=invert")
+        self.assertIn('{"set":{"invert":5}}', dom.find("diag-posted").all_text())
+
+    def test_live_view_on_settings(self):
+        dom = self.server.dom(self.READY + "&scenario=liveinput")
+        self.assertIn("start", dom.find("diag-sent").all_text())
+        self.assertIn("translate(", dom.find("live-left").attrs.get("style", ""))
+        self.assertIn("width: 50%", dom.find("live-lt").attrs.get("style", ""))
+        self.assertIn("hidden", dom.find("live-note").attrs)
+
+    def test_leaving_settings_stops_it(self):
+        dom = self.server.dom(self.READY + "&scenario=leavesettings")
+        sent = dom.find("diag-sent").all_text()
+        self.assertGreater(sent.rindex('"stop"'), sent.rindex('"start"'))
+
+    def test_going_to_diagnostics_keeps_the_controller_test_running(self):
+        dom = self.server.dom(self.READY + "&scenario=settingstodiag")
+        sent = dom.find("diag-sent").all_text()
+        self.assertGreater(sent.rindex('"start"'), sent.rindex('"stop"'))
+
+    def test_settings_work_without_the_bridge(self):
+        dom = self.server.dom("&diagsim=web&tweaks=1&settings=1&open=settings&scenario=setvibration")
+        self.assertIn("Mac app", dom.find("live-note").all_text())
+        self.assertIn('{"set":{"vibration":50}}', dom.find("diag-posted").all_text())
+
+    def test_a_ring_answer_arrives_while_on_this_tab(self):
+        dom = self.server.dom("&diagsim=bt&open=settings&scenario=ringlevel")
+        self.assertNotIn("No answer", dom.find("ring-note").all_text())
+        self.assertIn("Sent", dom.find("ring-note").all_text())
+
     def test_controls_are_off_while_a_change_is_on_its_way(self):
         dom = self.server.dom(self.READY + "&slow=1&scenario=setvibration", 1200)
         self.assertIn("disabled", next(n for n in self.control(dom, "vibration").walk() if n.attrs.get("data-value") == "50").attrs)

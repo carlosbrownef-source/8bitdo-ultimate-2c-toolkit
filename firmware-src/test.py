@@ -29,6 +29,10 @@ void flash_erase(u32 a) { printf("ERASE %x\n", a); }
 void flash_write(u32 a, u32 n, u8 *d) { printf("WRITE %x\n", a); }
 void flash_read(u32 a, u32 n, u8 *d) { for (u32 i = 0; i < n; i++) d[i] = 0xff; }
 u32 stock_crc(u8 *p, u32 n) { return 0; }
+u32 stock_limit(int x, int y) { return 0; }
+u32 stock_isqrt(u32 v) { return 0; }
+void stock_scan(u32 *w, u8 *lt, u8 *rt) {}
+u8 DZ_OFF;
 void stock_chords(void) { stock_passes++; }
 void stock_vendor_a(u8 *p) { printf("VA\n"); }
 void stock_vendor_b(u8 *p) { printf("VB\n"); }

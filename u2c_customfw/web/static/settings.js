@@ -2,7 +2,22 @@
 // The Settings tab: the Home ring, and the settings the firmware keeps in its own record. A change goes to the controller
 // at once and lasts until it's turned off, unless it's saved. Controls are built from SETTINGS_CARDS and the fields the app
 // serves, which hold the ranges.
+const percent = (v) => `${v} %`;
+const stickRows = (side, bit) => [
+  { field: `dz_${side}`, label: "Dead zone", kind: "range", format: percent },
+  { field: `outer_${side}`, label: "Full movement at", kind: "range", format: percent },
+  { field: `curve_${side}`, label: "Response", kind: "seg", format: (v) => ["Linear", "Precise", "Quick"][v] },
+  { field: "invert", bit, label: "Invert left and right", kind: "bit" },
+  { field: "invert", bit: bit + 1, label: "Invert up and down", kind: "bit" },
+];
 const SETTINGS_CARDS = [
+  { title: "Sticks", wide: true, text: "The dead zone is how far a stick moves before it counts. Precise moves slowly near the centre for fine aiming, and Quick moves faster.", columns: [
+    { heading: "Left stick", rows: stickRows("l", 0) }, { heading: "Right stick", rows: stickRows("r", 2) },
+  ] },
+  { title: "Triggers", wide: true, text: "How far a trigger moves before it starts to count, and where it reaches full.", columns: [
+    { heading: "Left trigger", rows: [{ field: "lt_start", label: "Starts at", kind: "range", format: percent }, { field: "lt_end", label: "Full at", kind: "range", format: percent }] },
+    { heading: "Right trigger", rows: [{ field: "rt_start", label: "Starts at", kind: "range", format: percent }, { field: "rt_end", label: "Full at", kind: "range", format: percent }] },
+  ] },
   { title: "Vibration", text: "How strongly games make the controller vibrate. Battery alerts keep their own strength.", rows: [
     { field: "vibration", label: "Vibration from games", kind: "seg", format: (v) => `${v} %` },
   ] },
@@ -29,11 +44,23 @@ function settingsMount() {
   const box = $("settings-cards");
   box.replaceChildren(...SETTINGS_CARDS.map((card) => {
     const section = document.createElement("section");
-    section.className = "cd";
+    section.className = card.wide ? "cd set-wide" : "cd";
     section.innerHTML = `<h2></h2><p></p>`;
     section.querySelector("h2").textContent = card.title;
     section.querySelector("p").textContent = card.text;
-    card.rows.forEach((row) => section.append(settingsRow(row, fields[row.field])));
+    if (card.columns) {
+      const cols = document.createElement("div");
+      cols.className = "set-cols";
+      card.columns.forEach((column) => {
+        const box = document.createElement("div"), h = document.createElement("h3");
+        h.textContent = column.heading;
+        box.append(h, ...column.rows.map((row) => settingsRow(row, fields[row.field])));
+        cols.append(box);
+      });
+      section.append(cols);
+    } else {
+      card.rows.forEach((row) => section.append(settingsRow(row, fields[row.field])));
+    }
     return section;
   }));
 }
@@ -56,11 +83,28 @@ function settingsRow(row, field) {
       seg.append(b);
     });
     line.append(seg);
-  } else if (row.kind === "toggle") {
-    const t = document.createElement("label");
-    t.className = "set-toggle";
-    t.innerHTML = `<input type="checkbox" data-field="${row.field}"><span class="sw"></span>`;
-    t.querySelector("input").onchange = (e) => settingsChange(row.field, e.target.checked ? 1 : 0);
+  } else if (row.kind === "range") {
+    const box = document.createElement("div"), input = document.createElement("input"), out = document.createElement("output");
+    box.className = "set-range";
+    input.type = "range"; input.min = field.low; input.max = field.high; input.dataset.field = row.field;
+    input.setAttribute("aria-label", row.label);
+    input.oninput = () => { out.textContent = row.format(+input.value); };  // the controller hears about it when it's let go
+    input.onchange = () => settingsChange(row.field, +input.value);
+    input.paintOut = (v) => { out.textContent = row.format(v); };
+    box.append(input, out);
+    line.append(box);
+  } else if (row.kind === "toggle" || row.kind === "bit") {
+    const t = document.createElement("label"), input = document.createElement("input"), sw = document.createElement("span");
+    t.className = "set-toggle"; sw.className = "sw";
+    input.type = "checkbox"; input.dataset.field = row.field;
+    input.setAttribute("aria-label", row.label);
+    if (row.kind === "bit") {
+      input.dataset.bit = row.bit;
+      input.onchange = () => settingsChange(row.field, settingsValues[row.field] ^ (1 << row.bit));
+    } else {
+      input.onchange = () => settingsChange(row.field, input.checked ? 1 : 0);
+    }
+    t.append(input, sw);
     line.append(t);
   }
   return line;
@@ -72,7 +116,9 @@ function settingsPaint() {
     if (c.classList.contains("seg")) {
       c.querySelectorAll("button").forEach((b) => { b.classList.toggle("on", +b.dataset.value === v); b.disabled = settingsBusy; });
     } else if (c.type === "checkbox") {
-      c.checked = !!v; c.disabled = settingsBusy;
+      c.checked = c.dataset.bit === undefined ? !!v : !!(v >> +c.dataset.bit & 1); c.disabled = settingsBusy;
+    } else if (c.type === "range") {
+      c.value = v; c.setAttribute("value", v); c.paintOut(v); c.disabled = settingsBusy;
     }
   });
   $("settings-save").disabled = $("settings-reset").disabled = settingsBusy;
@@ -125,6 +171,25 @@ async function settingsReset() {
   settingsPaint();
 }
 
+function settingsLive(e) {  // what macOS reports, to see a change's effect straight away
+  const place = (el, x, y) => { el.style.transform = `translate(${x * 24}px, ${-y * 24}px)`; };
+  place($("live-left"), e.lx, e.ly); place($("live-right"), e.rx, e.ry);
+  $("live-lt").style.width = `${Math.round(e.lt * 100)}%`; $("live-rt").style.width = `${Math.round(e.rt * 100)}%`;
+  $("live-note").hidden = true;
+}
+
+function settingsShow() {
+  const b = bridge();
+  $("live-note").hidden = false;
+  $("live-note").textContent = b ? "Move a stick or press a trigger to see it here." : "This live view only works in the Mac app. The settings work anyway.";
+  if (b) b.postMessage({ op: "start" });
+}
+
+function settingsHide() {
+  const b = bridge();
+  if (b) b.postMessage({ op: "stop" });
+}
+
 function settingsRender() {
   ringRender();
   if (fw !== settingsRead) { settingsRead = fw; settingsData = null; settingsMessage = ""; }  // each read of the firmware can mean another controller
@@ -133,7 +198,7 @@ function settingsRender() {
   const ready = !reason && settingsData && settingsData.available;
   $("settings-note").textContent = reason || (settingsData && settingsData.note) || (ready ? "" : "Reading the settings…");
   $("settings-note").hidden = !!ready;
-  $("settings-cards").hidden = $("settings-actions").hidden = !ready;
+  $("settings-cards").hidden = $("settings-actions").hidden = $("live-card").hidden = !ready;
   if (ready) settingsPaint();
 }
 
