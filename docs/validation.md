@@ -73,4 +73,5 @@ Nothing here has run on a controller yet. Each write needs its own go-ahead.
 5. Calibration with the guide, and sticks and triggers afterwards.
 6. Fixes: only sticks past a short test limit; the Mac's Bluetooth off after a minute idle; unplugging; a sleeping Mac with the cable in, which must not restart; a plain charger; the Bluetooth update no longer answering.
 7. Connection request: reports per second over 60 s, then 30 minutes with rumble. Soft start: low strengths from rest, both motors.
-8. 30 minutes of a game over Bluetooth with rumble on code running from the tail. A painted-stack build for the main stack's margin.
+8. 30 minutes of a game over Bluetooth with rumble on code running from the tail.
+9. Before publishing, the main stack's margin with a build compiled with `-DSTACK_TEST` (`firmware-src/settings.c`): how much stays unused after playing by cable and over Bluetooth, with every setting changed, saving, and rumble running. At least 100 of its 784 bytes should stay unused.

@@ -7,7 +7,7 @@ from pathlib import Path
 class SmokeTest(unittest.TestCase):
     def test_version(self):
         import u2c_customfw
-        self.assertEqual(u2c_customfw.__version__, "0.3.0")
+        self.assertEqual(u2c_customfw.__version__, "0.4.0")
 
 
 ROOT = Path(__file__).parent.parent

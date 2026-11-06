@@ -139,8 +139,45 @@ static void set_dead_zone_off(u32 off)
 	S.dz_changed = 1;
 }
 
+#ifdef STACK_TEST
+/* Test build only (General/8bitdo/tools/stackmark): how much of the main stack, 0x843cf0-0x844000, has never been used since
+ * the first pass of the main loop. It fills the deep part with a pattern, and 81 05 00 59 answers with what's still intact. */
+void stock_send(u8 *data, u32 n, u32 interface); /* 0xeb7c */
+void stock_clear(u8 *p, u32 value, u32 n);       /* 0x103f8, memset */
+#define STACK_BOTTOM ((volatile u32 *)0x843cf0)
+#define STACK_MARKED ((volatile u32 *)0x843f00)  /* the main loop's first pass is far shallower than this */
+#define PAINT 0x5a5a5a5a
+
+static void stack_paint(void)
+{
+	volatile u32 *p = STACK_BOTTOM;
+
+	while (p < STACK_MARKED)
+		*p++ = PAINT;
+}
+
+static void stack_answer(void)
+{
+	u8 r[64];
+	volatile u32 *p = STACK_BOTTOM;
+	u32 n;
+
+	while (*p == PAINT && p < STACK_MARKED)
+		p++;
+	n = (u32)p - (u32)STACK_BOTTOM;
+	stock_clear(r, 0, 64);
+	r[0] = 0x59;
+	r[1] = n;
+	r[2] = n >> 8;
+	stock_send(r, 63, 2);
+}
+#endif
+
 static void load(void)
 {
+#ifdef STACK_TEST
+	stack_paint();
+#endif
 	flash_read(SECTOR, RECORD_SIZE, (u8 *)&S);
 	if (!stored_ok())
 		set_defaults();
@@ -211,6 +248,10 @@ void settings_vendor(u8 *p)
 	} else if (p[3] == 0x58) {
 		if (p[4] < 2)
 			set_dead_zone_off(p[4]);
+#ifdef STACK_TEST
+	} else if (p[3] == 0x59) {
+		stack_answer();
+#endif
 	}
 }
 
@@ -317,6 +358,9 @@ void connect_buzz(u32 strong, u32 weak, u32 hold)
  * dropped connection gets its full search time, since stock goes on counting from wherever it was. */
 #define MOVED 0x1000
 
+#ifdef STACK_TEST
+void idle_task(void) { stock_idle(); } /* the test build has no room for it; it's installed without Fixes */
+#else
 void idle_task(void)
 {
 	static volatile u16 *const sticks[4] = {&STICK_LX, &STICK_LY, &STICK_RX, &STICK_RY};
@@ -335,6 +379,7 @@ void idle_task(void)
 	S.was_connected = connected;
 	stock_idle();
 }
+#endif
 
 /* The cable stopped being a USB host. In the Bluetooth position, with no power left on it, restart: that finds the Mac at
  * once, where the firmware otherwise stays searching. PD0 tells this from a sleeping Mac, which comes through here too. */
