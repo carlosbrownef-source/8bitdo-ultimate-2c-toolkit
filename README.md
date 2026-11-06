@@ -13,6 +13,7 @@ Everything your **8BitDo Ultimate 2C Wireless** needs on a Mac, in one app. Firm
 - **Rumble over Bluetooth.** The original firmware doesn't vibrate over Bluetooth, and this makes it respond to games.
 - **Adjustable light.** Choose how bright the ring around the Home button is, or turn it off, and change it at any time from the app or with L4 + R4 on the controller. You can also dim the other lights.
 - **Battery alerts.** The ring and motors tell you when the battery is low, and when charging starts and completes.
+- **Settings that change at once.** Set the sticks' dead zone, range and response, the triggers' range and the vibration from games, map L4 and R4, remap the buttons, and choose when the controller turns itself off, without installing anything each time.
 - **Tests the controller.** See what macOS reports, including the battery, check every button, stick and trigger, and try the vibration.
 - **Backs up and restores.** Save a full copy of the controller's memory first, and go back to it or to 8BitDo's original firmware at any time.
 
@@ -46,7 +47,22 @@ The app's **Help** button explains each step and why each tweak is needed.
 2. **Tweaks**: choose tweaks, put the controller in update mode (turn it fully off, then hold L1 + R1 while plugging in the cable; the light will blink white), use *Check first*, then *Install tweaks*. Afterwards unplug the cable; if a Bluetooth tweak changed, remove the controller from Bluetooth settings and pair it again (macOS remembers the old description).
 3. **Restore**: if anything looks wrong, put the controller in update mode (hold L1 + R1 from power off and then connect the cable) and restore your backup, or 8BitDo's original firmware 1.09 (downloaded from 8BitDo's update server and checked against its known SHA-256).
 
-Safeguards, enforced in the code: the app writes nothing below `0x6000` (bootloader) or at/above `0x73000` (configuration, MAC, calibration, Bluetooth pairings), while saving a Home ring level makes the firmware rewrite its own settings record at `0x73000`, as it does for its other settings; a write needs a backup of the same unit (the bootloader matches, and so does the MAC, allowing for the small change each new pairing makes); the firmware must be the original 1.09, with or without the tweaks; the dongle is refused, by the bootloader's identity and by how its flash reads back; a pending firmware update refuses the patch; restoring 8BitDo's v1.09 is refused unless the controller really is on 1.09 (read from its update record, or, if that is blank, identified by the hash of bank A or bank B) and is also refused when the version cannot be determined (unless you use *Install firmware 1.09 anyway* in the Diagnostics tab, behind a warning and a confirmation that spells out the risks; it never overrides a version that is known to be different); every edit checks the stock bytes it replaces.
+Safeguards, enforced in the code: the app writes nothing below `0x6000` (bootloader) or at/above `0x73000` (configuration, MAC, calibration, Bluetooth pairings), while saving a Home ring level, a mapping or the dead zone switch makes the firmware rewrite its own settings record at `0x73000`, as it does for its other settings, and saving the settings makes it write its own record at `0x7a000`, which is blank on an original controller; a write needs a backup of the same unit (the bootloader matches, and so does the MAC, allowing for the small change each new pairing makes); the firmware must be the original 1.09, with or without the tweaks; the dongle is refused, by the bootloader's identity and by how its flash reads back; a pending firmware update refuses the patch; restoring 8BitDo's v1.09 is refused unless the controller really is on 1.09 (read from its update record, or, if that is blank, identified by the hash of bank A or bank B) and is also refused when the version cannot be determined (unless you use *Install firmware 1.09 anyway* in the Diagnostics tab, behind a warning and a confirmation that spells out the risks; it never overrides a version that is known to be different); every edit checks the stock bytes it replaces.
+
+## Settings
+
+The Settings tab changes the controller while it's connected by cable, once the Controller settings tweak is installed. A change applies at once and lasts until you turn the controller off, unless you press *Save to controller*. *Reset to defaults* puts everything back, and works without pressing any buttons on the controller. Restoring the firmware leaves saved settings where they are: the original firmware ignores them, and they apply again if you install the tweak again.
+
+- **Sticks:** the dead zone (14 % at first), where a stick reaches full movement, its response, and inverting either axis. Holding Start + Select for about 4 seconds turns the dead zones off and on from the controller.
+- **Triggers:** where each one starts to count and where it reaches full.
+- **L4 and R4:** what each one presses, including the triggers. Pressing L4 and R4 together changes the Home ring's brightness, and games also receive the buttons you mapped to them. Over Bluetooth, games don't see L4 and R4 at all unless you map them.
+- **Vibration:** how strongly games make the controller vibrate. Battery alerts keep their own strength.
+- **Power:** how long it stays on, connected, with nobody using it, and whether it vibrates on connecting.
+- **Button remapping:** what each button does, or nothing. Home and the triggers can't be changed.
+- **Calibration:** a guide to the controller's own stick calibration. The app doesn't send it anything.
+- **Home ring:** its brightness. This also works over Bluetooth, with Rumble over Bluetooth installed.
+
+With every setting at its default, the sticks, triggers and buttons run the firmware's original code. The live view at the top of the tab is only available in the Mac app; the settings work anyway.
 
 ## Diagnostics
 
@@ -67,8 +83,14 @@ The controller test is only available in the Mac app for now, because it uses ma
 | Rumble over Bluetooth | Rumble works over Bluetooth (the original firmware switches the motors off in that mode). Needs the Xbox tweak as it uses its profile. May hang the controller, though I haven't seen it happen. |
 | Xbox 360 controller over cable | Plugged in by cable it presents as a wired Xbox 360 pad (`045e:028e`), which Apple's own driver takes. This is the simplest tweak if you want to avoid modding too much of the controller's code |
 | Dimmer LEDs | The three LEDs use weak drive strength: a little dimmer. The effect is barely noticeable, but the LEDs are so bright everything helps IMO. |
-| Home ring brightness | Sets the ring around the Home button while connected: 25 %, 5 %, 1 %, 0.1 % or off (the percentage is PWM duty, not perceived brightness). It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. You can change the level at once with L4 + R4 on the controller, or in the Diagnostics tab, and save it without installing anything. Installing a different level replaces a saved one. |
+| Home ring brightness | Sets the ring around the Home button while connected: 25 %, 5 %, 1 %, 0.1 % or off (the percentage is PWM duty, not perceived brightness). It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. You can change the level at once with L4 + R4 on the controller, or in the Settings tab, and save it without installing anything. Installing a different level replaces a saved one. |
 | Battery alerts | The ring blinks slowly while charging and quickly at 15 % or less, even if you turned it off. The motors give one short pulse when charging starts, one long pulse when it completes, and two short pulses at 5 % or less, again every 5 minutes. With this on and the brightness on Normal, the ring's code is installed at full brightness. |
+
+| Controller settings | Adds what the Settings tab changes. Needs the Home ring's code, which is installed at full brightness if you don't choose a level. |
+| Fixes | Moving a stick counts as using the controller, which the original firmware only notices through buttons, so playing only with sticks no longer turns it off after 15 minutes. A dropped connection gets its full search time. Unplugging the cable in the Bluetooth position restarts the controller, so it finds the Mac at once. It also closes the firmware update over Bluetooth, which needs no encryption. Needs the Home ring's code. |
+| Finer stick movement | The firmware ignores stick changes of up to 20 of about 4,000 steps, which makes slow movement advance in small jumps. This lowers that threshold and reads the sticks twice per report. Too low a threshold can make a stick with no dead zone jitter. Off by default until it has been measured. Needs the Home ring's code. |
+| Standard Bluetooth connection request | The firmware asks for a connection interval and latency outside what Apple documents. This asks for 11.25-15 ms with no latency instead, which could mean more reports per second if macOS accepts. Off by default until it has been measured. |
+| Softer rumble start | Every vibration starts at 95 % for 40 ms, however weak it's meant to be. This makes that 20 ms. A motor may fail to start at very low strength. Off by default until it has been measured. |
 
 Each tweak is a hash-checked set of byte edits to the stock v1.09 image; nothing else in the firmware changes, and the controller's bootloader, MAC, calibration and pairings are never written.
 
