@@ -34,5 +34,5 @@ The linker's warning that `.rumble` overlaps a previous section is expected: `no
 ## Test
 
 `python3 firmware-src/test.py` compiles `packer.c` natively (`-DHOST`) and checks every field of the input report
-against a model built from `report-map.hex`, the rumble handler against the Xbox rumble report, and `ring_led` against
+against a model built from `report-map.hex`, the rumble handler against the Xbox rumble report, and `ring_tick` against
 the PWM1 and PB7 registers.

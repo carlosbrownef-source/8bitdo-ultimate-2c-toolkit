@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Native test of packer.c: compile it for the Mac (-DHOST), feed input vectors, and check each report field by field
 against a model. The field layout is parsed from report-map.hex; the meaning of the 2C's state comes from the stock
-firmware (360 converter, stock packer), not from the C. The TC32 build itself is checked by patch.py."""
+firmware (360 converter, stock packer), not from the C. The TC32 build itself is done by build.sh in the VM."""
 import itertools, os, random, subprocess, sys, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -40,7 +40,7 @@ int main(void) {
     unsigned b, lx, ly, rx, ry, lt, rt;
     char line[256];
     while (fgets(line, sizeof line, stdin)) {
-        if (line[0] == 'L') { /* L <mode> <level> <fill>: one ring_led call on registers all set to fill, then their state */
+        if (line[0] == 'L') { /* L <mode> <level> <fill>: one ring_tick call on registers all set to fill, then their state */
             unsigned mode, level, fill;
             sscanf(line + 2, "%x %x %x", &mode, &level, &fill);
             for (int i = 0; i < 0x1000; i++) REGS[i] = fill;
