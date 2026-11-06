@@ -24,6 +24,7 @@ OLD_RING_LEVELS = RING_LEVELS[:5]                             # what 0.2.0 could
 RING_ORDER = ("ring_normal", "ring_25", "ring_5", "ring_1", "ring_0_1", "ring_off")  # the firmware's level numbers
 RING_CODE = (0x18400, 0x18FF0)                                # blank on stock
 ALERTS_FLAG = 0x18FF0
+SETTINGS_FLAG = 0x18FF1
 STICK_THRESHOLD = 8                                           # stock's is 20; not measured yet on a real controller
 
 
@@ -129,7 +130,9 @@ def _make() -> dict[str, Recipe]:
             Edit(0xD1C8, _blob("hidle.bin")),                    # the idle limit, from the settings
             Edit(0x6A90, _blob("hstickl.bin")),                  # each stick's dead zone code, run from RAM at 0xa90 ...
             Edit(0x6ABC, _blob("hstickr.bin")),                  # ... and 0xabc
-            Edit(0xC910, _blob("hscan.bin")),                    # the button scan: triggers, and later remapping
+            Edit(0xC910, _blob("hscan.bin")),                    # the button scan: triggers and remapping
+            Edit(0x7210, _blob("sram.bin").ljust(0xC0, b"\0")),   # scan_hook, run from RAM at 0x1210 (dead RAM code)
+            Edit(SETTINGS_FLAG, b"\1"),                          # the code is there with any Home ring level: this says it's in use
         ), requires_group="ring"),
         Recipe("fixes", "Fixes", (), (
             Edit(0xA480, _blob("hidletask.bin")),                # sticks count as activity; a lost connection searches for its full time

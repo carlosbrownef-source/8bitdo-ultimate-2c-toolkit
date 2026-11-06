@@ -35,7 +35,7 @@ void stock_scan(u32 *w, u8 *lt, u8 *rt) {}
 u8 DZ_OFF, RECORD_DZ, MAP_TABLE[0x9c];
 u32 MAP_R4_A, MAP_R4_B, MAP_L4_A, MAP_L4_B;
 void stock_save_mappings(void) {}
-u8 PD; u16 IDLE_COUNT, STICK_LX, STICK_LY, STICK_RX, STICK_RY; u32 RAW_WORD;
+u8 PD, SETTINGS_FLAG = 1; u16 IDLE_COUNT, STICK_LX, STICK_LY, STICK_RX, STICK_RY; u32 RAW_WORD;
 void stock_idle(void) {}
 int stock_connected_bt(void) { return 0; }
 int stock_connected_24g(void) { return 0; }

@@ -82,6 +82,7 @@
       <p class="res" id="ring-note"></p>
     </section>
     <p class="set-note" id="settings-note"></p>
+    <button id="settings-retry" class="sec small" hidden>Try again</button>
     <section class="cd set-live" id="live-card" hidden>
       <div class="live-pad"><div><i id="live-left"></i></div><span>Left stick</span></div>
       <div class="live-pad"><div><i id="live-right"></i></div><span>Right stick</span></div>
@@ -90,7 +91,7 @@
     <div class="set-cards" id="settings-cards" hidden></div>
     <div class="set-actions" id="settings-actions" hidden>
       <button id="settings-save" class="small">Save to controller</button><button id="settings-reset" class="sec small">Reset to defaults</button>
-      <span class="hint" id="settings-unsaved" hidden>You have changes that aren't saved. They last until you turn the controller off.</span>
+      <span class="hint" id="settings-unsaved" hidden>You have changes that aren't saved. They're lost when the controller turns off or restarts, which it does when you unplug it with Fixes installed.</span>
       <span class="hint" id="settings-message"></span>
     </div>
   </div>
@@ -168,7 +169,7 @@
     <li><b>Rumble over Bluetooth.</b> The original firmware doesn't vibrate over Bluetooth. This tweak makes the controller respond to the rumble commands games send. It needs the Xbox tweak, because it uses the Xbox rumble commands.</li>
     <li><b>Xbox 360 controller over cable.</b> Connected by cable, the controller introduces itself as a wired Xbox 360 controller, a type macOS recognises.</li>
     <li><b>Dimmer LEDs.</b> Slightly lowers the brightness of the controller's three lights. It is subtle: to really change the ring around the Home button, use Home ring brightness.</li>
-    <li><b>Home ring brightness.</b> Sets how bright the ring around the Home button is while the controller is connected: Normal keeps its usual brightness, and the percentages are how much of the time the light is on, not how bright it looks. It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. Off keeps it dark while connected. You can change it at any time with L4 + R4 on the controller, or in the Diagnostics tab, and the controller keeps the level you saved until you install a different one here. Choosing the level already installed changes nothing, so to go back to it, use the Diagnostics tab.</li>
+    <li><b>Home ring brightness.</b> Sets how bright the ring around the Home button is while the controller is connected: Normal keeps its usual brightness, and the percentages are how much of the time the light is on, not how bright it looks. It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. Off keeps it dark while connected. You can change it at any time with L4 + R4 on the controller, or in the Settings tab, and the controller keeps the level you saved until you install a different one here. Choosing the level already installed changes nothing, so to go back to it, use the Settings tab.</li>
     <li><b>Controller settings.</b> Adds what the Settings tab changes: sticks, triggers, L4 and R4, vibration, power and button remapping. With everything at its default, the controller runs its original code for these.</li>
     <li><b>Fixes.</b> Moving a stick counts as using the controller, so playing only with sticks no longer turns it off after 15 minutes. A dropped connection gets its full search time. Unplugging the cable with the switch in the Bluetooth position restarts the controller, so it finds the Mac at once. It also closes the firmware update over Bluetooth, which needs no encryption.</li>
     <li><b>Finer stick movement.</b> The firmware ignores small stick changes, which makes slow movement advance in small jumps. This lowers that limit. It hasn't been measured on a controller yet, and with no dead zone a stick may jitter.</li>
@@ -186,7 +187,8 @@
   <h4>After installing</h4>
   <p>Unplug the controller. If you changed a Bluetooth tweak, remove the controller from Bluetooth settings and pair it again, because macOS remembers how a device introduced itself the first time.</p>
   <h4>Settings</h4>
-  <p>This tab changes the controller while it's connected by cable, once the Controller settings tweak is installed. A change applies at once and lasts until you turn the controller off, unless you press <b>Save to controller</b>. <b>Reset to defaults</b> puts everything back, and works without pressing any buttons on the controller. Restoring the firmware leaves saved settings where they are, and they apply again if you install the tweak again.</p>
+  <p>This tab changes the controller while it's connected by cable, once the Controller settings tweak is installed. A change applies at once and is lost when the controller turns off or restarts, unless you press <b>Save to controller</b>. Opening this tab again also goes back to what's saved. <b>Reset to defaults</b> puts these settings back, apart from the Home ring and the calibration, and works without pressing any buttons on the controller.</p>
+  <p>Restoring the firmware doesn't erase them. The original firmware ignores most of them, and they apply again if you install the tweak again, but it does keep using the L4 and R4 mappings and the dead zone switch, because those are its own. Use <b>Reset to defaults</b> first if you want those gone. While this tab is open, as with the controller test, Home doesn't open Apple Games.</p>
   <p><b>Home ring</b> changes the ring at once, over Bluetooth or by cable, without installing anything. <b>Save</b> keeps it.</p>
   <h4>Diagnostics</h4>
   <p>This tab helps you check how macOS sees the controller, and gather information if something goes wrong.</p>

@@ -26,6 +26,7 @@ SECTIONS
 	.hunplug 0xea88 : { *(.hunplug) }
 	.hota 0x178cc : { *(.hota) }
 	.hsweep 0xa2dc : { *(.hsweep) }
+	.sram 0x1210 : AT(0x7210) { *(.text.scan_hook) *(.text.trigger) }
 	.ringtail 0x18400 : { *(.text.rumble_tail) *(.text*) *(.rodata*) }
 	.rest : { *(.text*) *(.data*) *(.bss*) *(COMMON) }
 	/DISCARD/ : { *(.comment) }
@@ -36,6 +37,7 @@ ASSERT(noop_write == 0x18390 && rumble_write == 0x18390, "write callbacks not at
 ASSERT(SIZEOF(.rumble) <= 0x18400 - 0x18390, "rumble_write overflows the image tail")
 ASSERT(main_tick == 0x1738 && SIZEOF(.led) <= 0x17d4 - 0x1738, "main_tick outside the dead RAM-code functions")
 ASSERT(SIZEOF(.hook) == 4, "hook is one tjl")
+ASSERT(SIZEOF(.sram) <= 0x12d0 - 0x1210, "scan_hook outside the dead RAM code at 0x1210")
 ASSERT(rumble_tail == 0x18400, "rumble_tail is not first in the blank area")
 ASSERT(SIZEOF(.ringtail) <= 0x18ff0 - 0x18400, "the Home ring's code overflows the blank area")
 ASSERT(SIZEOF(.ringhook) == 4 && SIZEOF(.vhooka) == 4 && SIZEOF(.vhookb) == 4 && SIZEOF(.pollhook) == 4, "a hook isn't one tjl")

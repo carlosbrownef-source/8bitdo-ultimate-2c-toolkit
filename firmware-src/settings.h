@@ -22,6 +22,7 @@ struct settings {
 	u8 crc[2]; /* of everything above; RECORD_SIZE bytes up to here */
 	u8 loaded, save, reset, was_connected;
 	u8 stick_custom[2], triggers_custom, remap_custom; /* zero: the hook just runs stock code */
-	u8 dz_changed;
+	u8 dz_changed, unplug_wait, map_changed; /* map_changed: bit 0 R4, bit 1 L4 */
+	u32 map_pending[2];
 	u16 reference[4];
 };

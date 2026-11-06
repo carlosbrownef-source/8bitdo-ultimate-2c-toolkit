@@ -155,7 +155,7 @@ def make_server(store: Path, port: int = 0):
                         return answer(note=settings_ops.NO_ANSWER)
                     if not settings_ops.installed(ch):
                         return answer(note=SETTINGS_MISSING)
-                    answer(available=True, **settings_ops.read(ch))
+                    answer(available=True, **settings_ops.load(ch))
                 finally:
                     ch.close()
             except (OpError, PermissionDenied, OSError) as e:
@@ -177,6 +177,10 @@ def make_server(store: Path, port: int = 0):
                 good = good and type(dead_zone) is bool
             if save:
                 good = good and isinstance(values, dict) and set(values) == set(settings.BY_NAME) and all(settings.valid(n, v) for n, v in values.items())
+                kept_map, kept_dz = req.get("kept_mapping"), req.get("kept_dead_zone_off")
+                good = good and (kept_dz is None or type(kept_dz) is bool) and (kept_map is None or (
+                    isinstance(kept_map, dict) and set(kept_map) == {"r4", "l4"}
+                    and all(type(m) is int and 0 <= m <= settings.MAP_MASK for m in kept_map.values())))
             if not good:
                 return self.send(400, json.dumps({"error": "bad request"}))
 
@@ -189,10 +193,11 @@ def make_server(store: Path, port: int = 0):
                     app.set_mapping(ch, 1 if mapping["slot"] == "l4" else 0, mapping["mask"])
                 elif dead_zone is not None:
                     app.set_dead_zone(ch, dead_zone)
-                elif save and not settings_ops.save(ch, values):
+                elif save and not settings_ops.save(ch, values, kept_map, kept_dz):
                     raise OpError("The controller didn't confirm the save. Check the cable and try again.")
                 elif reset:
                     return {"ok": True, "values": settings_ops.reset(ch)}
+                settings_ops.still_there(ch)
                 return {"ok": True}
 
             self.by_cable(work)

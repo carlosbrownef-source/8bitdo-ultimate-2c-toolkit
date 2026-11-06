@@ -225,10 +225,12 @@ class FromEarlierVersionsTest(unittest.TestCase):
             off = (hi & 0x7FF) << 12 | (lo & 0x7FF) << 1
             return addr + 4 + (off - (1 << 23) if off & (1 << 22) else off)
         for e in recipes.RECIPES["settings"].edits:
+            if e.addr in (recipes.SETTINGS_FLAG, 0x7210):  # a flag, and code rather than a call
+                continue
             run = e.addr - 0x6000 if e.addr < 0x8500 else e.addr  # 0x6000-0x8500 runs from RAM, 0x6000 lower
             self.assertEqual(e.size, 4, hex(e.addr))
             t = target(run, e.new)
-            self.assertTrue(recipes.RING_CODE[0] < t < recipes.RING_CODE[1], hex(e.addr))
+            self.assertTrue(recipes.RING_CODE[0] < t < recipes.RING_CODE[1] or 0x1210 <= t < 0x12D0, hex(e.addr))
 
     def test_fixes_need_a_ring_level_and_identify(self):
         with self.assertRaises(RecipeError):

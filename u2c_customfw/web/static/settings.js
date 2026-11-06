@@ -18,8 +18,8 @@ const SETTINGS_CARDS = [
     { heading: "Left trigger", rows: [{ field: "lt_start", label: "Starts at", kind: "range", format: percent }, { field: "lt_end", label: "Full at", kind: "range", format: percent }] },
     { heading: "Right trigger", rows: [{ field: "rt_start", label: "Starts at", kind: "range", format: percent }, { field: "rt_end", label: "Full at", kind: "range", format: percent }] },
   ] },
-  { title: "L4 and R4", wide: true, kind: "mapping", text: "Choose what each back button presses. With nothing chosen, games don't see it. Pressing L4 and R4 together changes the Home ring's brightness, and games also receive the buttons you mapped to them." },
-  { title: "Vibration", text: "How strongly games make the controller vibrate. Battery alerts keep their own strength.", rows: [
+  { title: "L4 and R4", wide: true, kind: "mapping", text: "Choose what each back button presses. Over Bluetooth, games don't see them unless you map them. Pressing L4 and R4 together changes the Home ring's brightness, and games also receive the buttons you mapped to them." },
+  { title: "Vibration", text: "How strongly games make the controller vibrate, on the scale games use: the motors can't turn slower than about a fifth of their speed, so 25 % isn't a quarter of the strength. Battery alerts keep their own strength.", rows: [
     { field: "vibration", label: "Vibration from games", kind: "seg", format: (v) => `${v} %` },
   ] },
   { title: "Power", text: "The controller turns itself off when it's connected and nobody has used it for this long.", rows: [
@@ -47,6 +47,7 @@ function settingsAccess() {  // the reason the settings can't be changed right n
   if (modes.includes("boot")) return "These settings can't be changed in update mode. Turn the controller off and connect it by cable as usual.";
   if (!modes.some((m) => m === "cable" || m === "cable_360")) return "Connect the controller by cable to change these settings.";
   if (!fw) return "Reading the firmware…";
+  if (fw.error) return fw.error;
   if (!fw.recipes || !fw.recipes.includes("settings")) return "To change these settings, install Controller settings in the Firmware tab.";
   return null;
 }
@@ -209,7 +210,10 @@ async function settingsLoad() {
   try { data = await api("GET", "/api/settings"); } catch (e) { data = { available: false, note: e.message }; }
   settingsLoading = false;
   settingsData = data;
-  if (data.available) { settingsValues = { ...data.values }; settingsDirty = false; settingsMount(); }
+  if (data.available) {
+    if (settingsDirty) settingsMessage = "The changes you hadn't saved were discarded, and the controller is back on what it has saved.";
+    settingsValues = { ...data.values }; settingsDirty = false; settingsMount();
+  }
   settingsRender();
 }
 
@@ -242,7 +246,7 @@ async function settingsSwitch(off) {
 
 async function settingsSave() {
   if (settingsBusy) return;
-  if (await settingsPost({ save: true, values: settingsValues })) {
+  if (await settingsPost({ save: true, values: settingsValues, kept_mapping: settingsData.mapping, kept_dead_zone_off: settingsData.dead_zone_off })) {
     settingsDirty = false;
     settingsMessage = "Saved. The controller keeps these settings when you turn it off.";
   }
@@ -272,7 +276,7 @@ function settingsLive(e) {  // what macOS reports, to see a change's effect stra
 function settingsShow() {
   const b = bridge();
   $("live-note").hidden = false;
-  $("live-note").textContent = b ? "Move a stick or press a trigger to see it here." : "This live view only works in the Mac app. The settings work anyway.";
+  $("live-note").textContent = b ? "Move a stick or press a trigger to see it here. If nothing moves, macOS isn't seeing the controller by cable as a game controller, which is what the Xbox 360 tweak is for." : "This live view only works in the Mac app. The settings work anyway.";
   if (b) b.postMessage({ op: "start" });
 }
 
@@ -283,12 +287,13 @@ function settingsHide() {
 
 function settingsRender() {
   ringRender();
-  if (fw !== settingsRead) { settingsRead = fw; settingsData = null; settingsMessage = ""; }  // each read of the firmware can mean another controller
+  if (fw !== settingsRead) { settingsRead = fw; settingsData = null; if (!settingsDirty) settingsMessage = ""; }  // each read of the firmware can mean another controller
   const reason = settingsAccess();
   if (!reason && !settingsData && !settingsLoading && tab === "settings") settingsLoad();
   const ready = !reason && settingsData && settingsData.available;
   $("settings-note").textContent = reason || (settingsData && settingsData.note) || (ready ? "" : "Reading the settings…");
   $("settings-note").hidden = !!ready;
+  $("settings-retry").hidden = !(!reason && settingsData && !settingsData.available);
   $("settings-cards").hidden = $("settings-actions").hidden = $("live-card").hidden = !ready;
   if (ready) settingsPaint();
 }
@@ -353,4 +358,5 @@ addEventListener("DOMContentLoaded", () => {
 addEventListener("DOMContentLoaded", () => {
   $("settings-save").onclick = settingsSave;
   $("settings-reset").onclick = settingsReset;
+  $("settings-retry").onclick = () => { settingsData = null; settingsRender(); };
 });

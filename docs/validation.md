@@ -66,7 +66,7 @@ blink patterns were tried on the controller with a test build that simulates tho
 
 Nothing here has run on a controller yet. Each write needs its own go-ahead.
 
-1. Measure stick noise with `tools/sticknoise` in the private notes to choose `STICK_THRESHOLD`.
+1. Measure the sticks' noise at rest with a threshold-0 build to choose `STICK_THRESHOLD`.
 2. Install 0.4 with defaults: every control behaves as on 0.3. Read `0x7a000` back.
 3. Each setting by cable: dead zone, reach, curve and inversion on both sticks in the live view; trigger range; vibration at 0 and 50 % in a game by cable and over Bluetooth, with battery alerts unchanged; idle limit; buzz on connecting; L4 and R4 with a single button, several buttons and a trigger; the dead zone switch from the app and with Start + Select; button remapping with A and B swapped, and one button set to nothing.
 4. Save, turn off and on, over cable and Bluetooth. Reset to defaults. Restore and install again: settings still apply.

@@ -16,7 +16,7 @@ u32 stick_left(int x, int y);
 u32 stick_right(int x, int y);
 u32 stick_shape(int x, int y, u32 side);
 void scan_hook(u32 *word, u8 *lt, u8 *rt);
-u8 DZ_OFF, RECORD_DZ, PD;
+u8 DZ_OFF, RECORD_DZ, PD, SETTINGS_FLAG;
 u16 IDLE_COUNT, STICK_LX, STICK_LY, STICK_RX, STICK_RY;
 u32 RAW_WORD;
 void idle_task(void);
@@ -551,13 +551,17 @@ static void map_cmd(int slot, u32 mask)
 static void mapping_sets_four_variables_and_live_table(void)
 {
 	start();
-	*(u32 *)(MAP_TABLE + 148) = 0xaa000000; /* its top byte belongs to something else */
+	MAP_R4_A = MAP_R4_B = 1u << 25;
+	MAP_TABLE[138] = MAP_TABLE[151] = 1; /* turbo on the paddle: stock clears it when programming one */
 	map_cmd(0, 0x2001);
-	CHECK(MAP_R4_A == 0x2001 && MAP_R4_B == 0x2001 && LIVE_R4() == 0x2001);
+	CHECK(LIVE_R4() == 0x2001 && MAP_TABLE[138] == 0);
 	map_cmd(1, 0xc000);
-	CHECK(MAP_L4_A == 0xc000 && MAP_L4_B == 0xc000 && LIVE_L4() == 0xc000);
-	CHECK(MAP_TABLE[151] == 0xaa);
-	CHECK(mapping_saves == 0);
+	CHECK(LIVE_L4() == 0xc000 && MAP_TABLE[151] == 0);
+	/* stock keeps these variables on its own at power-off, so they wait for a save */
+	CHECK(MAP_R4_A == 1u << 25 && MAP_R4_B == 1u << 25 && mapping_saves == 0);
+	cmd(0x55, 0, 0);
+	settings_poll();
+	CHECK(MAP_R4_A == 0x2001 && MAP_R4_B == 0x2001 && MAP_L4_A == 0xc000 && MAP_L4_B == 0xc000 && mapping_saves == 1);
 }
 
 static void mapping_to_none_restores_default(void)
@@ -565,9 +569,11 @@ static void mapping_to_none_restores_default(void)
 	start();
 	map_cmd(0, 0x2001);
 	map_cmd(0, 0);
-	CHECK(MAP_R4_A == 1u << 25 && MAP_R4_B == 1u << 25 && LIVE_R4() == 1u << 25);
 	map_cmd(1, 0);
-	CHECK(MAP_L4_A == 1u << 26 && MAP_L4_B == 1u << 26 && LIVE_L4() == 1u << 26);
+	CHECK(LIVE_R4() == 1u << 25 && LIVE_L4() == 1u << 26);
+	cmd(0x55, 0, 0);
+	settings_poll();
+	CHECK(MAP_R4_A == 1u << 25 && MAP_R4_B == 1u << 25 && MAP_L4_A == 1u << 26 && MAP_L4_B == 1u << 26);
 }
 
 static void mapping_refuses_bad_slot_and_bits(void)
@@ -593,11 +599,14 @@ static void dead_zone_command_sets_both_places(void)
 {
 	start();
 	cmd(0x58, 1, 0);
+	CHECK(DZ_OFF == 1 && RECORD_DZ == 0); /* stock's record could be saved by anything, so it waits for a save */
+	cmd(0x55, 0, 0);
+	settings_poll();
 	CHECK(DZ_OFF == 1 && RECORD_DZ == 1);
 	cmd(0x58, 0, 0);
-	CHECK(DZ_OFF == 0 && RECORD_DZ == 0);
+	CHECK(DZ_OFF == 0 && RECORD_DZ == 1);
 	cmd(0x58, 2, 0);
-	CHECK(DZ_OFF == 0 && RECORD_DZ == 0);
+	CHECK(DZ_OFF == 0 && RECORD_DZ == 1);
 }
 
 static void save_keeps_the_dead_zone_switch_only_when_it_changed(void)
@@ -714,16 +723,37 @@ static void unplug_in_bluetooth_position_reboots(void)
 	RAW_WORD = BLUETOOTH_POSITION;
 	PD = 0;
 	unplug_task(0);
-	CHECK(da58_calls == 1 && reboots == 1);
+	CHECK(da58_calls == 1);
+	idle_task();
+	CHECK(reboots == 1);
+}
+
+static void power_that_takes_a_moment_to_fall_still_reboots(void)
+{
+	RAW_WORD = BLUETOOTH_POSITION;
+	PD = 1;
+	unplug_task(0);
+	idle_task();
+	idle_task();
+	CHECK(reboots == 0);
+	PD = 0;
+	idle_task();
+	CHECK(reboots == 1);
 }
 
 static void unplug_on_external_power_doesnt(void)
 {
 	/* USB suspend comes through the same path with the cable still in: a sleeping Mac */
+	int i;
 	RAW_WORD = BLUETOOTH_POSITION;
 	PD = 1;
 	unplug_task(0);
+	for (i = 0; i < 20; i++)
+		idle_task();
 	CHECK(da58_calls == 1 && reboots == 0);
+	PD = 0; /* unplugged long after: the moment has passed, and this isn't the same event */
+	idle_task();
+	CHECK(reboots == 0);
 }
 
 static void the_2_4ghz_position_doesnt(void)
@@ -731,6 +761,7 @@ static void the_2_4ghz_position_doesnt(void)
 	RAW_WORD = 0;
 	PD = 0;
 	unplug_task(0);
+	idle_task();
 	CHECK(da58_calls == 1 && reboots == 0);
 }
 
@@ -822,6 +853,28 @@ static void back_to_identity_stops_remapping(void)
 	CHECK(S.remap_custom == 0);
 }
 
+static void reload_goes_back_to_what_is_saved(void)
+{
+	valid_record(F_DZ_L, 20);
+	start();
+	cmd(0x54, F_DZ_L, 5);
+	cmd(0x5a, 0, 0);
+	settings_poll();
+	CHECK(S.f[F_DZ_L] == 20 && S.loaded == 1 && writes == 0);
+}
+
+static void without_the_tweak_nothing_happens(void)
+{
+	valid_record(F_DZ_L, 20);
+	SETTINGS_FLAG = 0;
+	RECORD_DZ = 1;
+	settings_poll();
+	CHECK(S.loaded == 0 && DZ_OFF == 0);
+	cmd(0x55, 0, 0);
+	settings_poll();
+	CHECK(writes == 0 && erases == 0 && S.save == 0);
+}
+
 typedef void (*test_fn)(void);
 static const test_fn tests[] = {
 	load_defaults_on_blank, load_defaults_on_bad_crc, load_defaults_on_future_version, load_defaults_on_field_out_of_range,
@@ -838,6 +891,7 @@ static const test_fn tests[] = {
 	start_applies_the_stored_dead_zone_switch,
 	stick_move_past_threshold_clears_counter, small_drift_doesnt, only_while_connected, disconnect_clears_counter, stock_idle_always_runs,
 	unplug_in_bluetooth_position_reboots, unplug_on_external_power_doesnt, the_2_4ghz_position_doesnt, no_write_returns_0, two_sweeps_calls_twice,
+	reload_goes_back_to_what_is_saved, without_the_tweak_nothing_happens, power_that_takes_a_moment_to_fall_still_reboots,
 	identity_table_skips_work, swap_a_b, button_to_nothing, two_to_one_ors, bits_above_13_pass, remap_goes_in_before_stock, back_to_identity_stops_remapping,
 };
 
@@ -849,7 +903,9 @@ int main(void)
 		erases = writes = unlocks = motors = 0;
 		last_s = last_w = last_h = 0;
 		stock_limit_calls = stock_scan_calls = 0;
-		DZ_OFF = RECORD_DZ = 0;
+		DZ_OFF = RECORD_DZ = PD = 0;
+		RAW_WORD = 0;
+		SETTINGS_FLAG = 1;
 		idle_calls = da58_calls = reboots = sweeps = bt_on = radio_on = 0;
 		IDLE_COUNT = 0;
 		STICK_LX = STICK_LY = STICK_RX = STICK_RY = 0;

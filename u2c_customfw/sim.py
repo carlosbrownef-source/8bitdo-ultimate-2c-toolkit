@@ -40,6 +40,10 @@ class SimApp:
                 self.fields[req[4]] = req[5]
         elif cmd == 0x56:
             self.fields = [f.default for f in settings_record.FIELDS]
+            self.mapping, self.dead_zone_off = {0: 0, 1: 0}, 0
+        elif cmd == 0x5A:
+            kept = settings_record.parse(self.flash[settings_record.SECTOR:settings_record.SECTOR + settings_record.SIZE])
+            self.fields = [(kept or settings_record.DEFAULTS)[f.name] for f in settings_record.FIELDS]
         elif cmd == 0x57:
             self.mapping[req[4]] = int.from_bytes(req[5:9], "little")
         elif cmd == 0x58:
@@ -49,6 +53,13 @@ class SimApp:
         if cmd in (0x55, 0x56) and not self.drop_saves:
             raw = settings_record.encode({f.name: v for f, v in zip(settings_record.FIELDS, self.fields)})
             self.flash = self.flash[:settings_record.SECTOR] + raw + self.flash[settings_record.SECTOR + len(raw):]
+            stock = bytearray(self.flash[0x73000:0x7301A])
+            if self.dead_zone_off is not None:
+                stock[6] = self.dead_zone_off
+            for slot, at in ((0, 17), (1, 21)):
+                if slot in self.mapping:
+                    stock[at:at + 4] = self.mapping[slot].to_bytes(4, "little")
+            self.flash = self.flash[:0x73000] + bytes(stock) + self.flash[0x7301A:]
         return None
 
     def close(self):

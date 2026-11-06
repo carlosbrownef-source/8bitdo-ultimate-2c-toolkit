@@ -38,24 +38,25 @@ Enter by powering the controller fully off and holding L1+R1 while plugging in t
 
 Everything here is ours, in `firmware-src/packer.c`; none of it exists in stock. The ring code sits at `0x18400` and is only present when a ring recipe is installed.
 
-- **Level by cable**: `81 05 00 52 <level>` sets the ring level (0-5, anything higher is ignored) without saving it. `81 05 00 53` saves the current level to the settings record about three seconds later, from the LED task, so the flash write never interrupts the main loop. Both are checked after the stock handlers' dispatch in `vendor_a` and `vendor_b`, and the stock handler still runs, so the replies are the stock ones.
+- **Level by cable**: `81 05 00 52 <level>` sets the ring level (0-5, anything higher is ignored) without saving it. `81 05 00 53` saves the current level to the settings record on the next LED tick, within 200 ms, from the LED task in the main loop, which the flash write pauses for at most about 44 ms. Both are checked before the stock handlers in `vendor_a` and `vendor_b`, and the stock handler still runs, so the replies are the stock ones.
 - **Level over Bluetooth**: the Xbox rumble output report, with the high bit (`0x80`) set in the first value byte (`p[9]`), which no rumble mask uses. `p[10]` is the level and `p[11]` is non-zero to save. `rumble_write` handles it and never starts a motor for it. It needs the ring code to be present.
 - **Settings record `+25`** (`0x73019`, RAM `0x843929`): the low nibble is the saved level and the high nibble is the level installed when it was saved. A save made under another installed level is ignored at start and replaced by the installed level, so choosing a level in the app wins over an old save.
 - **Alerts flag** at `0x18ff0`: `1` turns battery alerts on (slow blink while charging, fast blink at 15 % or less, pulses); anything else, including blank, leaves them off. The firmware reads it and never writes it; the app changes it with the "Battery alerts" tweak.
-- **Level by buttons**: L4 and R4 pressed together step to the next level and save after 3 seconds. The button word it reads is being corrected, so don't rely on the bit numbers.
+- **Level by buttons**: L4 and R4 pressed together step to the next level and save after 3 seconds. This reads the physical button word `0x84344c`, with L4 at bit 26 and R4 at bit 25, because stock clears a mapped paddle's bit in `0x84342c`.
 
 ## Controller settings (our additions)
 
-`firmware-src/settings.c`, in the tail at `0x18400-0x18ff0` with the Home ring. A record of 35 bytes at sector `0x7a000`, blank on stock and referenced by nothing else, written only by this code: `U2CS`, version 1, 28 fields (numbers and ranges in `u2c_customfw/settings.py` and `settings.c`), CRC of bytes 0-32 with the firmware's `0xaf80`, little endian. Anything else loads as defaults. In RAM at `0x841680`, in the dead RAM code after the ring's state; all zero until loaded, and zero means the hooks run stock code.
+`firmware-src/settings.c`, in the tail at `0x18400-0x18ff0` with the Home ring. It only acts when the tweak's flag at `0x18ff1` is 1, since the code is there with any Home ring level. A record of 35 bytes at sector `0x7a000`, blank on stock and referenced by nothing else, written only by this code: `U2CS`, version 1, 28 fields (numbers and ranges in `u2c_customfw/settings.py` and `settings.c`), CRC of bytes 0-32 with the firmware's `0xaf80`, little endian. Anything else loads as defaults. In RAM at `0x841680`, in the dead RAM code after the ring's state; all zero until loaded, and zero means the hooks run stock code.
 
 | Command, by cable, no reply | Effect |
 | --- | --- |
 | `81 05 00 54 <field> <value>` | Set a field in RAM, at once; out of range is ignored |
 | `81 05 00 55` | Save on the next 100 ms pass: the record, then stock's mappings (`0xd7d4`), then stock's record if the dead zone switch changed (`0xd538`) |
 | `81 05 00 56` | Back to defaults, mappings and dead zone switch included, then save |
-| `81 05 00 57 <0 R4, 1 L4> <u32 LE>` | Mapping, bits 0-15 of the word; 0 is none. Set in stock's four variables and in the scan's live table |
-| `81 05 00 58 <0, 1>` | Stock's dead zone switch: `0x8433d6` and record `+6` |
+| `81 05 00 57 <0 R4, 1 L4> <u32 LE>` | Mapping, bits 0-15 of the word; 0 is none. In the scan's live table at once; in stock's four variables on a save, since stock keeps those by itself at power-off and restart |
+| `81 05 00 58 <0, 1>` | Stock's dead zone switch: `0x8433d6` at once, record `+6` on a save |
+| `81 05 00 5a` | Drop unsaved settings: read the record again on the next pass |
 
-Hooks: `0x6a90`, `0x6abc` (run `0xa90`, `0xabc`) for the sticks, instead of `0x890`; `0xc910` for triggers and remapping, before `0xc3a8`; `0xdce6`, `0xeaf4` and `rumble_tail` for the games' rumble; `0xa0f8`, `0xdaa8` for the buzz on connecting; `0xd1c8` for the idle limit. The tweak `fixes`: `0xa480`, `0xea88`, and the pointer at `0x178cc`.
+Hooks: `0x6a90`, `0x6abc` (run `0xa90`, `0xabc`) for the sticks, instead of `0x890`; `0xc910` for triggers and remapping, before `0xc3a8`, with its code in the dead RAM code at run address `0x1210` (image `0x7210`); `0xdce6`, `0xeaf4` and `rumble_tail` for the games' rumble; `0xa0f8`, `0xdaa8` for the buzz on connecting; `0xd1c8` for the idle limit. The tweak `fixes`: `0xa480`, `0xea88`, and the pointer at `0x178cc`.
 
 Dangerous commands exist on this channel, with no authentication. The app must never send, outside an update: `81 05 02/03/04/0b/c4` (they write or erase flash at `0x3f000-0x7f000`, including the MAC sector), `81 05 00 38` (moves the saved trigger endpoints each time), `81 05 00 61` (the edition at `0x77000`), `81 xx 66 AA 63/64` (`64` zeroes stock's record, and both set a tool session flag until restart).

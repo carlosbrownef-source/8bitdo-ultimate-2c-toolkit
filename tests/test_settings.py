@@ -94,6 +94,13 @@ class OpsTest(unittest.TestCase):
         self.assertEqual(ops.reset(ch), DEFAULTS)
         self.assertEqual(ch.fields[0], 14)
 
+    def test_load_brings_the_controller_back_to_what_it_kept(self):
+        ch = SimApp(flash_with(record=settings.encode(dict(DEFAULTS, dz_l=7))))
+        ch.fields[0] = 20
+        self.assertEqual(ops.load(ch)["values"]["dz_l"], 7)
+        self.assertEqual(ch.fields[0], 7)
+        self.assertEqual(ch.mapping, {0: 0, 1: 0})
+
     def test_no_answer_is_an_error(self):
         class Gone:
             def xfer(self, *a, **k):

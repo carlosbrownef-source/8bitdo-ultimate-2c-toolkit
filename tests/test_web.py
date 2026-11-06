@@ -200,6 +200,37 @@ class WebTest(unittest.TestCase):
         self.assertEqual(self.call("POST", "/api/settings", {"save": True, "values": values})[0], 200)
         self.assertEqual(settings.parse(dev.flash[settings.SECTOR:settings.SECTOR + settings.SIZE]), values)
 
+    def test_opening_the_settings_drops_what_was_not_saved(self):
+        dev = self.settings_device()
+        dev.fields[0] = 20  # a change from before, in the controller's RAM
+        got = json.loads(self.call("GET", "/api/settings")[1])
+        self.assertEqual((got["values"]["dz_l"], dev.fields[0]), (14, 14))
+
+    def test_save_checks_the_mapping_and_the_switch_too(self):
+        from u2c_customfw import settings
+        from u2c_customfw.ops import settings as ops
+        dev = self.settings_device()
+        values = {f.name: f.default for f in settings.FIELDS}
+        self.call("POST", "/api/settings", {"mapping": {"slot": "r4", "mask": 1}})
+        self.assertEqual(self.call("POST", "/api/settings", {"save": True, "values": values, "kept_mapping": {"r4": 1, "l4": 0}, "kept_dead_zone_off": False})[0], 200)
+        with mock.patch.object(ops, "CONFIRM_SECONDS", 0.05):
+            code, _ = self.call("POST", "/api/settings", {"save": True, "values": values, "kept_mapping": {"r4": 2, "l4": 0}})
+        self.assertEqual(code, 409)
+        self.assertEqual(self.call("POST", "/api/settings", {"save": True, "values": values, "kept_mapping": {"r4": 1}})[0], 400)
+
+    def test_a_change_notices_a_controller_that_has_gone(self):
+        dev = self.settings_device()
+        real = dev.xfer
+        calls = []
+        def fading(req, timeout=0.5):
+            if req[2] == 5 and int.from_bytes(req[14:18], "little") == 0xD1C8:
+                calls.append(1)
+                if len(calls) > 1:
+                    return None
+            return real(req, timeout)
+        dev.xfer = fading
+        self.assertEqual(self.call("POST", "/api/settings", {"set": {"dz_l": 7}})[0], 409)
+
     def test_save_reports_failure_when_read_back_differs(self):
         from u2c_customfw import settings
         from u2c_customfw.ops import settings as ops
@@ -267,7 +298,7 @@ class WebTest(unittest.TestCase):
         self.call("POST", "/api/settings", {"reset": True})
         self.call("POST", "/api/settings", {"mapping": {"slot": "r4", "mask": 1}})
         self.call("POST", "/api/settings", {"dead_zone_off": True})
-        allowed = ("81050021", "810505", "8105c1", "81050052", "81050053", "81050054", "81050055", "81050056", "81050057", "81050058")
+        allowed = ("81050021", "810505", "8105c1", "81050052", "81050053", "81050054", "81050055", "81050056", "81050057", "81050058", "8105005a")
         for s in dev.sent:
             self.assertTrue(s.startswith(allowed), s)
 

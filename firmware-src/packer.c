@@ -110,7 +110,7 @@ extern u32 RING_CODE;
 #define RING_CODE (*(volatile u32 *)0x18400)    /* blank if the Home ring tweak isn't installed */
 #endif
 
-static u32 rumble_level(u32 m) /* Xbox 0-100 -> 360 0-255, capped */
+__attribute__((noinline)) static u32 rumble_level(u32 m) /* Xbox 0-100 -> 360 0-255, capped; one copy, in rumble.bin */
 {
 	m = m * 5 / 2;
 	return m < RUMBLE_CAP ? m : RUMBLE_CAP;

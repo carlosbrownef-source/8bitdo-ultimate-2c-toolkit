@@ -31,18 +31,31 @@ def _mapping(raw: bytes, own: int) -> int:
 
 
 def read(ch) -> dict:
-    """What the controller has kept. Changes it hasn't saved are in its RAM, where they can't be read."""
+    """What the controller has kept."""
     values = settings.parse(_read(ch, settings.SECTOR, settings.SIZE))
     stock = _read(ch, image.SETTINGS, image.SETTINGS_SIZE)
     return {"values": values or dict(settings.DEFAULTS), "saved": values is not None, "dead_zone_off": stock[6] == 1,
             "mapping": {"r4": _mapping(stock[17:21], _R4), "l4": _mapping(stock[21:25], _L4)}}
 
 
-def _kept(ch, values: dict) -> bool:
-    """The firmware saves on its next 100 ms pass."""
+def load(ch) -> dict:
+    """What it has kept, with its RAM brought back to that, because changes it hasn't saved can't be read: what the page shows
+    is then what the controller is doing. Unsaved changes are dropped."""
+    kept = read(ch)
+    app.settings_reload(ch)
+    app.set_dead_zone(ch, kept["dead_zone_off"])
+    app.set_mapping(ch, 0, kept["mapping"]["r4"])
+    app.set_mapping(ch, 1, kept["mapping"]["l4"])
+    return kept
+
+
+def _kept(ch, values: dict, mapping=None, dead_zone_off=None) -> bool:
+    """The firmware saves on its next 100 ms pass, which a record that already matches can't show, so this waits for it first."""
+    time.sleep(0.15)
     end = time.monotonic() + CONFIRM_SECONDS
     while True:
-        if settings.parse(_read(ch, settings.SECTOR, settings.SIZE)) == values:
+        got = read(ch)
+        if got["saved"] and got["values"] == values and mapping in (None, got["mapping"]) and dead_zone_off in (None, got["dead_zone_off"]):
             return True
         if time.monotonic() > end:
             return False
@@ -54,14 +67,19 @@ def change(ch, values: dict) -> None:
         app.set_field(ch, settings.BY_NAME[name].number, value)
 
 
-def save(ch, values: dict) -> bool:
+def save(ch, values: dict, mapping=None, dead_zone_off=None) -> bool:
     """Asks the firmware to save, then checks what it wrote."""
     app.settings_save(ch)
-    return _kept(ch, values)
+    return _kept(ch, values, mapping, dead_zone_off)
+
+
+def still_there(ch) -> None:
+    """Commands get no reply, so a failed one looks like any other: this notices a controller that has gone."""
+    _read(ch, settings.INSTALLED_HOOK, 4)
 
 
 def reset(ch) -> dict:
     app.settings_reset(ch)
-    if not _kept(ch, settings.DEFAULTS):
+    if not _kept(ch, settings.DEFAULTS, {"r4": 0, "l4": 0}, False):
         raise OpError("The controller didn't confirm the reset. Check the cable and try again.")
     return dict(settings.DEFAULTS)

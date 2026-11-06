@@ -43,7 +43,7 @@ def save_ring(ch) -> None:
 
 def _command(ch, *data: int) -> None:
     """A command with no reply, so nothing to wait for once it has gone out."""
-    ch.xfer(bytes([0x81, 0x05, 0x00, *data]).ljust(64, b"\0"), 0.05)
+    ch.xfer(bytes([0x81, 0x05, 0x00, *data]).ljust(64, b"\0"), 0.02)
 
 
 def set_field(ch, number: int, value: int) -> None:
@@ -59,6 +59,11 @@ def settings_save(ch) -> None:
 def settings_reset(ch) -> None:
     """Asks the firmware to go back to its defaults, and keep them."""
     _command(ch, 0x56)
+
+
+def settings_reload(ch) -> None:
+    """Asks the firmware to drop unsaved settings and read its record again, on its next 100 ms pass."""
+    _command(ch, 0x5A)
 
 
 def set_mapping(ch, slot: int, mask: int) -> None:

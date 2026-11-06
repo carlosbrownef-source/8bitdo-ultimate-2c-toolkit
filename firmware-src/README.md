@@ -20,6 +20,7 @@ Our own code for the controller (Telink TC32, firmware 1.09). The built binaries
 | `hidle.bin` | `0xd1c8` | `idle_limit`: the idle counter and its limit, from the settings |
 | `hstickl.bin`, `hstickr.bin` | image `0x6a90`, `0x6abc`, run address `0xa90`, `0xabc` | each stick's dead zone code, redirected from `0x890` to `stick_left` and `stick_right` |
 | `hscan.bin` | `0xc910` | the button scan's call, redirected from `0xc3a8` to `scan_hook` |
+| `sram.bin` | image `0x7210`, run address `0x1210` | `scan_hook`, in dead RAM code (the unused suspend routine) |
 | `hidletask.bin`, `hunplug.bin`, `hota.bin` | `0xa480`, `0xea88`, `0x178cc` | Fixes: `idle_task`, `unplug_task`, and the Bluetooth update's write handler, now `no_write` |
 | `hsweep.bin` | `0xa2dc` | Finer stick movement: `two_sweeps` before each report |
 | `ring02.bin`, `ringhook02.bin`, `rumble02.bin` | not installed | 0.2.0's versions, kept to recognise firmware it installed |

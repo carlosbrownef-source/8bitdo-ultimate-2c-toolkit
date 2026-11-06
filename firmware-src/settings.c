@@ -30,7 +30,7 @@ void flash_erase(u32 addr);
 void flash_write(u32 addr, u32 n, u8 *data);
 void flash_read(u32 addr, u32 n, u8 *data);
 u32 stock_crc(u8 *p, u32 n);
-extern u8 DZ_OFF, RECORD_DZ, MAP_TABLE[], PD;
+extern u8 DZ_OFF, RECORD_DZ, MAP_TABLE[], PD, SETTINGS_FLAG;
 extern u16 IDLE_COUNT, STICK_LX, STICK_LY, STICK_RX, STICK_RY;
 extern u32 RAW_WORD;
 extern u32 MAP_R4_A, MAP_R4_B, MAP_L4_A, MAP_L4_B;
@@ -54,6 +54,7 @@ u32 stock_crc(u8 *p, u32 n);   /* 0xaf80 */
 #define STICK_RY (*(volatile u16 *)0x8433e6)
 #define RAW_WORD (*(volatile u32 *)0x84344c)   /* what's physically pressed; bit 28 set is the Bluetooth position */
 #define PD (*(volatile u8 *)0x800518)          /* bit 0: external power */
+#define SETTINGS_FLAG (*(volatile u8 *)0x18ff1) /* 1 when the tweak is installed: the code is there for any Home ring level */
 #define flash_write(a, n, d) ((void (*)(u32, u32, u8 *))*(volatile u32 *)0x842e3c)(a, n, d)
 #define flash_read(a, n, d) ((void (*)(u32, u32, u8 *))*(volatile u32 *)0x842e50)(a, n, d)
 #define S (*(struct settings *)0x841680) /* not volatile: nothing here waits in a loop for another context's change */
@@ -91,7 +92,7 @@ static void changed(void)
 
 	IDLE_LIMIT = S.f[F_IDLE_MIN] * 600 - 1;
 	for (i = 0; i < 2; i++)
-		S.stick_custom[i] = S.f[F_DZ_L + i] != defaults[F_DZ_L] || S.f[F_OUTER_L + i] != 100 || S.f[F_CURVE_L + i]
+		S.stick_custom[i] = S.f[F_DZ_L + i] != 14 || S.f[F_OUTER_L + i] != 100 || S.f[F_CURVE_L + i]
 			|| (S.f[F_INVERT] >> (2 * i) & 3);
 	S.triggers_custom = S.f[F_LT_START] || S.f[F_RT_START] || S.f[F_LT_END] != 100 || S.f[F_RT_END] != 100;
 	S.remap_custom = 0;
@@ -115,32 +116,37 @@ static int stored_ok(void)
 	return 1;
 }
 
-/* What L4 or R4 presses, as button word bits; nothing means its own bit, as stock's default. Applies at once in the scan's table. */
+/* What L4 or R4 presses, as button word bits; nothing means its own bit, as stock's default. Applies at once in the scan's table,
+ * and clears any turbo on that paddle as stock does. Stock's own variables wait for a save, since it keeps them by itself when
+ * it turns off or restarts. */
 static void set_mapping(u32 l4, u32 mask)
 {
 	u8 *t = MAP_TABLE;
 
 	if (l4) {
 		mask = mask ? mask : 1u << 26;
-		MAP_L4_A = MAP_L4_B = mask;
 		t[147] = mask;
 		*(u32 *)(t + 148) = (*(u32 *)(t + 148) & 0xff000000) | mask >> 8;
+		t[151] = 0;
 	} else {
 		mask = mask ? mask : 1u << 25;
-		MAP_R4_A = MAP_R4_B = mask;
 		*(u16 *)(t + 134) = mask;
 		*(u16 *)(t + 136) = mask >> 16;
+		t[138] = 0;
 	}
+	S.map_pending[l4] = mask;
+	S.map_changed |= 1 << l4;
 }
 
+/* Stock's record gets it on a save, because anything could save that record. */
 static void set_dead_zone_off(u32 off)
 {
-	DZ_OFF = RECORD_DZ = off;
+	DZ_OFF = off;
 	S.dz_changed = 1;
 }
 
 #ifdef STACK_TEST
-/* Test build only (General/8bitdo/tools/stackmark): how much of the main stack, 0x843cf0-0x844000, has never been used since
+/* Test build only: how much of the main stack, 0x843cf0-0x844000, has never been used since
  * the first pass of the main loop. It fills the deep part with a pattern, and 81 05 00 59 answers with what's still intact. */
 void stock_send(u8 *data, u32 n, u32 interface); /* 0xeb7c */
 void stock_clear(u8 *p, u32 value, u32 n);       /* 0x103f8, memset */
@@ -204,6 +210,8 @@ static void store(void)
 /* From the main loop's slow branch, every 100 ms: flash only ever happens here. */
 void settings_poll(void)
 {
+	if (SETTINGS_FLAG != 1)
+		return;
 	if (!S.loaded) {
 		load();
 		return;
@@ -220,9 +228,15 @@ void settings_poll(void)
 	if (S.save) {
 		S.save = 0;
 		store();
+		if (S.map_changed & 1)
+			MAP_R4_A = MAP_R4_B = S.map_pending[0];
+		if (S.map_changed & 2)
+			MAP_L4_A = MAP_L4_B = S.map_pending[1];
+		S.map_changed = 0;
 		stock_save_mappings();
 		if (S.dz_changed) {
 			S.dz_changed = 0;
+			RECORD_DZ = DZ_OFF;
 			save_settings();
 		}
 	}
@@ -248,6 +262,8 @@ void settings_vendor(u8 *p)
 	} else if (p[3] == 0x58) {
 		if (p[4] < 2)
 			set_dead_zone_off(p[4]);
+	} else if (p[3] == 0x5a) {
+		S.loaded = 0; /* read the record again on the next pass */
 #ifdef STACK_TEST
 	} else if (p[3] == 0x59) {
 		stack_answer();
@@ -318,7 +334,7 @@ static u32 trigger(u32 v, u32 start, u32 end)
 	return v <= lo ? 0 : v >= hi ? 255 : (v - lo) * 255 / (hi - lo);
 }
 
-/* The button scan's call to stock_scan, every 5 ms: changes go in before it, so it still works out the digital triggers,
+/* The button scan's call to stock_scan, every 5 ms, in dead RAM code at 0x1210: changes go in before it, so it still works out the digital triggers,
  * mapping and turbo from them. */
 void scan_hook(u32 *word, u8 *lt, u8 *rt)
 {
@@ -377,17 +393,23 @@ void idle_task(void)
 	if ((change && connected) || (!connected && S.was_connected))
 		IDLE_COUNT = 0;
 	S.was_connected = connected;
+	if (S.unplug_wait) {
+		S.unplug_wait = S.unplug_wait - 1;
+		if (!(PD & 1))
+			stock_reboot();
+	}
 	stock_idle();
 }
 #endif
 
-/* The cable stopped being a USB host. In the Bluetooth position, with no power left on it, restart: that finds the Mac at
- * once, where the firmware otherwise stays searching. PD0 tells this from a sleeping Mac, which comes through here too. */
+/* The cable stopped being a USB host. In the Bluetooth position, if the power goes too, restart: that finds the Mac at once,
+ * where the firmware otherwise stays searching. The power can take a moment to fall, so idle_task keeps watching for half a
+ * second. PD0 tells this from a sleeping Mac, which comes through here too and keeps its power. */
 void unplug_task(u32 a)
 {
 	stock_da58(a);
-	if ((RAW_WORD >> 28 & 1) && !(PD & 1))
-		stock_reboot();
+	if (RAW_WORD >> 28 & 1)
+		S.unplug_wait = 5;
 }
 
 /* Replaces the Bluetooth firmware update's write handler, which needs no encryption: any device that connects could write
