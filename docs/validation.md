@@ -39,3 +39,25 @@ read back and identified afterwards.
 - **Detection:** turning the controller off, connecting it and entering update mode are noticed without pressing Refresh.
 
 Not validated: other Ultimate 2C units, rumble in CrossOver games, the dongle (refused by design), Linux.
+
+# Hardware validation of 0.3.0 (2026-11-06)
+
+Run on the same controller, macOS 27.2 (Apple silicon), through the macOS app and the command line.
+
+- **Install over 0.2.0:** the command line wrote 1250 bytes in update mode. A backup read by cable afterwards identifies the
+  five tweaks plus Battery alerts, and no longer as outdated. Compared with the backup before it, only the firmware area and
+  the saved ring level (settings field +25) differ. The pairings and the controller's address are unchanged.
+- **Battery alerts, at 100 %:** plugging in gives one short pulse and a slow blink for a few seconds, then the ring settles.
+- **Home ring, by cable and over Bluetooth:** the level changes at once from the app. A saved level is back after turning the
+  controller off and on. L4 + R4 steps through the levels by cable and over Bluetooth.
+- **Saving during use:** over Bluetooth, with L4 + R4 pressed more than 6 times in 3 minutes (each press saves after 3 s),
+  reports arrived at 116 per second with no disconnection. The median gap was 14.6 ms and the longest 59 ms.
+- **Bluetooth test tab:** controls, triggers, sticks and the vibration tests respond. The battery is shown through macOS.
+- **A native game (SDL, Xbox mode):** a Pokémon port plays without drops, and vibrates when it should.
+- **A game through Steam and NotProton:** the controls work. The game doesn't vibrate, so rumble there wasn't tried.
+- **Restore and install again:** the app restored the original 1.09 over 0.3. A backup identifies it as original, the payload
+  matches 8BitDo's hash, the area past the payload is blank, and nothing outside the firmware area changed. Installing the same
+  tweaks from the app gave a flash identical to the first install, and the saved ring level came back.
+
+Not validated: the alerts with a really drained battery (near 15 % and 5 %) and the pulse when charging completes. The pulses and
+blink patterns were tried on the controller with a test build that simulates those states.
