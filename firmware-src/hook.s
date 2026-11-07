@@ -61,6 +61,13 @@
 	.section .hsweep, "ax"
 	tjl	two_sweeps
 
+@ Processor rest: the main loop's call at 0xa484 goes to rest_main_poll (rest.c, RAM) instead of main_poll, which it still makes;
+@ and the Bluetooth branch's call to the motor setter at 0xa4ae (was tjl 0xfa68) goes to stall_hook, which still makes it.
+	.section .resthook, "ax"
+	tjl	rest_main_poll
+	.section .hstall, "ax"
+	tjl	stall_hook
+
 @ 0xd1c8 loaded the idle counter into r2 and the limit 8999 into r3 for the compare after it. This loads the limit from the
 @ settings, or the stock value until they're loaded. It doesn't touch the other registers.
 	.section .hidle, "ax"

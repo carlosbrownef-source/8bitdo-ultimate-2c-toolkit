@@ -26,6 +26,10 @@ SECTIONS
 	.hunplug 0xea88 : { *(.hunplug) }
 	.hota 0x178cc : { *(.hota) }
 	.hsweep 0xa2dc : { *(.hsweep) }
+	.resthook 0xa484 : { *(.resthook) }
+	.hstall 0xa4ae : { *(.hstall) }
+	.wdog 0x20 : AT(0x6020) { *(.text.rest_main_poll) *(.text.rest_poll) }
+	.stall 0x248c : AT(0x848c) { *(.text.stall_hook) }
 	.sram 0x1210 : AT(0x7210) { *(.text.sram_guard) *(.text.scan_hook) *(.text.trigger) }
 	.ringtail 0x18400 : { *(.text.rumble_tail) *(.text*) *(.rodata*) }
 	.rest : { *(.text*) *(.data*) *(.bss*) *(COMMON) }
@@ -40,6 +44,8 @@ ASSERT(SIZEOF(.hook) == 4, "hook is one tjl")
 ASSERT(SIZEOF(.sram) <= 0x12d0 - 0x1210, "scan_hook outside the dead RAM code at 0x1210")
 ASSERT(rumble_tail == 0x18400, "rumble_tail is not first in the blank area")
 ASSERT(SIZEOF(.ringtail) <= 0x18ff0 - 0x18400, "the Home ring's code overflows the blank area")
-ASSERT(SIZEOF(.ringhook) == 4 && SIZEOF(.vhooka) == 4 && SIZEOF(.vhookb) == 4 && SIZEOF(.pollhook) == 4, "a hook isn't one tjl")
+ASSERT(SIZEOF(.ringhook) == 4 && SIZEOF(.vhooka) == 4 && SIZEOF(.vhookb) == 4 && SIZEOF(.pollhook) == 4 && SIZEOF(.resthook) == 4 && SIZEOF(.hstall) == 4, "a hook isn't one tjl")
+ASSERT(rest_main_poll == 0x20 && SIZEOF(.wdog) <= 0xb4 - 0x20, "the watchdog outside the dead RAM code at 0x20")
+ASSERT(stall_hook == 0x248c && SIZEOF(.stall) <= 0x2500 - 0x248c, "stall_hook outside the dead RAM code at 0x248c")
 ASSERT(SIZEOF(.hgamea) == 4 && SIZEOF(.hgameb) == 4 && SIZEOF(.hbuzza) == 4 && SIZEOF(.hbuzzb) == 4 && SIZEOF(.hidle) == 4 && SIZEOF(.hstickl) == 4 && SIZEOF(.hstickr) == 4 && SIZEOF(.hscan) == 4, "a settings hook isn't one tjl")
 ASSERT(SIZEOF(.rest) == 0, "unplaced code or data")
