@@ -13,7 +13,8 @@ Everything your **8BitDo Ultimate 2C Wireless** needs on a Mac, in one app. Firm
 - **Rumble over Bluetooth.** The original firmware doesn't vibrate over Bluetooth, and this makes it respond to games.
 - **Adjustable light.** Choose how bright the ring around the Home button is, or turn it off, and change it at any time from the app or with L4 + R4 on the controller. You can also dim the other lights.
 - **Battery alerts.** The ring and motors tell you when the battery is low, and when charging starts and completes.
-- **Settings that change at once.** Set the sticks' dead zone, range and response, the triggers' range and the vibration from games, map L4 and R4, remap the buttons, and choose when the controller turns itself off, without installing anything each time.
+- **Settings that change at once.** Set the sticks' dead zone, range and response, the triggers' range and the vibration from games, map L4 and R4, remap the buttons, and choose when the controller turns itself off, without installing anything each time. A guide walks you through the controller's own stick calibration.
+- **Fewer interruptions.** Playing only with the sticks no longer turns the controller off, a lost connection gets its full minute to come back, and unplugging the cable reconnects it over Bluetooth at once. Slow stick movements can also advance in finer steps.
 - **Tests the controller.** See what macOS reports, including the battery, check every button, stick and trigger, and try the vibration.
 - **Backs up and restores.** Save a full copy of the controller's memory first, and go back to it or to 8BitDo's original firmware at any time.
 
@@ -88,8 +89,6 @@ The controller test is only available in the Mac app for now, because it uses ma
 | Controller settings | Adds what the Settings tab changes. Needs the Home ring's code, which is installed at full brightness if you don't choose a level. |
 | Fixes | Moving a stick counts as using the controller, which the original firmware only notices through buttons, so playing only with sticks no longer turns it off after 15 minutes. A dropped connection gets its full search time. Unplugging the cable in the Bluetooth position restarts the controller, so it finds the Mac at once. It also closes the firmware update over Bluetooth, which needs no encryption. Needs the Home ring's code. |
 | Finer stick movement | The firmware ignores stick changes of up to 20 of about 4,000 steps, which makes slow movement advance in small jumps. This lowers that threshold to 14, just above the noise measured on one controller, and reads the sticks twice per report. A stick held still away from the centre may still move by one step now and then. Off by default. Needs the Home ring's code. |
-| Standard Bluetooth connection request | The firmware asks for a connection interval and latency outside what Apple documents. This asks for 11.25-15 ms with no latency instead, which could mean more reports per second if macOS accepts. Off by default until it has been measured. |
-| Softer rumble start | Every vibration starts at 95 % for 40 ms, however weak it's meant to be. This makes that 20 ms. A motor may fail to start at very low strength. Off by default until it has been measured. |
 
 Each tweak is a hash-checked set of byte edits to the stock v1.09 image; nothing else in the firmware changes, and the controller's bootloader, MAC, calibration and pairings are never written.
 

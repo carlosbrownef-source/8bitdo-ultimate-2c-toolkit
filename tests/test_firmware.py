@@ -243,10 +243,13 @@ class FromEarlierVersionsTest(unittest.TestCase):
         pointer = int.from_bytes(img[0x178CC - image.BASE:0x178D0 - image.BASE], "little")
         self.assertTrue(pointer & 1 and recipes.RING_CODE[0] < pointer < recipes.RING_CODE[1], hex(pointer))
 
-    def test_fixed_tweaks_change_exactly_their_bytes(self):
-        want = {"ble_interval": {0xA0DE: "09a00ca100a2c8a3"}, "soft_rumble": {0xF968: "01aa"}}
-        for key, edits in want.items():
-            self.assertEqual({e.addr: e.new.hex() for e in recipes.RECIPES[key].edits}, edits, key)
+    def test_published_hashes_cover_exactly_the_recipes_regions(self):
+        from u2c_customfw.firmware import stock_hashes
+        regions = {(e.addr, e.size) for r in recipes.RECIPES.values() for e in r.edits}
+        self.assertEqual(set(stock_hashes.REGION_SHA256), regions, "run tools/make_constants.py after changing a recipe's edits")
+
+    def test_untried_tweaks_are_left_out_of_0_4(self):
+        self.assertFalse({"ble_interval", "soft_rumble"} & set(recipes.RECIPES))
 
     def test_finer_sticks_change_the_threshold_in_all_four_places(self):
         edits = {e.addr: e.new for e in recipes.RECIPES["stick_precision"].edits}
@@ -260,7 +263,7 @@ class FromEarlierVersionsTest(unittest.TestCase):
             recipes.build(self.stock, ["stick_precision"], **self.k)
 
     def test_all_new_tweaks_together_with_every_other(self):
-        keys = KEYS + ["ring_5", "battery_alerts", "settings", "fixes", "stick_precision", "ble_interval", "soft_rumble"]
+        keys = KEYS + ["ring_5", "battery_alerts", "settings", "fixes", "stick_precision"]
         st = recipes.identify(recipes.build(self.stock, keys, **self.k), **self.k)
         self.assertEqual((st.known, st.recipes), (True, tuple(sorted(keys))))
 

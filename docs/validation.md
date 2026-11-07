@@ -67,12 +67,48 @@ blink patterns were tried on the controller with a test build that simulates tho
 Nothing here has run on a controller yet. Each write needs its own go-ahead.
 
 1. Done on 2026-11-07: with a threshold-0 build, noise at rest spans about 25 of 4,096 counts per axis, and 99 % of steps between samples stay within 11. Replaying the samples, 14 lets the noise through about once every 2 s, and 8 about 13 times a second, so `STICK_THRESHOLD` is 14.
+   Installed on 2026-11-07 (7 bytes over the defaults): moving the left stick slowly by cable, the median step went from 637 to 467 of 32767 and 90 % of steps from 982 to 621, about 14/20. Released, it went back to 0 and sent nothing for 30 s. Over Bluetooth, a minute moving the sticks gave 111 reports per second, no disconnection, longest gap 60 ms.
 2. Install 0.4 with defaults: every control behaves as on 0.3. Read `0x7a000` back.
+   Done on 2026-11-07: restored the original 1.09 over the stack test build (4,042 bytes, no other block), then installed the app's default tweaks with the ring at 5 % (4,080 bytes). A backup identifies it, and against the 0.3 backup only the firmware area and `0x7a000` differ. `0x7a000` still held the record saved with the test build, since Restore leaves it, so the app's Reset to defaults put it back; the diagnostics tests then responded normally by cable and over Bluetooth.
 3. Each setting by cable: dead zone, reach, curve and inversion on both sticks in the live view; trigger range; vibration at 0 and 50 % in a game by cable and over Bluetooth, with battery alerts unchanged; idle limit; buzz on connecting; L4 and R4 with a single button, several buttons and a trigger; the dead zone switch from the app and with Start + Select; button remapping with A and B swapped, and one button set to nothing.
+   Partial, 2026-11-07, by cable with live changes, pairing the firmware's raw telemetry with what GameController reports: a
+   30 % dead zone keeps the stick at 0 up to about a third of its travel (about 12 % at the default); reach 70 % gets to full at about
+   60 % of the physical travel (about 84 % at the default); the soft curve gives less than linear at mid travel and the fast one more;
+   inverting one axis flipped exactly that axis. LT starting at 30 % stays at 0 up to 29 % of its raw travel and then rises evenly;
+   RT ending at 60 % is full at about 60 %. A and B swapped, X set to nothing, R4 as A and L4 as LB + RB + LT all arrived as set.
+   The dead zone switch works from the app and with Start + Select, seen in the raw report (switched on, a stick at rest sends
+   nothing; off, its noise), but GameController doesn't show it by cable: Apple's driver hides about the central 12 % of the travel
+   on its own.
+   Game vibration: by cable, with Xbox 360 rumble reports sent straight to the gamepad, 0 % doesn't vibrate, 50 % is weaker and
+   100 % strong. Over Bluetooth, with Xbox's rumble report and the level saved (Fixes restarts the controller when it's unplugged,
+   which drops live changes), 0 % doesn't vibrate and 50 % is weaker. The battery alerts call the motors directly, past this
+   setting. GameController's haptics from a background command-line tool didn't vibrate at all, at any level.
+   Saved with the buzz on connecting off and a 5-minute idle limit: turned on without the cable, it connected over Bluetooth without
+   vibrating, and left alone it turned itself off 5 minutes 0 seconds after connecting.
 4. Save, turn off and on, over cable and Bluetooth. Reset to defaults. Restore and install again: settings still apply.
+   Done on 2026-11-07: saving, then turning off and on, kept the vibration level over Bluetooth (above). Reset to defaults saved
+   the defaults, read back. With a 30 % left dead zone saved, Restore (4,080 bytes, no other block) and installing again kept the
+   record, and the left stick again stayed at 0 for about a third of its travel while the right one, at the default, didn't.
 5. Calibration with the guide, and sticks and triggers afterwards.
+   Done on 2026-11-07, once: the guide's steps worked as written. Only the calibration sectors changed (`0x74000`, 14 bytes,
+   and `0x75000`, 6 bytes). Afterwards, in the raw cable report with the dead zone off, both sticks reach -32768 and 32767 on each
+   axis, rest within about 540 of 32767 of the centre (about as before), and both triggers reach 255.
 6. Fixes: only sticks past a short test limit; the Mac's Bluetooth off after a minute idle; unplugging; a sleeping Mac with the cable in, which must not restart; a plain charger; the Bluetooth update no longer answering.
+   2026-11-07, with a 5-minute idle limit saved: moving only the sticks over Bluetooth for 7 minutes kept it on, and left alone it
+   turns off at 5 minutes exactly (item 3), so noise doesn't count. Unplugging restarts it and it's back on Bluetooth about 4 s later.
+   After a minute idle, turning the Mac's Bluetooth off made it turn off within seconds, and it didn't come back when the Mac's
+   Bluetooth did. That isn't the case the fix covers: stock's terminate callback (`0xa070`) powers off at once (`0xa0ac`, to
+   `0xd8e8`) when the link ends with reason 19 (the host ended it, which turning Bluetooth off probably sends), and keeps
+   searching on reason 8 (lost link), the case the counter reset is for. That case passed: after more than 30 minutes untouched,
+   shut in a microwave oven (off), the link dropped, and taken out 19 s later it reconnected by itself. Stock would have turned
+   off on the next tick. A plain charger (a power bank), plugged in
+   and unplugged over Bluetooth, didn't restart it or drop the connection. Still to try: a sleeping Mac with the cable in (this
+   Claude Code session holds a sleep assertion, so it needs the session closed), and the Bluetooth update.
 7. Connection request: reports per second over 60 s, then 30 minutes with rumble. Soft start: low strengths from rest, both motors.
+   Left out of 0.4 (Carlos, 2026-11-07): both tweaks were removed from the app until they can be tried. The sleeping-Mac check is postponed, and the Bluetooth update stays closed without a check on the controller.
 8. 30 minutes of a game over Bluetooth with rumble on code running from the tail.
+   Done on 2026-11-07 (at rest, with Xbox's rumble report sent every 20 s, 89 in all, and a 60-minute idle limit saved): 30 minutes, 199,718 reports at 111 per second, no disconnection, median gap 14.2 ms, 99 % within 30 ms, longest 76 ms.
 9. Before publishing, the main stack's margin with a build compiled with `-DSTACK_TEST` (`firmware-src/settings.c`): how much stays unused after playing by cable and over Bluetooth, with every setting changed, saving, and rumble running. At least 100 of its 784 bytes should stay unused.
+   Done on 2026-11-07: 128 bytes stayed unused after starting with the cable, and again after saving from the app, L4 + R4, play by cable, about 90 minutes over Bluetooth with rumble and plugging in again; nothing entered the dead code at `0x1210`. The deepest point comes when starting or when USB connects. Fixes, left out of the test build, add about 24 bytes. Opening the Settings tab repaints the test build's stack, so the app has to stay closed while measuring.
 10. With the same build, whether the CPU ever sleeps: main-loop passes per second over Bluetooth and by cable, against about 66 radio events per second at 15 ms. Also how long a full charge lasts idle and while playing, as a baseline. This only measures.
+   Done on 2026-11-07 for the loop: it averaged 6,239 passes per second over 2.5 hours, mostly over Bluetooth, and 770 to 1,760 by cable, so the CPU never sleeps. How long a charge lasts wasn't measured.

@@ -143,12 +143,6 @@ def _make() -> dict[str, Recipe]:
             *(Edit(a, bytes([STICK_THRESHOLD])) for a in (0xB1F2, 0xB208, 0xB220, 0xB238)),  # the jitter filter's threshold
             Edit(0xA2DC, _blob("hsweep.bin")),                   # two ADC passes per report, so its average means something
         ), requires_group="ring"),
-        Recipe("ble_interval", "Standard Bluetooth connection request", (), (
-            Edit(0xA0DE, bytes.fromhex("09a00ca100a2c8a3")),     # min 11.25 ms, max 15 ms, latency 0, timeout 2 s, instead of 7.5 ms and latency 59
-        )),
-        Recipe("soft_rumble", "Softer rumble start", (), (
-            Edit(0xF968, bytes.fromhex("01aa")),                 # the 95 % start lasts 2 ticks rather than 4
-        )),
     )}
 
 

@@ -50,8 +50,6 @@
       <label class="tw"><input type="checkbox" class="tweak" value="settings" checked><span class="sw"></span><span>Controller settings<em>(changed in the Settings tab)</em></span></label>
       <label class="tw"><input type="checkbox" class="tweak" value="fixes" checked><span class="sw"></span><span>Fixes<em>(idle power-off, reconnecting, Bluetooth updates)</em></span></label>
       <label class="tw"><input type="checkbox" class="tweak" value="stick_precision"><span class="sw"></span><span>Finer stick movement</span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="ble_interval"><span class="sw"></span><span>Standard Bluetooth connection request</span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="soft_rumble"><span class="sw"></span><span>Softer rumble start</span></label>
       <div class="base"><span>Home ring brightness:</span>
         <div class="seg" id="ring"><button data-ring="" class="on">Normal</button><button data-ring="ring_25">25 %</button><button data-ring="ring_5">5 %</button><button data-ring="ring_1">1 %</button><button data-ring="ring_0_1">0.1 %</button><button data-ring="ring_off">Off</button></div></div>
       <div class="base"><span>Take the original firmware 1.09 from:</span>
@@ -173,8 +171,6 @@
     <li><b>Controller settings.</b> Adds what the Settings tab changes: sticks, triggers, L4 and R4, vibration, power and button remapping. With everything at its default, the controller runs its original code for these.</li>
     <li><b>Fixes.</b> Moving a stick counts as using the controller, so playing only with sticks no longer turns it off after 15 minutes. A dropped connection gets its full search time. Unplugging the cable with the switch in the Bluetooth position restarts the controller, so it finds the Mac at once. It also closes the firmware update over Bluetooth, which needs no encryption.</li>
     <li><b>Finer stick movement.</b> The firmware ignores small stick changes, which makes slow movement advance in small jumps. This lowers that limit to just above the noise measured on one controller. A stick held still away from the centre may still move by one step now and then.</li>
-    <li><b>Standard Bluetooth connection request.</b> Asks macOS for a connection within what Apple documents, which could mean more reports per second. It hasn't been measured on a controller yet.</li>
-    <li><b>Softer rumble start.</b> Every vibration starts very strong for a moment, however weak it's meant to be. This makes that moment shorter. It hasn't been tried on a controller yet, and a motor may fail to start at very low strength.</li>
     <li><b>Battery alerts.</b> The ring blinks slowly while charging and quickly when the battery is at 15 % or less, even if you turned it off. The motors give one short pulse when charging starts, one long pulse when it completes, and two short pulses at 5 % or less, again every 5 minutes. These only work with a Home ring level, so with this on and the brightness on Normal, the ring's code is installed at full brightness.</li>
   </ul>
   <p>The tweaks are always added to 8BitDo's original firmware 1.09, taken from your backup or downloaded from 8BitDo, so the result is always a known, checked firmware.</p>
