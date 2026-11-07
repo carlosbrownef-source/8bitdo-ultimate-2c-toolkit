@@ -105,7 +105,7 @@ class ControllerNameTest(unittest.TestCase):
             self.assertEqual((st.known, st.recipes), (True, tuple(sorted(keys))), keys)
 
     def test_the_published_tweaks_keep_their_bytes(self):
-        """Firmware installed by 0.1.x, 0.2.0 and 0.3.0 is only recognised while these match: changing a blob needs an `accepts` for the old one."""
+        """Firmware installed by 0.1.x, 0.2.0, 0.3.0 and 0.4.0 is only recognised while these match: changing a blob needs an `accepts` for the old one."""
         published = {
         "packer.bin": "1ba223dee721be22c4a64575784013bedebb0e5706b5bd4a93cd760b985424e9",
         "noop.bin": "7817034cdd42530d23894be6e9dd41a777ec2a407cc73c69ac0665fc047e4d1e",
@@ -121,6 +121,25 @@ class ControllerNameTest(unittest.TestCase):
         "pollhook03.bin": "5c15dd176afa3d1f0ad7a6b1ba8b47c08d0151eb21b3adecf93384608d30a21b",
         "vhooka03.bin": "a55172fb21ac5276c2c817c4b541762a44f9db77bb1bdbcef228af6761133ea9",
         "vhookb03.bin": "000981e512e1fef4ea304ba898cd2e74ce2f53636f8583f8ebfc4af0df08abf1",
+        "hbuzza.bin": "e9c799c9b8c8dc2c84205e80f44aab7bb7583c0edf4b292cb1726764f4916b68",
+        "hbuzzb.bin": "030dc683f5e6d6e46824dea6bd771693c8888c8fcfda37490f7e2e2a453edee8",
+        "hgamea.bin": "09b2c2feac8fff2690e7be555675634d3933448e1041eee6c04cfa8500e5e241",
+        "hgameb.bin": "676ce0dbd8e61ba4eb9b75b870f86e2dfd58c577321fb4c85f875a8940fd4747",
+        "hidle.bin": "021a52c52e6f7932d3aa12059aca08a1cdcdf9126c3a66f1013b7248a9955546",
+        "hidletask.bin": "140c10dba0cb03d49e0e8bada0d3f0544aa16764f65cc320aa2f7018e4e39e4f",
+        "hota.bin": "e61616020a14bbe20d617776972a0fd2fd3c77034dc9fc8fb392c8679d1b5d26",
+        "hscan.bin": "fab672f16abbe46b94882f28294d7b140259149b2ea3aead6503b8622243e861",
+        "hstickl.bin": "f8e649a57bed7bb4b8fd75a48f895567b3ba5256f8d8f5fcebfda6332ed0178d",
+        "hstickr.bin": "729e37e7e527fb10cbcb165f354a77851db6ed59ca155fe82556dbefad0786bf",
+        "hsweep.bin": "285ef7b2d92ca8f32ab9b83ed3d3fe6adc4e760b54532a3802c5ceaa75be0d5c",
+        "hunplug.bin": "6beee17a70d71fa42438a212ba1b33b3829acdde507e30348e323cee8f703fe6",
+        "pollhook.bin": "39f5251bcf8179cd85115b631cbeecd771dbe39fb856e6bc245156828b84694e",
+        "ringhook.bin": "e5c2e40947f7369c2b0e4afe98c39395a0a1b9f9248de7ef69283e12b0d02330",
+        "ringtail.bin": "0e7f0b38fd8de0b272a270066ca681e9c660cecf29265279e8b107b4bacc0ae8",
+        "rumble.bin": "7acd917ab3f4dd6a54ab272a19f13e877a010dc17f9d8c899e28ea52125af5cf",
+        "sram.bin": "c3f0966446812c97bb976ba0f28b9a4b8a158939d6f158107faa747c3b546699",
+        "vhooka.bin": "9d23fcfe77ae92d7215d02012a693d4a93778e695c6ab3f56954694ee94ff858",
+        "vhookb.bin": "e0c27de8ca721f16eb4541dc9e9a70cda2f7ed2ec67c5fa552317b1f9ae35bff",
         }
         for name, sha in published.items():
             self.assertEqual(hashlib.sha256((recipes.BLOBS / name).read_bytes()).hexdigest(), sha, name)
@@ -266,6 +285,33 @@ class FromEarlierVersionsTest(unittest.TestCase):
         keys = KEYS + ["ring_5", "battery_alerts", "settings", "fixes", "stick_precision"]
         st = recipes.identify(recipes.build(self.stock, keys, **self.k), **self.k)
         self.assertEqual((st.known, st.recipes), (True, tuple(sorted(keys))))
+
+    FOUR = KEYS + ["ring_5", "battery_alerts", "settings", "fixes", "stick_precision"]  # what 0.4.0 installs
+
+    def test_cpu_rest_installs_the_hooks_the_islands_and_the_flag(self):
+        img = recipes.build(self.stock, self.FOUR + ["cpu_rest"], **self.k)
+        at = lambda a, n: img[a - image.BASE:a - image.BASE + n]
+        for addr, name in ((0xA484, "resthook.bin"), (0xA4AE, "hstall.bin"), (0x6020, "wdog.bin"), (0x848C, "stall.bin")):
+            blob = recipes._blob(name)
+            self.assertEqual(at(addr, len(blob)), blob, name)
+        self.assertEqual(at(0x18FF2, 1), b"\1")
+        st = recipes.identify(img, **self.k)
+        self.assertEqual((st.known, st.recipes), (True, tuple(sorted(self.FOUR + ["cpu_rest"]))))
+
+    def test_cpu_rest_needs_a_ring_level(self):
+        with self.assertRaises(RecipeError) as e:
+            recipes.build(self.stock, ["cpu_rest"], **self.k)
+        self.assertIn("ring level", str(e.exception))
+
+    def test_cpu_rest_is_not_offered_in_the_app(self):
+        html = (Path(recipes.__file__).parents[1] / "web" / "static" / "index.html").read_text()
+        self.assertNotIn('value="cpu_rest"', html)
+
+    def test_firmware_from_0_4_is_still_recognised_without_cpu_rest(self):
+        """0.4.0's blobs are pinned in test_the_published_tweaks_keep_their_bytes, so this is what a controller on 0.4.0 holds."""
+        for keys in ([], ["ring_5"], self.FOUR):
+            st = recipes.identify(recipes.build(self.stock, keys, **self.k), **self.k)
+            self.assertEqual((st.known, st.recipes, st.outdated), (True, tuple(sorted(keys)), False), keys)
 
     def test_current_firmware_is_not_outdated(self):
         self.assertFalse(recipes.identify(recipes.build(self.stock, ["ring_5"], **self.k), **self.k).outdated)
