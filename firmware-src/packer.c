@@ -206,6 +206,7 @@ void stock_vendor_a(u8 *p);                      /* 0xf56c */
 void stock_vendor_b(u8 *p);                      /* 0xf594 */
 void settings_poll(void);
 void settings_vendor(u8 *p);
+void rest_poll(void);
 
 #ifdef HOST
 #include <string.h>
@@ -262,6 +263,7 @@ void main_poll(void)
 {
 	u32 b = RAW_BTN, pressed = b & ~S.prev_btn;
 
+	rest_poll();
 	S.prev_btn = b;
 	if (S.init && (b & L4) && (b & R4) && (pressed & (L4 | R4))) {
 		S.level = S.level + 1 < RING_LEVELS ? S.level + 1 : 0;
