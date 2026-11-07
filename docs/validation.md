@@ -62,9 +62,10 @@ Run on the same controller, macOS 27.2 (Apple silicon), through the macOS app an
 Not validated: the alerts with a really drained battery (near 15 % and 5 %) and the pulse when charging completes. The pulses and
 blink patterns were tried on the controller with a test build that simulates those states.
 
-# Pending for 0.4.0
+# Hardware validation of 0.4.0 (2026-11-07)
 
-Nothing here has run on a controller yet. Each write needs its own go-ahead.
+Run on the same controller, macOS 27.2 (Apple silicon), through the command line and small read-only tools, with live changes
+sent by cable as the app sends them. Each item is the plan as written before the run, followed by what happened.
 
 1. Done on 2026-11-07: with a threshold-0 build, noise at rest spans about 25 of 4,096 counts per axis, and 99 % of steps between samples stay within 11. Replaying the samples, 14 lets the noise through about once every 2 s, and 8 about 13 times a second, so `STICK_THRESHOLD` is 14.
    Installed on 2026-11-07 (7 bytes over the defaults): moving the left stick slowly by cable, the median step went from 637 to 467 of 32767 and 90 % of steps from 982 to 621, about 14/20. Released, it went back to 0 and sent nothing for 30 s. Over Bluetooth, a minute moving the sticks gave 111 reports per second, no disconnection, longest gap 60 ms.
