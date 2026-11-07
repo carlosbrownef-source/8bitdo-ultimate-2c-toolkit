@@ -252,7 +252,7 @@ class FromEarlierVersionsTest(unittest.TestCase):
         edits = {e.addr: e.new for e in recipes.RECIPES["stick_precision"].edits}
         for addr in (0xB1F2, 0xB208, 0xB220, 0xB238):
             self.assertEqual(edits[addr], bytes([recipes.STICK_THRESHOLD]), hex(addr))
-        self.assertEqual(recipes.STICK_THRESHOLD, 8)
+        self.assertEqual(recipes.STICK_THRESHOLD, 14)
         self.assertEqual(len(edits[0xA2DC]), 4)
 
     def test_finer_sticks_need_the_tail(self):

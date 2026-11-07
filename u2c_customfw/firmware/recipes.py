@@ -25,7 +25,7 @@ RING_ORDER = ("ring_normal", "ring_25", "ring_5", "ring_1", "ring_0_1", "ring_of
 RING_CODE = (0x18400, 0x18FF0)                                # blank on stock
 ALERTS_FLAG = 0x18FF0
 SETTINGS_FLAG = 0x18FF1
-STICK_THRESHOLD = 8                                           # stock's is 20; not measured yet on a real controller
+STICK_THRESHOLD = 14  # stock's is 20; noise at rest spans about 25 counts, and 14 lets it through about once every 2 s
 
 
 class RecipeError(Exception):
