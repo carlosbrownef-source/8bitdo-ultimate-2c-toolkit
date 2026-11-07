@@ -115,12 +115,12 @@ class ControllerNameTest(unittest.TestCase):
         "report-map.bin": "a681e2cb8b5d9466f258e2f07f0fcc518ec438231af1b61b125c213d2c62e165",
         "ring02.bin": "3230e6f5f644389a1cf7de4d8d12f7c0c5994b1d3fefa3156e1658b708336b35",
         "ringhook02.bin": "36bb496143d7a87026b50fe0220ef246c168c3b6b6251f4286b33edf1498222d",
-        "rumble.bin": "f4be669cb33f916fa8e494c6b7d77bd2c29d165fff7fee62ccf9b7952c6e092d",
-        "ringhook.bin": "c5c17678cb98c19b506922d7b7a33a82dfe50a9e144183eab2ed7d6ff4facd0d",
-        "ringtail.bin": "ad42bf2804072507723597786cbcb4dd1650a9932523d8c355561a08844f0943",
-        "pollhook.bin": "5c15dd176afa3d1f0ad7a6b1ba8b47c08d0151eb21b3adecf93384608d30a21b",
-        "vhooka.bin": "a55172fb21ac5276c2c817c4b541762a44f9db77bb1bdbcef228af6761133ea9",
-        "vhookb.bin": "000981e512e1fef4ea304ba898cd2e74ce2f53636f8583f8ebfc4af0df08abf1",
+        "rumble03.bin": "f4be669cb33f916fa8e494c6b7d77bd2c29d165fff7fee62ccf9b7952c6e092d",
+        "ringhook03.bin": "c5c17678cb98c19b506922d7b7a33a82dfe50a9e144183eab2ed7d6ff4facd0d",
+        "ringtail03.bin": "ad42bf2804072507723597786cbcb4dd1650a9932523d8c355561a08844f0943",
+        "pollhook03.bin": "5c15dd176afa3d1f0ad7a6b1ba8b47c08d0151eb21b3adecf93384608d30a21b",
+        "vhooka03.bin": "a55172fb21ac5276c2c817c4b541762a44f9db77bb1bdbcef228af6761133ea9",
+        "vhookb03.bin": "000981e512e1fef4ea304ba898cd2e74ce2f53636f8583f8ebfc4af0df08abf1",
         }
         for name, sha in published.items():
             self.assertEqual(hashlib.sha256((recipes.BLOBS / name).read_bytes()).hexdigest(), sha, name)

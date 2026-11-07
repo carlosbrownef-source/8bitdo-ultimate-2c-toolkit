@@ -14,11 +14,16 @@ ROOT = Path(__file__).parent.parent
 
 
 class NameTest(unittest.TestCase):
-    def test_the_app_is_called_firmware_toolkit(self):
+    def test_the_app_is_called_u2c_firmware_toolkit_inside_and_keeps_its_file_names(self):
         plist = (ROOT / "macos/Info.plist").read_text()
-        self.assertIn("<key>CFBundleDisplayName</key><string>Firmware Toolkit</string>", plist)
-        self.assertIn('window.title = "Firmware Toolkit"', (ROOT / "macos/main.swift").read_text())
-        self.assertIn("<title>Firmware Toolkit</title>", (ROOT / "u2c_customfw/web/static/index.html").read_text())
+        self.assertIn("<key>CFBundleName</key><string>U2C Firmware Toolkit</string>", plist)
+        self.assertIn("<key>CFBundleDisplayName</key><string>U2C Firmware Toolkit</string>", plist)
+        swift = (ROOT / "macos/main.swift").read_text()
+        self.assertIn('window.title = "U2C Firmware Toolkit"', swift)
+        self.assertIn('"Quit U2C Firmware Toolkit"', swift)
+        page = (ROOT / "u2c_customfw/web/static/index.html").read_text()
+        self.assertIn("<title>U2C Firmware Toolkit</title>", page)
+        self.assertIn("<b>U2C Firmware Toolkit</b>", page)
         build = (ROOT / "macos/build.sh").read_text()
         self.assertIn('app="dist/Firmware Toolkit.app"', build)
         self.assertIn("firmware-toolkit-$version-macos-arm64.zip", build)
