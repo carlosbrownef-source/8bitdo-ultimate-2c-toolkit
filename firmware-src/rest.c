@@ -30,6 +30,40 @@ extern u8 REST_FLAG, MOTOR_HOLD;
 #define TIMERS IO(0x800620) /* +0 the enables and the watchdog capture, +3 status (clear on write), +4 timer0's capture, +0x10 its tick, +0x18 timer2's tick */
 #define OPAQUE(p) asm("" : "+r"(p)) /* keeps the compiler from turning offsets off a base into one literal each */
 
+#if defined(STALL_TEST) && !defined(HOST)
+/* Test build only (tools/stalltest in the private notes): two chords on the physical button word, held for 30 calls (3 s).
+ * L4 + R4 + Select hangs for ever without feeding, so the watchdog should end it in about 3 s. L4 + R4 + Start turns the
+ * watchdog off, freezes 30 s on the 16 MHz system tick and comes back, and the next rest_poll arms it again. Runs from RAM
+ * in .led (packer.ld), so it needs the dimmer LEDs installed. */
+#define RAW_BTN (*(volatile u32 *)0x84344c)
+#define HELD (*(volatile u8 *)0x84167f) /* a free byte after the Home ring's state */
+#define TIMER (*(volatile u32 *)0x800740)
+#define CHORD (1u << 26 | 1u << 25) /* L4 + R4 */
+#define SELECT (1u << 3)
+#define START 1u
+
+__attribute__((noinline)) void test_chords(u32 b)
+{
+	u32 start;
+
+	if ((b & CHORD) != CHORD || !(b & (SELECT | START))) {
+		HELD = 0;
+		return;
+	}
+	if (HELD >= 30)
+		return;
+	if (++HELD < 30)
+		return;
+	if (b & SELECT)
+		for (;;)
+			asm volatile("");
+	TIMERS[2] &= ~0x80;
+	start = TIMER;
+	while (TIMER - start < 480000000u)
+		;
+}
+#endif
+
 /* Every 100 ms in both positions: a watchdog fed only in the Bluetooth branch would reset the controller as soon as the
  * cable went in, and a hang anywhere in the main loop stops this feed. Stock turns the watchdog off at boot. Bits 24-27
  * of the word clear on write, so they're written as 0. */
@@ -37,6 +71,9 @@ void rest_poll(void)
 {
 	volatile u8 *t = TIMERS;
 
+#if defined(STALL_TEST) && !defined(HOST)
+	test_chords(RAW_BTN);
+#endif
 	if (REST_FLAG != 1)
 		return;
 	if (!(t[2] & 0x80)) { /* bit 23: the watchdog is off */
