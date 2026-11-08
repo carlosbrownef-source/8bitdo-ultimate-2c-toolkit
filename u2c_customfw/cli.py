@@ -6,7 +6,7 @@ from pathlib import Path
 
 from . import fetch, state
 from .firmware import image, recipes
-from .ops import backup as bkp, devices, patch, report, restore
+from .ops import backup as bkp, devices, patch, report, restore, shown
 from .ops.log import get_logger
 from .ops.plan import OpError
 from . import protocol
@@ -181,7 +181,7 @@ def main(argv=None) -> int:
     sub.add_parser("report", parents=[common])
     p = sub.add_parser("identify", parents=[common]); p.add_argument("file")
     p = sub.add_parser("patch", parents=[common])
-    p.add_argument("--tweaks", default="", help="comma list of: " + ", ".join(k for k, r in recipes.RECIPES.items() if not r.earlier_form_of))
+    p.add_argument("--tweaks", default="", help="comma list of: " + ", ".join(shown(k for k, r in recipes.RECIPES.items() if not r.earlier_form_of)))
     p.add_argument("--backup"); p.add_argument("--download", action="store_true", help="use 8BitDo's v1.09 from its server")
     p = sub.add_parser("restore", parents=[common])
     p.add_argument("source", choices=["backup", "stock"])

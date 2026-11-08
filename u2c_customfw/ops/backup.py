@@ -9,7 +9,7 @@ from pathlib import Path
 from .. import protocol
 from ..firmware import image, recipes
 from ..protocol import boot
-from . import probe
+from . import probe, shown
 from .plan import OpError
 
 CABLE_MODES = ("cable", "cable_360")
@@ -91,7 +91,7 @@ def describe(state: recipes.State) -> str:
     """The firmware in words: "the original firmware 1.09", "firmware 1.09 with A and B", or that it isn't recognised."""
     if not state.known:
         return "firmware this app doesn't recognise"
-    titles = [recipes.RECIPES[k].title for k in state.recipes]
+    titles = [recipes.RECIPES[k].title for k in shown(state.recipes)]
     if not titles:
         return "the original firmware 1.09"
     return "firmware 1.09 with " + (titles[0] if len(titles) == 1 else f"{', '.join(titles[:-1])} and {titles[-1]}")

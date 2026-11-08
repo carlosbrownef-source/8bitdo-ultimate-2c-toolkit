@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+import contextlib
+import io
 import json
 import tempfile
 import threading
@@ -11,7 +13,7 @@ from unittest import mock
 
 from u2c_customfw import cli, state
 from u2c_customfw.firmware import image, recipes
-from u2c_customfw.ops import devices, probe, report
+from u2c_customfw.ops import backup as bkp, devices, probe, report
 from u2c_customfw import transport
 from u2c_customfw.protocol import app
 from u2c_customfw.sim import SimApp, SimBoot
@@ -388,7 +390,7 @@ class WebTest(unittest.TestCase):
         self.assertEqual((data["version"], data["version_from"]), (1.09, "update record"))
         self.assertEqual((data["pending"], data["boot_identity"]), (False, None))
         self.assertEqual([(t["key"], t["on"]) for t in data["tweaks"]],
-                         [("bt_xbox", True), ("bt_rumble", False), ("cable_360", True), ("dim_leds", False), ("battery_alerts", False), ("settings", False), ("fixes", False), ("stick_precision", False), ("cpu_rest", False), ("ble_interval", False), ("fast_scan", False), ("ring", False)])
+                         [("bt_xbox", True), ("bt_rumble", False), ("cable_360", True), ("dim_leds", False), ("battery_alerts", False), ("settings", False), ("fixes", False), ("stick_precision", False), ("cpu_rest", False), ("fast_scan", False), ("ring", False)])
 
     def test_firmware_endpoint_in_update_mode_names_the_backup_restore_uses(self):
         flash = controller_flash()
@@ -410,6 +412,25 @@ class WebTest(unittest.TestCase):
                 mock.patch.object(recipes, "_constants", lambda a=None, b=None, c=None: (K["stock_sha256"], K["region_sha256"], K["remainder_sha256"])):
             data = json.loads(self.call("GET", "/api/firmware")[1])
         self.assertIsNone(data["restore_backup"])
+
+    def test_the_hidden_tweak_is_never_shown(self):
+        built = recipes.build(STOCK_A, ["bt_xbox", "ble_interval"], **K)
+        info = transport.DeviceInfo(0x2DC8, 0x310A, 0xFF7A, "USB", "x", None)
+        with mock.patch.object(cli, "find", lambda: [devices.Found(info, "cable")]), \
+                mock.patch.object(cli, "open_channel", lambda i, rid: SimApp(controller_flash(built))), \
+                mock.patch.object(recipes, "_constants", lambda a=None, b=None, c=None: (K["stock_sha256"], K["region_sha256"], K["remainder_sha256"])):
+            data = json.loads(self.call("GET", "/api/firmware")[1])
+            st = recipes.identify(built)
+        self.assertEqual(st.recipes, ("ble_interval", "bt_xbox"))   # installed, and still recognised
+        self.assertEqual(data["recipes"], ["bt_xbox"])
+        self.assertNotIn("ble_interval", [t["key"] for t in data["tweaks"]])
+        title = recipes.RECIPES["ble_interval"].title
+        for text in (json.dumps(data), report.report([], st, ""), bkp.describe(st)):
+            self.assertNotIn(title, text)
+            self.assertNotIn("ble_interval", text)
+        with contextlib.redirect_stdout(io.StringIO()) as out, self.assertRaises(SystemExit):
+            cli.main(["patch", "--help"])
+        self.assertNotIn("ble_interval", out.getvalue())
 
     def test_firmware_endpoint_with_only_bluetooth_explains(self):
         info = transport.DeviceInfo(0x045E, 0x0B13, 1, "Bluetooth Low Energy", "x", None)

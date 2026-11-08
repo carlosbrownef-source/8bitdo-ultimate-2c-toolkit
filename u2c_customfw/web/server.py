@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, urlparse
 from .. import __version__, disclaimer, settings, state
 from .. import cli
 from ..firmware import recipes
-from ..ops import backup as bkp, probe, report as report_mod
+from ..ops import backup as bkp, probe, report as report_mod, shown
 from ..ops import settings as settings_ops
 from ..ops.plan import OpError
 from ..protocol import ProtocolError, app
@@ -233,13 +233,14 @@ def make_server(store: Path, port: int = 0):
                 st, version = fw.state, fw.version
             except (OpError, PermissionDenied, OSError, ProtocolError) as e:
                 return self.send(200, json.dumps({"error": str(e)}))
-            ring = [recipes.RECIPES[k].title for k in st.recipes if recipes.RECIPES[k].group == "ring"]
-            self.send(200, json.dumps({"known": st.known, "recipes": list(st.recipes), "version": version, "version_from": fw.version_from,
+            keys = shown(st.recipes)
+            ring = [recipes.RECIPES[k].title for k in keys if recipes.RECIPES[k].group == "ring"]
+            self.send(200, json.dumps({"known": st.known, "recipes": keys, "version": version, "version_from": fw.version_from,
                                        "pending": fw.pending, "boot_identity": fw.boot_identity, "outdated": st.outdated, "ring_level": fw.ring_level,
                                        "restore_backup": pick and {"name": pick.path.name, "taken": bkp.taken(pick.path), "firmware": bkp.describe(pick.state)},
-                                       "titles": [recipes.RECIPES[k].title for k in st.recipes],
-                                       "tweaks": [{"key": k, "title": r.title, "on": k in st.recipes}
-                                                  for k, r in recipes.RECIPES.items() if not r.group]
+                                       "titles": [recipes.RECIPES[k].title for k in keys],
+                                       "tweaks": [{"key": k, "title": recipes.RECIPES[k].title, "on": k in keys}
+                                                  for k in shown(k for k, r in recipes.RECIPES.items() if not r.group)]
                                                  + [{"key": "ring", "title": ring[0] if ring else "Home ring: normal", "on": bool(ring)}]}))
 
         def api_events(self):
