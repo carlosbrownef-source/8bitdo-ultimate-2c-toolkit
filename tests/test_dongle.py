@@ -12,7 +12,7 @@ STOCK = bytearray(rnd.randbytes(dongle.SIZE))
 STOCK[0xF1A4 - dongle.BASE:0xF1AC - dongle.BASE] = bytes.fromhex("000000 08 c82d0a31")
 STOCK = bytes(STOCK)
 XBOX = bytearray(STOCK)
-XBOX[0xF1A4 - dongle.BASE:0xF1AC - dongle.BASE] = bytes.fromhex("ffffff 08 5e048e02")
+XBOX[0xF1A4 - dongle.BASE:0xF1AE - dongle.BASE] = bytes.fromhex("ffffff 08 5e048e02 0301")
 XBOX = bytes(XBOX)
 K = dict(stock_sha256=hashlib.sha256(STOCK).hexdigest(), xbox360_sha256=hashlib.sha256(XBOX).hexdigest())
 
