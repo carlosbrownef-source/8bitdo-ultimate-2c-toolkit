@@ -14,7 +14,7 @@ from .protocol import boot
 from .transport import PermissionDenied, open_channel
 
 CONTROLLER_MODES = ("cable", "cable_360", "boot", "dongle")
-BOOT_HELP = "Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white."
+BOOT_HELP = "Turn the controller fully off, then hold LB + RB while plugging in the cable. The light will blink white."
 INSTALLED = ("Installed. Unplug the controller and connect it again. If you changed a Bluetooth tweak, remove the controller in "
              "System Settings → Bluetooth and pair it again.")
 RESTORED = ("Restored. Unplug the controller and connect it again. If its Bluetooth tweaks changed, remove the controller in "

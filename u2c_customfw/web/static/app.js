@@ -112,7 +112,7 @@ function render() {
   $("boot-box").className = "boot" + (boot ? " ok" : "");
   $("boot-icon").innerHTML = boot ? ICON.ok.replace("<svg", '<svg width="20"') : ICON.plug;
   $("boot-title").textContent = boot ? "The controller is in update mode" : "Update mode";
-  $("boot-text").textContent = boot ? "You can check or install now." : "Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white.";
+  $("boot-text").textContent = boot ? "You can check or install now." : "Turn the controller fully off, then hold LB + RB while plugging in the cable. The light will blink white.";
 
   const xbox = tweakBoxes().find((x) => x.value === "bt_xbox"), rumble = tweakBoxes().find((x) => x.value === "bt_rumble");
   if (!xbox.checked) rumble.checked = false;

@@ -211,7 +211,7 @@ class TabsTest(PageCase):
 
     def test_help_explains_the_stick_dead_zone(self):
         text = self.server.dom().find("help").all_text()
-        self.assertIn("Start + Select", text)
+        self.assertIn("− (Select) and + (Start)", text)
         self.assertIn("14 % dead zone", text)
 
     def test_tags_say_what_happens(self):
@@ -387,7 +387,7 @@ class SettingsTabTest(PageCase):
         dom = self.server.dom(self.READY)
         for slot in ("r4", "l4"):
             names = [" ".join(n.text).strip() for n in self.mapping_buttons(dom, slot)]
-            self.assertEqual(sorted(names), sorted(["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "LS", "RS", "View", "Menu", "Up", "Down", "Left", "Right"]))
+            self.assertEqual(sorted(names), sorted(["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "Left stick press", "Right stick press", "− (Select)", "+ (Start)", "D-pad up", "D-pad down", "D-pad left", "D-pad right"]))
 
     def test_mapping_is_sent_as_bits(self):
         dom = self.server.dom(self.READY + "&scenario=mapa")
@@ -404,12 +404,12 @@ class SettingsTabTest(PageCase):
     def test_dead_zone_switch_has_a_control_and_shows_its_state(self):
         dom = self.server.dom(self.READY + "&scenario=dzoff")
         self.assertIn('{"dead_zone_off":true}', dom.find("diag-posted").all_text())
-        self.assertIn("Start + Select", dom.find("settings-cards").all_text())
+        self.assertIn("− (Select) and + (Start)", dom.find("settings-cards").all_text())
 
     def test_calibration_steps_send_nothing(self):
         dom = self.server.dom(self.READY)
         text = dom.find("settings-cards").all_text()
-        self.assertIn("Start + Select + L1 + R1", text)
+        self.assertIn("− (Select), + (Start), LB and RB", text)
         self.assertIn("7 seconds", text)
         self.assertEqual(dom.find("diag-posted").all_text().strip(), "")
 

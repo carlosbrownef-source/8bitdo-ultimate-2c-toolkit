@@ -57,7 +57,7 @@
         <div><div class="seg" id="ring"><button data-ring="" class="on">Normal</button><button data-ring="ring_25">25 %</button><button data-ring="ring_5">5 %</button><button data-ring="ring_1">1 %</button><button data-ring="ring_0_1">0.1 %</button><button data-ring="ring_off">Off</button></div></div>
         <span>Take the original firmware 1.09 from:</span>
         <div><div class="seg"><button data-base="backup" class="on">Your backup</button><button data-base="download">8BitDo's server</button></div></div></div>
-      <div class="go"><div class="boot" id="boot-box"><span id="boot-icon"></span><div><b id="boot-title">Update mode</b><span id="boot-text">Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white.</span></div></div></div>
+      <div class="go"><div class="boot" id="boot-box"><span id="boot-icon"></span><div><b id="boot-title">Update mode</b><span id="boot-text">Turn the controller fully off, then hold LB + RB while plugging in the cable. The light will blink white.</span></div></div></div>
       <div class="act" id="tweaks-act"><ul class="pre"><li id="pre-backup"></li><li id="pre-boot"></li></ul><div class="btns"><button id="patch-dry" class="sec job">Check first</button><button id="patch-write" class="job">Install tweaks…</button></div>
         <p><span id="choose-one" hidden></span> Changing the firmware voids the controller's warranty.</p></div>
     </section>
@@ -185,7 +185,7 @@
   </ul>
   <p>The tweaks are always added to 8BitDo's original firmware 1.09, taken from your backup or downloaded from 8BitDo, so the result is always a known, checked firmware.</p>
   <h4 id="help-update">Update mode</h4>
-  <p>The controller can only receive new firmware in update mode. Turn it fully off, then hold L1 + R1 while plugging in the cable. The light will blink white.</p>
+  <p>The controller can only receive new firmware in update mode. Turn it fully off, then hold LB + RB while plugging in the cable. The light will blink white.</p>
   <h4>Check first</h4>
   <p>Runs every check without changing anything: that this is the same controller as in your backup, that its firmware is one the app knows, and that the new firmware is complete.</p>
   <h4 id="help-restore">3. Restore</h4>
@@ -199,7 +199,7 @@
   <h4 id="help-diagnostics">Diagnostics</h4>
   <p>This tab helps you check how macOS sees the controller, and gather information if something goes wrong.</p>
   <p><b>Controller test</b> shows what macOS's GameController reports, which is what a game gets, including the battery when macOS provides it. Press each control to see it light up, and use the buttons to make the controller vibrate. "Vibrate like a game" uses the same path as native games, and "Direct report" goes straight to the controller, so if only the direct report vibrates, the firmware isn't the problem. The first time you press the Home button in this test, macOS may ask for your permission to let the app receive it. If you allow it, Home won't open Apple Games while this tab is open. This test is only available in the Mac app.</p>
-  <p>The controller also has its own option for the sticks: holding Start + Select for about 4 seconds switches a 14 % dead zone on the sticks on and off. The controller buzzes once when it turns on and twice when it turns off, and it remembers the setting. It's part of 8BitDo's firmware.</p>
+  <p>The controller also has its own option for the sticks: holding − (Select) and + (Start) together for about 4 seconds switches a 14 % dead zone on the sticks on and off. The controller buzzes once when it turns on and twice when it turns off, and it remembers the setting. It's part of 8BitDo's firmware.</p>
   <p><b>Firmware details</b> shows what the app read from the controller, including where the version came from and whether a firmware update is pending.</p>
   <p><b>Create a problem report</b> collects the controller's state and the last task's log for a bug report. It never includes the controller's address, its Bluetooth pairings or your backup.</p>
   <p><b>Install firmware 1.09 anyway</b> is only for a controller whose firmware can't be identified. It erases the firmware and installs 8BitDo's original 1.09 without being able to check beforehand that it's right for the controller, so use it only if Restore doesn't work.</p>

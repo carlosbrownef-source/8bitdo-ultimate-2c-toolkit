@@ -31,13 +31,13 @@ const SETTINGS_CARDS = [
 ];
 const CALIBRATION_STEPS = [
   "Connect the controller and leave the sticks alone.",
-  "Hold Start + Select + L1 + R1 for 7 seconds, until a light blinks. Keep the sticks still for a moment longer.",
+  "Hold − (Select), + (Start), LB and RB for 7 seconds, until a light blinks. Keep the sticks still for a moment longer.",
   "Move both sticks all around their range, and press both triggers fully.",
-  "Press Start + Select + L1 + R1 once more to save. The light stops blinking.",
+  "Press − (Select), + (Start), LB and RB together once more to save. The light stops blinking.",
 ];
-const REMAP_NAMES = ["Menu", "LS", "RS", "View", "X", "Y", "Right", "Left", "Down", "Up", "LB", "RB", "B", "A"];
+const REMAP_NAMES = ["+ (Start)", "Left stick press", "Right stick press", "− (Select)", "X", "Y", "D-pad right", "D-pad left", "D-pad down", "D-pad up", "LB", "RB", "B", "A"];  // by bit, as printed on the controller
 const REMAP_ORDER = [13, 12, 4, 5, 10, 11, 1, 2, 3, 0, 9, 8, 7, 6];
-const MAP_BUTTONS = [["A", 13], ["B", 12], ["X", 4], ["Y", 5], ["LB", 10], ["RB", 11], ["LT", 14], ["RT", 15], ["LS", 1], ["RS", 2], ["View", 3], ["Menu", 0], ["Up", 9], ["Down", 8], ["Left", 7], ["Right", 6]];
+const MAP_BUTTONS = [["A", 13], ["B", 12], ["X", 4], ["Y", 5], ["LB", 10], ["RB", 11], ["LT", 14], ["RT", 15], ["Left stick press", 1], ["Right stick press", 2], ["− (Select)", 3], ["+ (Start)", 0], ["D-pad up", 9], ["D-pad down", 8], ["D-pad left", 7], ["D-pad right", 6]];
 
 const SETTINGS_MISSING = "Controller settings isn't installed. Install it in the Firmware tab to change the sticks, triggers, buttons and vibration.";
 let settingsData = null, settingsValues = {}, settingsDirty = false, settingsBusy = false, settingsMessage = "", settingsLoading = false, settingsRead = null;
@@ -96,7 +96,7 @@ function settingsMount() {
 function deadZoneRow() {
   const line = document.createElement("div"), label = document.createElement("span"), t = document.createElement("label"), input = document.createElement("input"), sw = document.createElement("span");
   line.className = "set-row";
-  label.textContent = "Turn off the dead zones. Holding Start + Select for about 4 seconds on the controller does the same.";
+  label.textContent = "Turn off the dead zones. Holding − (Select) and + (Start) together for about 4 seconds on the controller does the same.";
   t.className = "set-toggle"; sw.className = "sw";
   input.type = "checkbox"; input.id = "dead-zone-off";
   input.setAttribute("aria-label", "Turn off the dead zones");
