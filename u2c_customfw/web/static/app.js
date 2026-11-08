@@ -302,7 +302,7 @@ $("disclaimer-quit").hidden = !bridge();   // declining: only the Mac app can qu
 $("disclaimer-quit").onclick = () => bridge().postMessage({ op: "quit" });
 $("accept").onclick = async () => { await api("POST", "/api/accept"); $("disclaimer").close(); refresh(); };
 $("refresh").onclick = refresh;
-$("details").onclick = () => { detailsOpen = !detailsOpen; showDetails(detailsOpen); };
+$("details").onclick = () => { detailsOpen = !detailsOpen; showDetails(detailsOpen && !$("sumrow").hidden); };
 TABS.forEach((t) => ($(`strip-${t}`).onclick = () => showTab(t)));
 $("force-go").onclick = () => showTab("diagnostics");
 $("privacy-open").onclick = () => bridge().postMessage({ op: "privacy" });
