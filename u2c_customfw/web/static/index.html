@@ -19,7 +19,7 @@
 <main><div class="wrap">
   <div id="tab-firmware">
   <section class="danger-zone hot hint" id="force-hint" hidden>
-    <div><h2>This firmware can't be identified</h2><p>If Restore can't repair it, there's a last-resort option in Diagnostics.</p></div>
+    <div><h2>This firmware can't be identified</h2><p>If restoring your backup doesn't repair it, there's a last-resort option in Diagnostics.</p></div>
     <button id="force-go" class="wtxt">Open Diagnostics</button>
   </section>
   <section class="hero none" id="hero">
@@ -66,7 +66,7 @@
       <p>Restores your backup or 8BitDo's original firmware 1.09. The controller needs to be in update mode.</p>
       <div class="rest">
         <div><h3>Your backup</h3><button id="restore-backup-dry" class="sec small job">Check first</button><button id="restore-backup" class="sec small job">Restore…</button></div>
-        <div><h3>Original firmware 1.09</h3><button id="restore-stock-dry" class="sec small job">Check first</button><button id="restore-stock" class="sec small job">Restore…</button></div>
+        <div><h3>Original firmware 1.09</h3><button id="restore-stock-dry" class="sec small job">Check first</button><button id="restore-stock" class="sec small job">Restore…</button><p class="why" id="restore-stock-why" hidden></p></div>
       </div>
     </section>
   </div>

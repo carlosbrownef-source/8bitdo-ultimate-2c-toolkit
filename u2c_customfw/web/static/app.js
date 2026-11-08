@@ -67,7 +67,7 @@ function hero(devs, ctrl, boot) {
   } else if (fw && fw.version && fw.version.toFixed(2) !== "1.09")
     [cls, title, note] = ["bad", `Firmware ${fw.version.toFixed(2)} isn't supported`, "This app only works with firmware 1.09. Update the controller with 8BitDo's own updater first, or restore your backup."];
   else if (fw && fw.version) [cls, title, note] = ["", "Unrecognised firmware 1.09", "It doesn't match the original firmware 1.09 or this app's tweaks, perhaps a test build or firmware modified outside this app. Installing tweaks replaces it with the original 1.09 plus the tweaks you choose."];
-  else if (fw) [cls, title, note] = ["bad", "Unknown firmware", "It doesn't match the original firmware 1.09, with or without this app's tweaks. The controller may have another firmware version, which you can update with 8BitDo's own updater, or firmware modified outside this app, which you can replace with Restore."];
+  else if (fw) [cls, title, note] = ["bad", "Unknown firmware", "It doesn't match the original firmware 1.09, with or without this app's tweaks. It may be another firmware version, which you can update with 8BitDo's own updater, or firmware modified outside this app, which restoring your backup replaces."];
 
   const badge = ctrl ? `${boot ? "Update mode" : "Connected by cable"} · 8BitDo Ultimate 2C Wireless`
     : dongle ? "2.4 GHz dongle" : bt ? "Connected over Bluetooth · 8BitDo Ultimate 2C Wireless" : "Not connected";
@@ -88,7 +88,8 @@ function hero(devs, ctrl, boot) {
 function render() {
   const devs = st ? st.devices : [];
   const ctrl = devs.find((d) => CONTROLLER.includes(d.mode)), boot = !!ctrl && ctrl.mode === "boot";
-  const backed = !!st && st.backups.length > 0, off = busy || reading, patchable = boot && backed && tweaks().length > 0 && !(fw && fw.known === false && !(fw.version && fw.version.toFixed(2) === "1.09"));
+  const backed = !!st && st.backups.length > 0, off = busy || reading, on109 = !!fw && !!fw.version && fw.version.toFixed(2) === "1.09";
+  const patchable = boot && backed && tweaks().length > 0 && !(fw && fw.known === false && !on109);
   hero(devs, ctrl, boot);
 
   $("last-backup").textContent = st ? lastBackup(st.backups) : "";
@@ -106,9 +107,12 @@ function render() {
   $("choose-one").hidden = tweaks().length > 0;
 
   const can = { backup: !!ctrl, "patch-dry": patchable, "patch-write": patchable,
-    "restore-backup-dry": boot && !!fw && !!fw.restore_backup, "restore-backup": boot && !!fw && !!fw.restore_backup, "restore-stock-dry": boot && backed, "restore-stock": boot && backed,
+    "restore-backup-dry": boot && !!fw && !!fw.restore_backup, "restore-backup": boot && !!fw && !!fw.restore_backup, "restore-stock-dry": boot && backed && on109, "restore-stock": boot && backed && on109,
     "force-open": boot && backed, "report-open": true, refresh: true, "details-refresh": true };
   for (const [id, ok] of Object.entries(can)) $(id).disabled = off || !ok;
+  const stockWhy = !boot || !backed || !fw || fw.error || on109 ? "" : fw.version ? `Not available, because this controller has firmware ${fw.version.toFixed(2)}.`
+    : "Not available, because the firmware version can't be identified.";
+  $("restore-stock-why").textContent = stockWhy; $("restore-stock-why").hidden = !stockWhy;
   const hot = !!fw && fw.known === false && !fw.version && !fw.error;
   $("force-zone").classList.toggle("hot", hot);
   $("force-hint").hidden = !hot;

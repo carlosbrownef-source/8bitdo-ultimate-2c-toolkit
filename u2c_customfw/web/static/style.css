@@ -87,6 +87,7 @@ main{flex:1;overflow:auto;padding:18px 22px 22px}
 .rest{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .rest>div{background:var(--card2);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .rest h3{margin:0 0 2px;font-size:14px}
+.cd p.why{margin:0;font-size:13px}
 
 .danger-zone{margin-top:16px;border:1px solid var(--line);border-radius:16px;padding:16px 20px;display:grid;grid-template-columns:1fr auto;gap:8px 20px;align-items:center}
 .danger-zone h2{margin:0;font-size:14px;color:var(--warn)}

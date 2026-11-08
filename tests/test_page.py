@@ -104,6 +104,11 @@ class TabsTest(PageCase):
         self.assertIn("Erases the firmware on the controller and replaces it with 8BitDo's original firmware 1.09, without any tweaks.",
                       self.server.dom().find("force-zone").all_text())
 
+    def test_restoring_the_original_is_on_with_firmware_1_09(self):
+        dom = self.server.dom()
+        self.assertNotIn("disabled", dom.find("restore-stock").attrs)
+        self.assertIn("hidden", dom.find("restore-stock-why").attrs)
+
     def test_no_hint_when_the_firmware_is_known(self):
         dom = self.server.dom()
         self.assertIn("hidden", dom.find("force-hint").attrs)
@@ -617,7 +622,15 @@ class UnknownFirmwareTest(PageCase):
     def test_unknown_firmware_explains_the_two_likely_causes(self):
         text = self.server.dom().find("fw-note").all_text()
         self.assertIn("another firmware version, which you can update with 8BitDo's own updater", text)
-        self.assertIn("firmware modified outside this app, which you can replace with Restore", text)
+        self.assertIn("firmware modified outside this app, which restoring your backup replaces", text)
+
+    def test_restoring_the_original_is_off_with_its_reason(self):
+        dom = self.server.dom()
+        for id_ in ("restore-stock", "restore-stock-dry"):
+            self.assertIn("disabled", dom.find(id_).attrs, id_)
+        self.assertIn("Not available, because the firmware version can't be identified.", dom.find("restore-stock-why").all_text())
+        self.assertNotIn("hidden", dom.find("restore-stock-why").attrs)
+        self.assertIn("If restoring your backup doesn't repair it", dom.find("force-hint").all_text())
 
     def test_unknown_firmware_points_to_diagnostics(self):
         dom = self.server.dom()

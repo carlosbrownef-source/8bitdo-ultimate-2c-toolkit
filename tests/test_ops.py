@@ -287,7 +287,7 @@ class PatchTest(Base):
         dev = SimBoot(bytes(odd))
         with self.assertRaises(OpError) as e:
             patch.plan_patch(dev, self.backup, STOCK_A, ["cable_360"])
-        self.assertIn("Restore", str(e.exception))
+        self.assertIn("restoring your backup", str(e.exception))
 
     def test_dongle_in_boot_mode_is_refused(self):
         dongle = bytearray(b"\xff" * 0x20000); dongle[:0x5000] = rnd.randbytes(0x5000)
@@ -417,7 +417,7 @@ class UnknownFirmwareMessageTest(Base):
         f = bytes(f)
         with self.assertRaises(OpError) as e:
             patch.plan_patch(SimBoot(f), self.backup_of(f), STOCK_A, ["dim_leds"])
-        for part in ("another firmware version", "8BitDo's own updater", "modified outside this app", "Restore", "nothing was written"):
+        for part in ("another firmware version", "8BitDo's own updater", "modified outside this app", "restoring your backup", "nothing was written"):
             self.assertIn(part, str(e.exception))
 
 

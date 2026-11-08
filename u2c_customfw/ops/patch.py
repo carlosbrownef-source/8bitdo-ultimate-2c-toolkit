@@ -51,7 +51,7 @@ def plan_patch(ch, backup, stock: bytes, keys) -> Plan:
     if replacing:  # the whole bank A is written from stock either way, so 1.09 is all that matters, as for Restore
         v, _ = probe.detect_version(ch, "boot", cur)
         if v is None:
-            raise OpError("This controller's firmware isn't the original 1.09, with or without this app's tweaks, and its version can't be identified, so nothing was written. It may be another firmware version, which you can update with 8BitDo's own updater, or firmware modified outside this app, which you can replace with Restore.")
+            raise OpError("This controller's firmware isn't the original 1.09, with or without this app's tweaks, and its version can't be identified, so nothing was written. It may be another firmware version, which you can update with 8BitDo's own updater, or firmware modified outside this app, which restoring your backup replaces.")
         if abs(v - image.SUPPORTED_VERSION) > 1e-6:
             raise OpError(f"This controller has firmware {v:.2f}, and this app only supports {image.SUPPORTED_VERSION:.2f}, so nothing was written. Update it with 8BitDo's own updater first.")
     try:
