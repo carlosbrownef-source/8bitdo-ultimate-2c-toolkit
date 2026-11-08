@@ -13,11 +13,11 @@
   <div class="barr"><span class="only">8BitDo Ultimate 2C Wireless · firmware 1.09 only</span><button id="help-open" class="sec small">Help</button></div>
 </header>
 
-<nav class="strip"><button class="t on" id="strip-firmware">Firmware</button><button class="t" id="strip-settings">Settings</button><button class="t" id="strip-diagnostics">Diagnostics<span class="alert" id="strip-alert" hidden></span></button>
+<nav class="strip"><div class="tabs" role="tablist"><button class="t on" id="strip-firmware" role="tab" aria-selected="true" aria-controls="tab-firmware">Firmware</button><button class="t" id="strip-settings" role="tab" aria-selected="false" aria-controls="tab-settings">Settings</button><button class="t" id="strip-diagnostics" role="tab" aria-selected="false" aria-controls="tab-diagnostics">Diagnostics<span class="alert" id="strip-alert" hidden></span></button></div>
   <span class="badge" id="badge"><i></i><span id="badge-text">Not connected</span></span></nav>
 
 <main><div class="wrap">
-  <div id="tab-firmware">
+  <div id="tab-firmware" role="tabpanel" aria-labelledby="strip-firmware">
   <section class="danger-zone hot hint" id="force-hint" hidden>
     <div><h2>This firmware can't be identified</h2><p>If restoring your backup doesn't repair it, there's a last-resort option in Diagnostics.</p></div>
     <button id="force-go" class="wtxt">Open Diagnostics</button>
@@ -75,7 +75,7 @@
 
   </div>
 
-  <div id="tab-settings" hidden>
+  <div id="tab-settings" role="tabpanel" aria-labelledby="strip-settings" hidden>
     <div class="set-actions" id="settings-actions" hidden>
       <p class="set-lead">Changes apply at once. Save them to keep them after the controller turns off.</p>
       <button id="settings-save" class="small">Save to controller</button><button id="settings-reset" class="sec small">Reset to defaults</button>
@@ -100,7 +100,7 @@
     <div class="set-cards" id="settings-cards" hidden></div>
   </div>
 
-  <div id="tab-diagnostics" hidden>
+  <div id="tab-diagnostics" role="tabpanel" aria-labelledby="strip-diagnostics" hidden>
     <section class="cd" id="test-card">
       <h2>Controller test<span class="tag">Nothing is written to the controller</span></h2>
       <div id="test-body"></div>

@@ -725,6 +725,33 @@ class DockTest(PageCase):
         self.assertEqual((dom.find("prog").attrs.get("role"), dom.find("prog").attrs.get("aria-valuenow")), ("progressbar", "100"))
 
 
+class AccessibilityTest(PageCase):
+    def pressed(self, dom, attr):
+        return {n.attrs[attr]: n.attrs.get("aria-pressed") for n in dom.walk() if attr in n.attrs and n.tag == "button"}
+
+    def test_segmented_controls_and_chips_say_which_is_chosen(self):
+        dom = self.server.dom()
+        self.assertEqual(self.pressed(dom, "data-ring"), {"": "true", "ring_25": "false", "ring_5": "false", "ring_1": "false", "ring_0_1": "false", "ring_off": "false"})
+        self.assertEqual(self.pressed(dom, "data-base"), {"backup": "true", "download": "false"})
+        dom = self.server.dom(SettingsTabTest.READY + "&mapped=1")
+        vibration = next(n for n in dom.find("settings-cards").walk() if n.attrs.get("data-field") == "vibration")
+        self.assertEqual({b.attrs["data-value"]: b.attrs.get("aria-pressed") for b in vibration.walk() if b.tag == "button"}["100"], "true")
+        chips = {(b.attrs["data-slot"], b.attrs["data-bit"]): b.attrs.get("aria-pressed") for b in dom.walk() if "data-slot" in b.attrs}
+        self.assertEqual((chips[("l4", "14")], chips[("r4", "14")], chips[("l4", "13")]), ("true", "false", "false"))
+
+    def test_tabs_are_tabs(self):
+        dom = self.server.dom("&diagsim=boot&open=settings")
+        self.assertEqual(next(n for n in dom.walk() if n.attrs.get("role") == "tablist").tag, "div")
+        self.assertEqual([(dom.find(f"strip-{t}").attrs.get("role"), dom.find(f"strip-{t}").attrs.get("aria-selected")) for t in ("firmware", "settings", "diagnostics")],
+                         [("tab", "false"), ("tab", "true"), ("tab", "false")])
+        self.assertEqual(dom.find("tab-settings").attrs.get("role"), "tabpanel")
+
+    def test_the_vibration_buttons_name_the_motors(self):
+        text = self.server.dom("&diagsim=bt").find("test-body").all_text()
+        self.assertIn("Left motor", text)
+        self.assertIn("Right motor", text)
+
+
 class HelpTest(PageCase):
     def test_help_opens_at_the_top_with_its_contents(self):
         dom = self.server.dom("&diagsim=boot&scenario=helpopen")

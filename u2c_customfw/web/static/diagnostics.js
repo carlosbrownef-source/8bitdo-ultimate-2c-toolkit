@@ -94,7 +94,7 @@ function mountLive(body) {
   const button = (op, label, ok) => `<button class="sec small" data-op="${op}" data-was="${ok ? "" : "1"}"${ok && !testPending ? "" : " disabled"}>${label}</button>`;
   body.innerHTML = `<div class="test"><div class="test-pic" id="test-pic">${pad(ACCENT, false, "test-g")}</div><div>
     <dl class="rows"><dt>macOS sees</dt><dd id="test-name"></dd><dt>Category</dt><dd id="test-category"></dd><dt>Vibration</dt><dd id="test-vibration"></dd><dt>Battery</dt><dd id="test-battery"></dd></dl>
-    <div class="rum">${button("default", "Vibrate like a game", has("default"))}${button("left", "Left", has("left"))}${button("right", "Right", has("right"))}${button("direct", "Direct report", direct)}</div>
+    <div class="rum">${button("default", "Vibrate like a game", has("default"))}${button("left", "Left motor", has("left"))}${button("right", "Right motor", has("right"))}${button("direct", "Direct report", direct)}</div>
     <p class="res" id="test-res"></p></div></div>
     <p class="count" id="test-count"></p>
     <div class="seen" id="test-seen">${CONTROLS.map((c) => `<span data-c="${c}">${c}</span>`).join("")}</div>

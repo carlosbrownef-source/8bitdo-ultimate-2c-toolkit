@@ -2,6 +2,7 @@
 const token = new URLSearchParams(location.search).get("token") || "";
 if (new URLSearchParams(location.search).has("native")) document.body.classList.add("native");  // in the Mac app, whose title bar shows the name and Help
 const $ = (id) => document.getElementById(id);
+const setOn = (el, on) => { el.classList.toggle("on", on); el.setAttribute("aria-pressed", on); };  // a segmented choice or a chip
 const api = async (method, path, body) => {
   const r = await fetch(path, { method, headers: { "X-Token": token }, body: body ? JSON.stringify(body) : undefined });
   const text = await r.text();
@@ -143,7 +144,7 @@ function showTab(name) {
   tab = name;
   for (const t of TABS) {
     $(`tab-${t}`).hidden = name !== t;
-    $(`strip-${t}`).classList.toggle("on", name === t);
+    $(`strip-${t}`).classList.toggle("on", name === t); $(`strip-${t}`).setAttribute("aria-selected", name === t);
   }
   render();
 }
@@ -262,7 +263,7 @@ function matchInstalled() {  // start from what's installed, so installing doesn
   matched = key;
   tweakBoxes().forEach((x) => (x.checked = fw.recipes.includes(x.value)));
   const level = ringButtons().find((b) => fw.recipes.includes(b.dataset.ring)) || ringButtons()[0];
-  ringButtons().forEach((b) => b.classList.toggle("on", b === level));
+  ringButtons().forEach((b) => setOn(b, b === level));
 }
 
 let fwSeq = 0;
@@ -276,6 +277,7 @@ async function readFirmware() {  // read-only; skipped while a job runs, and the
 }
 
 document.querySelectorAll("[data-icon]").forEach((e) => (e.innerHTML = ICON[e.dataset.icon]));
+document.querySelectorAll(".seg button").forEach((b) => b.setAttribute("aria-pressed", b.classList.contains("on")));
 $("disclaimer").oncancel = (e) => e.preventDefault();
 $("accept").onclick = async () => { await api("POST", "/api/accept"); $("disclaimer").close(); refresh(); };
 $("refresh").onclick = refresh;
@@ -286,9 +288,9 @@ $("privacy-open").onclick = () => bridge().postMessage({ op: "privacy" });
 $("help-open").onclick = () => $("help").showModal();
 $("help-close").onclick = () => $("help").close();
 tweakBoxes().forEach((x) => (x.onchange = render));
-ringButtons().forEach((b) => (b.onclick = () => { ringButtons().forEach((o) => o.classList.toggle("on", o === b)); render(); }));
+ringButtons().forEach((b) => (b.onclick = () => { ringButtons().forEach((o) => setOn(o, o === b)); render(); }));
 document.querySelectorAll("[data-base]").forEach((b) => (b.onclick = () => {
-  base = b.dataset.base; document.querySelectorAll("[data-base]").forEach((x) => x.classList.toggle("on", x === b));
+  base = b.dataset.base; document.querySelectorAll("[data-base]").forEach((x) => setOn(x, x === b));
 }));
 $("log-toggle").onclick = () => { const l = $("log"); l.hidden = !l.hidden; $("log-toggle").textContent = l.hidden ? "Show log ▴" : "Hide log ▾"; };
 

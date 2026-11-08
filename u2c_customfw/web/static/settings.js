@@ -186,7 +186,7 @@ function settingsPaint() {
   document.querySelectorAll("#settings-cards [data-field]").forEach((c) => {
     const v = settingsValues[c.dataset.field];
     if (c.classList.contains("seg")) {
-      c.querySelectorAll("button").forEach((b) => { b.classList.toggle("on", +b.dataset.value === v); b.disabled = settingsBusy; });
+      c.querySelectorAll("button").forEach((b) => { setOn(b, +b.dataset.value === v); b.disabled = settingsBusy; });
     } else if (c.type === "checkbox") {
       c.checked = c.dataset.bit === undefined ? !!v : !!(v >> +c.dataset.bit & 1); c.disabled = settingsBusy;
     } else if (c.tagName === "SELECT") {
@@ -198,7 +198,7 @@ function settingsPaint() {
   const off = $("dead-zone-off");
   off.checked = settingsData.dead_zone_off; off.disabled = settingsBusy;
   document.querySelectorAll("#settings-cards [data-slot]").forEach((b) => {
-    b.classList.toggle("on", !!(settingsData.mapping[b.dataset.slot] >> +b.dataset.bit & 1)); b.disabled = settingsBusy;
+    setOn(b, !!(settingsData.mapping[b.dataset.slot] >> +b.dataset.bit & 1)); b.disabled = settingsBusy;
   });
   $("settings-save").disabled = $("settings-reset").disabled = settingsBusy;
   $("settings-unsaved").hidden = !settingsDirty;
@@ -318,7 +318,7 @@ function ringAccess() {  // how the card can reach the controller, or why it can
 function ringRender() {
   const access = ringAccess(), off = !access.via || ringBusy;
   if (fw && fw !== ringRead) { ringRead = fw; ringLevel = fw.ring_level === undefined ? null : fw.ring_level; }  // each read says what the ring starts at
-  document.querySelectorAll("[data-live]").forEach((b) => { b.disabled = off; b.classList.toggle("on", +b.dataset.live === ringLevel); });
+  document.querySelectorAll("[data-live]").forEach((b) => { b.disabled = off; setOn(b, +b.dataset.live === ringLevel); });
   $("ring-save").disabled = off;
   $("ring-note").textContent = access.note || ringMessage || (access.via === "bluetooth"
     ? "This needs the Home ring and Rumble over Bluetooth tweaks. A change lasts until you turn the controller off, unless you save it."
