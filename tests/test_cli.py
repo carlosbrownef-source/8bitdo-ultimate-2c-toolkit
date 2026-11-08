@@ -66,6 +66,22 @@ class CliTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertNotIn("Traceback", text)
 
+    def test_os_errors_are_messages_not_tracebacks(self):
+        def opened_elsewhere(info, rid):
+            raise OSError("The device couldn't be opened (IOReturn 0xe00002c5).")
+
+        def linux():
+            raise NotImplementedError("No transport for this platform yet. See docs/porting.md.")
+        missing = str(self.tmp / "missing.bin")
+        for argv, finder, opener in ((["identify", missing], lambda: [], None),
+                                     (["patch", "--backup", missing], lambda: [found("boot", 0x3208, 0x8C)], lambda i, rid: SimBoot(self.flash)),
+                                     (["backup"], lambda: [found("cable")], opened_elsewhere),
+                                     (["backup"], linux, None)):
+            with mock.patch.object(state, "default_store", lambda: self.tmp), mock.patch.object(cli, "find", finder), \
+                    mock.patch.object(cli, "open_channel", opener), contextlib.redirect_stderr(io.StringIO()) as err:
+                self.assertEqual(cli.main(argv), 1, argv)
+            self.assertTrue(err.getvalue().startswith("stopped: "), err.getvalue())
+
     def test_patch_without_write_makes_no_erase_or_write(self):
         dev = SimBoot(self.flash)
         code, text = run(["patch", "--tweaks", "cable_360", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], dev)

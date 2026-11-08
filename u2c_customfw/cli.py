@@ -205,7 +205,7 @@ def main(argv=None) -> int:
     except Exit as e:
         print(f"{e.msg} {e.hint}".strip(), file=sys.stderr)
         return e.code
-    except (OpError, fetch.FetchError, protocol.ProtocolError, PermissionDenied) as e:
+    except (OpError, fetch.FetchError, protocol.ProtocolError, PermissionDenied, OSError, NotImplementedError) as e:
         print(f"stopped: {e}", file=sys.stderr)
         return 1
     finally:
