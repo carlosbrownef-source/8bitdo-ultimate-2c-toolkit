@@ -778,6 +778,7 @@ class HelpTest(PageCase):
                      "This saves battery over Bluetooth.", "Installing a different level replaces a saved one."):
             self.assertIn(fact, text)
         self.assertNotIn("about 1 ms", text)
+        self.assertIn("Backups are kept on this Mac, in ~/Library/Application Support/u2c-customfw.", text)
         self.assertEqual(text.count("It needs the Home ring's code"), 2)   # Controller settings and Fixes
         order = [text.rindex(t + ".") for t in ("Xbox Series X|S controller over Bluetooth", "Rumble over Bluetooth", "Xbox 360 controller over cable", "Dimmer LEDs",
                                               "Battery alerts", "Controller settings", "Fixes", "Processor rest", "Finer stick movement", "Faster button reading", "Home ring brightness")]
