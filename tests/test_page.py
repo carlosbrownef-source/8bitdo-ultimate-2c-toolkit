@@ -206,6 +206,9 @@ class TabsTest(PageCase):
         for id_ in ("pre-backup", "pre-boot", "patch-dry", "patch-write", "choose-one"):
             self.assertIsNotNone(row.find(id_), id_)
         self.assertIn("Installing modified firmware probably voids the controller's warranty.", row.all_text())
+        css = (Path(__file__).parent.parent / "u2c_customfw/web/static/style.css").read_text()
+        for rule in (".act{position:sticky;bottom:-22px", ".set-actions{position:sticky;bottom:-22px"):   # main's bottom padding
+            self.assertIn(rule, css)
 
     def test_the_hero_says_where_the_version_came_from(self):
         self.assertEqual(self.hero("")[2], "Identified from the installed firmware")
