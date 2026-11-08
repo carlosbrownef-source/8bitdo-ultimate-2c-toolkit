@@ -86,7 +86,7 @@ main{flex:1;overflow:auto;padding:14px 22px 22px}
 .pop small{font-size:inherit}.pop p{margin:6px 0 0}.pop-pad svg{width:240px;height:auto}
 .pop .hold{stroke:var(--accent)}.pop .blink{animation:blink 1.2s ease-in-out infinite}@keyframes blink{50%{opacity:0}}
 #boot-info{margin-left:0;font:600 10.5px/1 -apple-system,sans-serif}
-#backup-card{display:flex;flex-wrap:wrap;align-items:center;column-gap:20px}#backup-card h2{flex-basis:100%}#backup-card p{flex:1;margin:8px 0 0}#backup-card .btns{margin-top:8px}
+#backup-card{display:flex;flex-wrap:wrap;align-items:center;column-gap:20px}#backup-card h2{flex-basis:100%}#backup-card p{flex:1;margin:8px 0 0}#backup-card .btns{margin-top:8px;flex-direction:column;align-items:flex-end;gap:4px}
 .tw .info,.pre .info{display:inline-grid;place-items:center;width:16px;height:16px;padding:0;margin-left:6px;vertical-align:-2px;border-radius:50%;background:none;color:var(--dim);box-shadow:inset 0 0 0 1.25px var(--dim);font:italic 600 10.5px/1 Georgia,serif}
 .tw .info:hover,.pre .info:hover{color:var(--fg);box-shadow:inset 0 0 0 1.25px var(--fg)}
 .seg{display:inline-flex;background:var(--card2);border-radius:9px;padding:3px;box-shadow:inset 0 0 0 1px var(--line)}
@@ -160,11 +160,11 @@ dialog label{display:flex;gap:10px;align-items:flex-start;margin-top:10px}dialog
 }
 .cd p+.twgrid{margin-top:0}#tweaks-card>p{margin:4px 0 10px}
 #tweaks-act .btns button:disabled{pointer-events:none}  /* so hovering them still reaches .btns */
-@media (min-width:1140px){  /* wide window: Tweaks on the left, Back Up and Restore beside it */
-  #tab-firmware{display:grid;grid-template-columns:1fr 420px;column-gap:14px;align-items:start}
+@media (min-width:1080px){  /* wide window: Back Up and Restore on the left, Tweaks beside them */
+  #tab-firmware{display:grid;grid-template-columns:360px 1fr;grid-template-rows:auto auto auto 1fr;column-gap:14px;align-items:start}
   #tab-firmware>*{grid-column:1/-1}
   #tab-firmware .stack{display:contents}
-  #backup-card{grid-column:2;grid-row:3;margin-top:14px}
-  #tweaks-card{grid-column:1;grid-row:3/span 2;margin-top:14px}
-  #tweaks-card~.cd{grid-column:2;grid-row:4;margin-top:14px}
+  #backup-card{grid-column:1;grid-row:3;margin-top:14px}
+  #tweaks-card{grid-column:2;grid-row:3/span 2;margin-top:14px}
+  #tweaks-card~.cd{grid-column:1;grid-row:4;margin-top:14px}
 }
