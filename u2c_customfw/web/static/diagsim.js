@@ -78,7 +78,7 @@
     report: () => document.getElementById("report-open").click(),
     replugged: () => { window.simReplugged = true; },
     installed: () => { document.getElementById("diag-snap").textContent = tweaks().join(); },
-    infopop: () => { $("strip-firmware").click(); const x = document.querySelector('.tweak[value="fast_scan"]'), b = x.parentElement.querySelector(".info"); b.click(); setTimeout(() => { document.getElementById("diag-snap").textContent = `${x.checked} ${b.popoverTargetElement.matches(":popover-open")}`; }, 200); },
+    infopop: () => { $("strip-firmware").click(); const x = document.querySelector('.tweak[value="fast_scan"]'), b = x.parentElement.querySelector(".info"); b.click(); setTimeout(() => { document.getElementById("diag-snap").textContent = `${x.checked} ${document.getElementById(b.getAttribute("aria-controls")).matches(":popover-open")}`; }, 200); },
     bootpop: () => { $("strip-firmware").click(); setTimeout(() => $("boot-info").click(), 300); },
     keptchoice: () => { document.querySelector('.tweak[value="cable_360"]').click(); refresh(); setTimeout(() => { document.getElementById("diag-snap").textContent = tweaks().join(); }, 1000); },
     noalerts: () => { document.querySelector('.tweak[value="battery_alerts"]').click(); document.querySelector('.tweak[value="settings"]').click(); document.querySelector('.tweak[value="fixes"]').click(); document.querySelector('.tweak[value="cpu_rest"]').click(); document.getElementById("diag-snap").textContent = tweaks().join(); },

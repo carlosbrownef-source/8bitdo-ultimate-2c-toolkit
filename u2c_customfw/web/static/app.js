@@ -311,7 +311,12 @@ tweakBoxes().forEach((x) => (x.onchange = render));
 function popover(button, ...content) {  // a small pop-up under an (i) button, outside any label so clicks in it toggle nothing
   const pop = document.createElement("div");
   pop.id = `pop-${document.querySelectorAll(".pop").length}`; pop.className = "pop"; pop.popover = "auto"; pop.append(...content);
-  document.body.append(pop); button.popoverTargetElement = pop; button.setAttribute("aria-controls", pop.id);
+  document.body.append(pop); button.setAttribute("aria-controls", pop.id);
+  let timer = 0;  // opens on hover or click; leaving the button for the pop-up keeps it open
+  const show = () => { clearTimeout(timer); if (!pop.matches(":popover-open")) pop.showPopover(); };
+  const hide = () => { clearTimeout(timer); timer = setTimeout(() => pop.hidePopover(), 200); };
+  button.addEventListener("click", show); button.addEventListener("mouseenter", show); button.addEventListener("mouseleave", hide);
+  pop.addEventListener("mouseenter", () => clearTimeout(timer)); pop.addEventListener("mouseleave", hide);
   pop.addEventListener("beforetoggle", (e) => {
     if (e.newState !== "open") return;
     const r = button.getBoundingClientRect(), up = r.bottom > innerHeight * 0.6;
