@@ -176,10 +176,10 @@ class TabsTest(PageCase):
     def test_back_up_comes_first_across_the_whole_width(self):
         tab = self.server.dom().find("tab-firmware")
         cols = next(n for n in tab.walk() if n.attrs.get("class") == "stack").all_text()
-        self.assertNotIn("Back up", cols)
+        self.assertNotIn("Back Up", cols)
         self.assertLess(cols.index("Tweaks"), cols.index("Restore"))
         text = tab.all_text()
-        self.assertLess(text.index("Back up"), text.index("Tweaks"))
+        self.assertLess(text.index("Back Up"), text.index("Tweaks"))
 
     def test_the_tweak_list_is_collapsed_at_first(self):
         dom = self.server.dom()
@@ -387,7 +387,7 @@ class SettingsTabTest(PageCase):
         self.assertIn("Changes apply at once. Save them to keep them after the controller turns off.", dom.find("settings-actions").all_text())
         self.assertEqual(dom.find("ring-save").all_text(), "Save Ring Level")
         self.assertNotIn("Changes at once", tab.all_text())
-        self.assertIn("Live view", dom.find("live-card").all_text())
+        self.assertIn("Live View", dom.find("live-card").all_text())
         slots = [n.attrs["data-slot"] for n in dom.find("settings-cards").walk() if n.attrs.get("data-slot") and n.attrs.get("data-bit") == "13"]
         self.assertEqual(slots, ["l4", "r4"])
 
@@ -849,7 +849,7 @@ class HelpTest(PageCase):
         dom = self.server.dom("&diagsim=boot&scenario=helpopen")
         self.assertEqual(dom.find("diag-snap").all_text(), "help-top 0")
         links = [n for n in dom.find("help").walk() if n.tag == "a"]
-        self.assertEqual([" ".join(n.text) for n in links], ["Back up", "Tweaks", "Update mode", "Restore", "After installing", "Settings", "Diagnostics"])
+        self.assertEqual([" ".join(n.text) for n in links], ["Back Up", "Tweaks", "Update Mode", "Restore", "After Installing", "Settings", "Diagnostics"])
         for n in links:
             self.assertIsNotNone(dom.find(n.attrs["href"][1:]), n.attrs["href"])
 
@@ -858,7 +858,7 @@ class HelpTest(PageCase):
         self.assertIn("macOS may ask for your permission", text)
         self.assertIn("Diagnostics", text)
         after = text[text.index("Diagnostics"):]
-        for moved in ("Controller test", "Firmware details", "Create Problem Report", "Install Firmware 1.09 Anyway"):
+        for moved in ("Controller Test", "Firmware Details", "Create Problem Report", "Install Firmware 1.09 Anyway"):
             self.assertIn(moved, after)
         self.assertNotIn("Install Firmware 1.09 Anyway", text[:text.index("Diagnostics")])
 

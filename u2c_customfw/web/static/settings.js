@@ -26,7 +26,7 @@ const SETTINGS_CARDS = [
     { field: "idle_min", label: "Turn off after", kind: "seg", format: (v) => `${v} min` },
     { field: "buzz", label: "Vibrate when connecting", kind: "toggle" },
   ] },
-  { title: "Button remapping", wide: true, kind: "remap", text: "Choose what each button does, in every game. L4 and R4 keep pressing what you chose for them above. Home and the triggers can't be changed. If this leaves you stuck, Reset to Defaults… works without pressing any buttons on the controller." },
+  { title: "Button Remapping", wide: true, kind: "remap", text: "Choose what each button does, in every game. L4 and R4 keep pressing what you chose for them above. Home and the triggers can't be changed. If this leaves you stuck, Reset to Defaults… works without pressing any buttons on the controller." },
   { title: "Calibration", wide: true, kind: "calibration", text: "If a stick doesn't reach its full range or doesn't return to the centre, the controller can measure them again. This uses a function of its own, and the app doesn't send it anything." },
 ];
 const CALIBRATION_STEPS = [

@@ -33,7 +33,7 @@
   </section>
 
   <section class="cd wide">
-    <h2><span class="no">1</span>Back up<span class="tag">Nothing is written to the controller</span></h2>
+    <h2><span class="no">1</span>Back Up<span class="tag">Nothing is written to the controller</span></h2>
     <p>Saves a full copy of the controller's memory on this Mac, so you can always go back to it. You need a backup before installing anything.<span id="backup-connect"> Connect the controller by cable to start.</span></p>
     <div class="btns"><button id="backup" class="job">Back Up</button><span class="hint" id="last-backup"></span></div>
   </section>
@@ -66,8 +66,8 @@
       <h2><span class="no">3</span>Restore<span class="tag">Replaces the firmware</span></h2>
       <p>Restores your backup or 8BitDo's original firmware 1.09. The controller needs to be in update mode.</p>
       <div class="rest">
-        <div><h3>Your backup</h3><button id="restore-backup-dry" class="sec small job">Check First</button><button id="restore-backup" class="sec small job">Restore…</button><p class="why" id="restore-backup-why" hidden></p></div>
-        <div><h3>Original firmware 1.09</h3><button id="restore-stock-dry" class="sec small job">Check First</button><button id="restore-stock" class="sec small job">Restore…</button><p class="why" id="restore-stock-why" hidden></p></div>
+        <div><h3>Your Backup</h3><button id="restore-backup-dry" class="sec small job">Check First</button><button id="restore-backup" class="sec small job">Restore…</button><p class="why" id="restore-backup-why" hidden></p></div>
+        <div><h3>Original Firmware 1.09</h3><button id="restore-stock-dry" class="sec small job">Check First</button><button id="restore-stock" class="sec small job">Restore…</button><p class="why" id="restore-stock-why" hidden></p></div>
       </div>
       <p class="why" id="restore-why" hidden></p>
     </section>
@@ -77,7 +77,7 @@
 
   <div id="tab-settings" role="tabpanel" aria-labelledby="strip-settings" hidden>
     <section class="cd" id="ring-card">
-      <h2>Home ring</h2>
+      <h2>Home Ring</h2>
       <div class="ring-row"><div class="seg" id="ring-live">
         <button data-live="0">Normal</button><button data-live="1">25 %</button><button data-live="2">5 %</button><button data-live="3">1 %</button><button data-live="4">0.1 %</button><button data-live="5">Off</button>
       </div><button id="ring-save" class="sec small">Save Ring Level</button></div>
@@ -86,7 +86,7 @@
     <section class="cd set-empty" id="settings-empty"><p id="settings-note"></p>
       <button id="settings-retry" class="sec small" hidden>Try Again</button><button id="settings-goto" class="sec small" hidden>Open Firmware Tab</button></section>
     <section class="cd set-live" id="live-card" hidden>
-      <h2>Live view</h2>
+      <h2>Live View</h2>
       <div class="live-pad"><div><i id="live-left"></i></div><span>Left stick</span></div>
       <div class="live-pad"><div><i id="live-right"></i></div><span>Right stick</span></div>
       <div class="live-trig"><div>Left trigger<b><i id="live-lt"></i></b></div><div>Right trigger<b><i id="live-rt"></i></b></div><p class="res" id="live-note"></p></div>
@@ -102,12 +102,12 @@
 
   <div id="tab-diagnostics" role="tabpanel" aria-labelledby="strip-diagnostics" hidden>
     <section class="cd" id="test-card">
-      <h2>Controller test<span class="tag">Nothing is written to the controller</span></h2>
+      <h2>Controller Test<span class="tag">Nothing is written to the controller</span></h2>
       <div id="test-body"></div>
     </section>
     <div class="cols even">
-      <section class="cd" id="firmware-details"><h2>Firmware details</h2><div id="details-body"></div></section>
-      <section class="cd"><h2>Problem report</h2>
+      <section class="cd" id="firmware-details"><h2>Firmware Details</h2><div id="details-body"></div></section>
+      <section class="cd"><h2>Problem Report</h2>
         <p>Creates a text you can attach to a bug report, with the device IDs, the firmware's state and the latest log lines. It never includes your controller's address or its Bluetooth pairings.</p>
         <button id="report-open" class="sec small job">Create Problem Report</button></section>
     </div>
@@ -131,7 +131,7 @@
   <pre id="log" hidden></pre>
 </footer>
 
-<dialog id="disclaimer"><div id="disclaimer-text"></div><menu><button id="disclaimer-quit" class="sec" hidden>Quit</button><button id="accept">I Understand and Accept</button></menu></dialog>
+<dialog id="disclaimer"><div id="disclaimer-text"></div><menu><button id="disclaimer-quit" class="sec" hidden>Quit</button><button id="accept">Agree</button></menu></dialog>
 
 <dialog id="confirm">
   <div class="ic" data-icon="warn" id="confirm-icon"></div>
@@ -150,24 +150,24 @@
     <li>Its firmware will be erased and replaced with 8BitDo's original 1.09. If it was made for a different version, the controller may <strong>not start</strong> afterwards, or buttons, Bluetooth, battery or rumble may misbehave.</li>
     <li>The part of the controller that runs update mode is never changed, so update mode keeps working. A backup is required first, so it can always be restored.</li>
     <li>Bluetooth pairings, the controller's address and its stick calibration are not changed.</li>
-    <li>Installing modified firmware probably voids the controller's warranty. No warranty of any kind applies.</li>
+    <li>No warranty of any kind applies.</li>
   </ul>
   <label><input type="checkbox" id="force-understand"> I understand the risks and want to continue</label>
   <menu><button id="force-no" class="sec">Cancel</button><button id="force-yes" class="danger" disabled>Install Anyway</button></menu>
 </dialog>
 
 <dialog id="report">
-  <h3>Problem report</h3>
+  <h3>Problem Report</h3>
   <p class="src">Paste it into a bug report. It never includes the controller's address, its Bluetooth pairings or your backup.</p>
   <pre id="report-text"></pre>
   <menu><button id="report-copy" class="sec">Copy</button><button id="report-close">Close</button></menu>
 </dialog>
 
 <dialog id="help">
-  <h3 id="help-top" tabindex="-1" autofocus>How this app works</h3>
-  <p class="toc"><a href="#help-backup">Back up</a> · <a href="#help-tweaks">Tweaks</a> · <a href="#help-update">Update mode</a> · <a href="#help-restore">Restore</a> · <a href="#help-after">After installing</a> · <a href="#help-settings">Settings</a> · <a href="#help-diagnostics">Diagnostics</a></p>
+  <h3 id="help-top" tabindex="-1" autofocus>How This App Works</h3>
+  <p class="toc"><a href="#help-backup">Back Up</a> · <a href="#help-tweaks">Tweaks</a> · <a href="#help-update">Update Mode</a> · <a href="#help-restore">Restore</a> · <a href="#help-after">After Installing</a> · <a href="#help-settings">Settings</a> · <a href="#help-diagnostics">Diagnostics</a></p>
   <p>Out of the box, macOS and most Mac games don't recognise the 8BitDo Ultimate 2C Wireless as a standard controller. This app changes the controller's firmware (the software inside it) so that they do. It only works with firmware 1.09.</p>
-  <h4 id="help-backup">1. Back up</h4>
+  <h4 id="help-backup">1. Back Up</h4>
   <p>Saves a full copy of the controller's memory on this Mac. It changes nothing on the controller. It is required before the first change, so you can always restore the controller exactly as it was. Backups are kept on this Mac, in ~/Library/Application Support/u2c-customfw.</p>
   <h4 id="help-tweaks">2. Tweaks</h4>
   <ul>
@@ -184,23 +184,23 @@
     <li><b>Home ring brightness.</b> Sets how bright the ring around the Home button is while the controller is connected: Normal keeps its usual brightness, and the percentages are how much of the time the light is on, not how bright it looks. It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. Off keeps it dark while connected. You can change the level at once with L4 + R4 on the controller, or in the Settings tab, and save it without installing anything. Installing a different level replaces a saved one. If you changed the level with L4 + R4 or in the Settings tab, installing the same level again doesn't reset it. Change it in the Settings tab instead.</li>
   </ul>
   <p>The tweaks are always added to 8BitDo's original firmware 1.09, taken from your backup or downloaded from 8BitDo, so the result is always a known, checked firmware.</p>
-  <h4 id="help-update">Update mode</h4>
+  <h4 id="help-update">Update Mode</h4>
   <p>The controller can only receive new firmware in update mode. Turn it fully off, then hold LB + RB while plugging in the cable. The light will blink white.</p>
   <h4>Check First</h4>
   <p>Runs every check without changing anything: that this is the same controller as in your backup, that its firmware is one the app knows, and that the new firmware is complete.</p>
   <h4 id="help-restore">3. Restore</h4>
   <p>Restores your backup, or 8BitDo's original firmware 1.09. Use it if something doesn't work, or to use 8BitDo's own apps and updates again.</p>
-  <h4 id="help-after">After installing</h4>
+  <h4 id="help-after">After Installing</h4>
   <p>Unplug the controller. If you changed a Bluetooth tweak, remove the controller from Bluetooth settings and pair it again, because macOS remembers how a device introduced itself the first time.</p>
   <h4 id="help-settings">Settings</h4>
   <p>This tab changes the controller while it's connected by cable, once the Controller settings tweak is installed. A change applies at once and is lost when the controller turns off or restarts, unless you press <b>Save to Controller</b>. <b>Reset to Defaults…</b> puts these settings back, apart from the Home ring and the calibration, and works without pressing any buttons on the controller.</p>
   <p>Restoring the firmware doesn't erase them. The original firmware ignores most of them, and they apply again if you install the tweak again, but it does keep using the L4 and R4 mappings and the dead zone switch, because those are its own. Use <b>Reset to Defaults…</b> first if you want those gone. While this tab is open, as with the controller test, Home doesn't open Apple Games.</p>
-  <p><b>Home ring</b> changes the ring at once, over Bluetooth or by cable, without installing anything. <b>Save Ring Level</b> keeps it.</p>
+  <p><b>Home Ring</b> changes the ring at once, over Bluetooth or by cable, without installing anything. <b>Save Ring Level</b> keeps it.</p>
   <h4 id="help-diagnostics">Diagnostics</h4>
   <p>This tab helps you check how macOS sees the controller, and gather information if something goes wrong.</p>
-  <p><b>Controller test</b> shows what macOS's GameController reports, which is what a game gets, including the battery when macOS provides it. Press each control to see it light up, and use the buttons to make the controller vibrate. "Vibrate Like a Game" uses the same path as native games, and "Direct Report" goes straight to the controller, so if only the direct report vibrates, the firmware isn't the problem. The first time you press the Home button in this test, macOS may ask for your permission to let the app receive it. If you allow it, Home won't open Apple Games while this tab is open. This test is only available in the Mac app.</p>
+  <p><b>Controller Test</b> shows what macOS's GameController reports, which is what a game gets, including the battery when macOS provides it. Press each control to see it light up, and use the buttons to make the controller vibrate. "Vibrate Like a Game" uses the same path as native games, and "Direct Report" goes straight to the controller, so if only the direct report vibrates, the firmware isn't the problem. The first time you press the Home button in this test, macOS may ask for your permission to let the app receive it. If you allow it, Home won't open Apple Games while this tab is open. This test is only available in the Mac app.</p>
   <p>The controller also has its own option for the sticks: holding − (Select) and + (Start) together for about 4 seconds switches a 14 % dead zone on the sticks on and off. The controller buzzes once when it turns on and twice when it turns off, and it remembers the setting. It's part of 8BitDo's firmware.</p>
-  <p><b>Firmware details</b> shows what the app read from the controller, including where the version came from and whether a firmware update is pending.</p>
+  <p><b>Firmware Details</b> shows what the app read from the controller, including where the version came from and whether a firmware update is pending.</p>
   <p><b>Create Problem Report</b> collects the controller's state and the last task's log for a bug report. It never includes the controller's address, its Bluetooth pairings or your backup.</p>
   <p><b>Install Firmware 1.09 Anyway…</b> is only for a controller whose firmware can't be identified. It erases the firmware and installs 8BitDo's original 1.09 without being able to check beforehand that it's right for the controller, so use it only if Restore doesn't work.</p>
   <menu><button id="help-close">Close</button></menu>
