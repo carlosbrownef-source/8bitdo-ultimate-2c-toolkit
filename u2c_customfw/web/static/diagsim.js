@@ -89,6 +89,7 @@
     restorecheck: () => $("restore-backup-dry").click(),
     installask: () => $("patch-write").click(),
     backupjob: () => $("backup").click(),
+    helpopen: () => { $("help-open").click(); setTimeout(() => { document.getElementById("diag-snap").textContent = `${document.activeElement.id} ${$("help").scrollTop}`; }, 100); },
     notweaks: () => { tweakBoxes().forEach((x) => { x.checked = false; }); render(); },
     checkjob: () => runJob("Checking…", "/api/patch", { tweaks: ["dim_leds"], base: "backup", write: false }, "Check passed"),
     installjob: () => { $("patch-write").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); setTimeout(snapIdle, 0); }, 200); },

@@ -671,6 +671,14 @@ class DockTest(PageCase):
 
 
 class HelpTest(PageCase):
+    def test_help_opens_at_the_top_with_its_contents(self):
+        dom = self.server.dom("&diagsim=boot&scenario=helpopen")
+        self.assertEqual(dom.find("diag-snap").all_text(), "help-top 0")
+        links = [n for n in dom.find("help").walk() if n.tag == "a"]
+        self.assertEqual([" ".join(n.text) for n in links], ["Back up", "Tweaks", "Update mode", "Restore", "After installing", "Settings", "Diagnostics"])
+        for n in links:
+            self.assertIsNotNone(dom.find(n.attrs["href"][1:]), n.attrs["href"])
+
     def test_help_describes_diagnostics(self):
         text = self.server.dom().find("help").all_text()
         self.assertIn("macOS may ask for your permission", text)

@@ -129,7 +129,7 @@ dialog label{display:flex;gap:10px;align-items:flex-start;margin-top:10px}dialog
 .mini{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.mini span{font-size:12px;padding:2px 9px;border-radius:99px;background:var(--card2)}
 #force h3,#disclaimer h3{color:var(--warn)}
 #disclaimer{width:min(580px,calc(100% - 32px))}
-#help{width:min(640px,calc(100% - 32px))}#help h4{margin:18px 0 4px;font-size:15px}#help p,#help li{color:var(--dim);font-size:14px}#help b{color:var(--fg);font-weight:600}
+#help{width:min(640px,calc(100% - 32px))}#help h3:focus{outline:none}#help .toc a{color:var(--accent);text-decoration:none}#help h4{margin:18px 0 4px;font-size:15px}#help p,#help li{color:var(--dim);font-size:14px}#help b{color:var(--fg);font-weight:600}
 #report{width:min(640px,calc(100% - 32px))}#report pre{background:#07090c;border:1px solid var(--line);border-radius:8px;padding:10px 12px;white-space:pre-wrap;max-height:50vh;overflow:auto}
 
 @media (max-width:820px){.test,.cols.even,.set-cards,.set-cols{grid-template-columns:1fr}.hero{grid-template-columns:1fr}.hero .pic{width:200px;margin:auto}.cols{grid-template-columns:1fr}.danger-zone{grid-template-columns:1fr}.only{display:none}}
