@@ -359,11 +359,16 @@ class SettingsTabTest(PageCase):
         self.assertNotIn("No answer", dom.find("ring-note").all_text())
         self.assertIn("Sent", dom.find("ring-note").all_text())
 
-    def test_the_save_row_is_at_the_top_and_says_how_saving_works(self):
+    def test_the_save_row_is_pinned_at_the_bottom_and_says_how_saving_works(self):
         dom = self.server.dom(self.READY)
         tab = dom.find("tab-settings")
         ids = [n.attrs["id"] for n in tab.walk() if n.attrs.get("id") in ("settings-actions", "ring-card", "live-card", "settings-cards")]
-        self.assertEqual(ids, ["settings-actions", "ring-card", "live-card", "settings-cards"])
+        self.assertEqual(ids, ["ring-card", "live-card", "settings-cards", "settings-actions"])
+        row = tab.children[-1]
+        self.assertEqual(row.attrs.get("id"), "settings-actions")
+        self.assertNotIn("hidden", row.attrs)
+        for id_ in ("settings-save", "settings-reset", "settings-unsaved", "settings-message"):
+            self.assertIsNotNone(row.find(id_), id_)
         self.assertIn("Changes apply at once. Save them to keep them after the controller turns off.", dom.find("settings-actions").all_text())
         self.assertEqual(dom.find("ring-save").all_text(), "Save Ring Level")
         self.assertNotIn("Changes at once", tab.all_text())

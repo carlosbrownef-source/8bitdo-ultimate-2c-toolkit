@@ -60,7 +60,8 @@ main{flex:1;overflow:auto;padding:18px 22px 22px}
 .set-steps{margin:0;padding-left:20px;font-size:14px;color:var(--dim)}.set-steps li{margin:4px 0}
 .set-row>span{max-width:75%}
 .set-remap{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:0 24px}.set-remap select{background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:4px 6px;font:inherit;font-size:13px}
-.set-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:16px}.set-lead{flex-basis:100%;margin:0;color:var(--dim);font-size:14px}
+.set-actions{position:sticky;bottom:-22px;z-index:1;margin-top:16px;padding:12px 20px 14px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 -10px 18px -10px rgba(0,0,0,.55);display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px}
+.set-lead{flex:1;margin:0;color:var(--dim);font-size:14px}.set-actions .btns{margin-left:auto}.set-actions .hint{flex-basis:100%}.set-actions .hint:empty{display:none}#settings-unsaved{color:var(--fg)}
 .set-live h2{flex-basis:100%}
 .cols{display:grid;grid-template-columns:1.1fr 1fr;gap:16px;margin-top:16px;align-items:start}
 .cd{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px}

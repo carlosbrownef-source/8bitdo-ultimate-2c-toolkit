@@ -76,12 +76,6 @@
   </div>
 
   <div id="tab-settings" role="tabpanel" aria-labelledby="strip-settings" hidden>
-    <div class="set-actions" id="settings-actions" hidden>
-      <p class="set-lead">Changes apply at once. Save them to keep them after the controller turns off.</p>
-      <button id="settings-save" class="small">Save to controller</button><button id="settings-reset" class="sec small">Reset to defaults</button>
-      <span class="hint" id="settings-unsaved" hidden>You have changes that aren't saved. They're lost when the controller turns off or restarts, which it does when you unplug it with Fixes installed, and when the app reads the controller again.</span>
-      <span class="hint" id="settings-message"></span>
-    </div>
     <section class="cd" id="ring-card">
       <h2>Home ring</h2>
       <div class="ring-row"><div class="seg" id="ring-live">
@@ -98,6 +92,12 @@
       <div class="live-trig"><div>Left trigger<b><i id="live-lt"></i></b></div><div>Right trigger<b><i id="live-rt"></i></b></div><p class="res" id="live-note"></p></div>
     </section>
     <div class="set-cards" id="settings-cards" hidden></div>
+    <div class="set-actions" id="settings-actions" hidden>
+      <p class="set-lead">Changes apply at once. Save them to keep them after the controller turns off.</p>
+      <div class="btns"><button id="settings-save" class="small">Save to controller</button><button id="settings-reset" class="sec small">Reset to defaults</button></div>
+      <span class="hint" id="settings-unsaved" hidden>You have changes that aren't saved. They're lost when the controller turns off or restarts, which it does when you unplug it with Fixes installed, and when the app reads the controller again.</span>
+      <span class="hint" id="settings-message"></span>
+    </div>
   </div>
 
   <div id="tab-diagnostics" role="tabpanel" aria-labelledby="strip-diagnostics" hidden>
