@@ -161,12 +161,24 @@
   <menu><button id="report-copy" class="sec">Copy</button><button id="report-close">Close</button></menu>
 </dialog>
 
-<dialog id="help">
-  <h3 id="help-top" tabindex="-1" autofocus>How This App Works</h3>
-  <p class="toc"><a href="#help-backup">Back Up</a> · <a href="#help-tweaks">Tweaks</a> · <a href="#help-update">Update Mode</a> · <a href="#help-restore">Restore</a> · <a href="#help-after">After Installing</a> · <a href="#help-settings">Settings</a> · <a href="#help-diagnostics">Diagnostics</a></p>
+<dialog id="help" aria-labelledby="help-top">
+  <div class="hwrap">
+    <nav class="hside"><h3 id="help-top" tabindex="-1" autofocus>Help</h3><button type="button" data-help="start">Getting Started</button><button type="button" data-help="tweaks">Tweaks</button><button type="button" data-help="settings">Settings</button><button type="button" data-help="diagnostics">Diagnostics</button></nav>
+    <div class="hbody" id="help-body">
+    <section data-hsec="start">
   <p>Out of the box, macOS and most Mac games don't recognise the 8BitDo Ultimate 2C Wireless as a standard controller. This app changes the controller's firmware (the software inside it) so that they do. It only works with firmware 1.09.</p>
   <h4 id="help-backup">1. Back Up</h4>
   <p>Saves a full copy of the controller's memory on this Mac. It changes nothing on the controller. It is required before the first change, so you can always restore the controller exactly as it was. Backups are kept on this Mac, in ~/Library/Application Support/u2c-customfw.</p>
+  <h4 id="help-update">Update Mode</h4>
+  <p>The controller can only receive new firmware in update mode. Turn it fully off, then hold LB + RB while plugging in the cable. The small light below the Home ring will blink white.</p>
+  <h4>Check First</h4>
+  <p>Runs every check without changing anything: that this is the same controller as in your backup, that its firmware is one the app knows, and that the new firmware is complete.</p>
+  <h4 id="help-restore">3. Restore</h4>
+  <p>Restores your backup, or 8BitDo's original firmware 1.09. Use it if something doesn't work, or to use 8BitDo's own apps and updates again.</p>
+  <h4 id="help-after">After Installing</h4>
+  <p>Unplug the controller. If you changed a Bluetooth tweak, remove the controller from Bluetooth settings and pair it again, because macOS remembers how a device introduced itself the first time.</p>
+    </section>
+    <section data-hsec="tweaks">
   <h4 id="help-tweaks">2. Tweaks</h4>
   <ul>
     <li><b>Xbox Series X|S controller over Bluetooth.</b> macOS recognises only a few controllers, such as Xbox and PlayStation ones. Over Bluetooth the 2C normally isn't one of them, so games don't see it. With this tweak it introduces itself as an Xbox Series X|S controller, which macOS and its games support.</li>
@@ -182,18 +194,14 @@
   </ul>
   <p>The Home ring's code is installed with any tweak that needs it. Installing keeps the ring's level as it is, and you change it in the Settings tab.</p>
   <p>The tweaks are always added to 8BitDo's original firmware 1.09, taken from your backup or downloaded from 8BitDo, so the result is always a known, checked firmware.</p>
-  <h4 id="help-update">Update Mode</h4>
-  <p>The controller can only receive new firmware in update mode. Turn it fully off, then hold LB + RB while plugging in the cable. The small light below the Home ring will blink white.</p>
-  <h4>Check First</h4>
-  <p>Runs every check without changing anything: that this is the same controller as in your backup, that its firmware is one the app knows, and that the new firmware is complete.</p>
-  <h4 id="help-restore">3. Restore</h4>
-  <p>Restores your backup, or 8BitDo's original firmware 1.09. Use it if something doesn't work, or to use 8BitDo's own apps and updates again.</p>
-  <h4 id="help-after">After Installing</h4>
-  <p>Unplug the controller. If you changed a Bluetooth tweak, remove the controller from Bluetooth settings and pair it again, because macOS remembers how a device introduced itself the first time.</p>
+    </section>
+    <section data-hsec="settings">
   <h4 id="help-settings">Settings</h4>
   <p>This tab changes the controller while it's connected by cable, once the Controller settings tweak is installed. A change applies at once and is lost when the controller turns off or restarts, unless you press <b>Save to Controller</b>. <b>Reset to Defaults…</b> puts these settings back, apart from the Home ring and the calibration, and works without pressing any buttons on the controller.</p>
   <p>Restoring the firmware doesn't erase them. The original firmware ignores most of them, and they apply again if you install the tweak again, but it does keep using the L4 and R4 mappings and the dead zone switch, because those are its own. Use <b>Reset to Defaults…</b> first if you want those gone. While this tab is open, as with the controller test, Home doesn't open Apple Games.</p>
   <p><b>Home Ring</b> sets how bright the ring around the Home button is while the controller is connected. Normal keeps its usual brightness, and the percentages are how much of the time the light is on, not how bright it looks. It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. Off keeps it dark while connected. A change applies at once, over Bluetooth or by cable, without installing anything, and <b>Save Ring Level</b> keeps it after the controller turns off. L4 + R4 on the controller also change it.</p>
+    </section>
+    <section data-hsec="diagnostics">
   <h4 id="help-diagnostics">Diagnostics</h4>
   <p>This tab helps you check how macOS sees the controller, and gather information if something goes wrong.</p>
   <p><b>Controller Test</b> shows what macOS's GameController reports, which is what a game gets, including the battery when macOS provides it. Press each control to see it light up, and use the buttons to make the controller vibrate. "Vibrate Like a Game" uses the same path as native games, and "Direct Report" goes straight to the controller, so if only the direct report vibrates, the firmware isn't the problem. The first time you press the Home button in this test, macOS may ask for your permission to let the app receive it. If you allow it, Home won't open Apple Games while this tab is open. This test is only available in the Mac app.</p>
@@ -201,6 +209,9 @@
   <p><b>Firmware Details</b> shows what the app read from the controller, including where the version came from and whether a firmware update is pending.</p>
   <p><b>Create Problem Report</b> collects the controller's state and the last task's log for a bug report. It never includes the controller's address, its Bluetooth pairings or your backup.</p>
   <p><b>Install Firmware 1.09 Anyway…</b> is only for a controller whose firmware can't be identified. It erases the firmware and installs 8BitDo's original 1.09 without being able to check beforehand that it's right for the controller, so use it only if Restore doesn't work.</p>
+    </section>
+    </div>
+  </div>
   <menu><button id="help-close">Close</button></menu>
 </dialog>
 <script>if (new URLSearchParams(location.search).has("diagsim")) document.write('<script src="/static/diagsim.js"><\/script>');</script>

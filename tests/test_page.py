@@ -864,11 +864,15 @@ class HelpTest(PageCase):
         self.assertTrue(chips[-1].startswith("Home ring"))
     def test_help_opens_at_the_top_with_its_contents(self):
         dom = self.server.dom("&diagsim=boot&scenario=helpopen")
-        self.assertEqual(dom.find("diag-snap").all_text(), "help-top 0")
-        links = [n for n in dom.find("help").walk() if n.tag == "a"]
-        self.assertEqual([" ".join(n.text) for n in links], ["Back Up", "Tweaks", "Update Mode", "Restore", "After Installing", "Settings", "Diagnostics"])
-        for n in links:
-            self.assertIsNotNone(dom.find(n.attrs["href"][1:]), n.attrs["href"])
+        self.assertEqual(dom.find("diag-snap").all_text(), "help-top 0 diagnostics")   # update mode opens on Diagnostics
+        side = [n for n in dom.find("help").walk() if "data-help" in n.attrs]
+        self.assertEqual([" ".join(n.text) for n in side], ["Getting Started", "Tweaks", "Settings", "Diagnostics"])
+        parts = {n.attrs["data-hsec"]: n for n in dom.find("help").walk() if "data-hsec" in n.attrs}
+        self.assertEqual(sorted(parts), sorted(n.attrs["data-help"] for n in side))
+        self.assertEqual([n.attrs["data-hsec"] for n in parts.values() if "hidden" not in n.attrs], ["diagnostics"])
+
+    def test_help_opens_on_the_section_of_the_tab_in_view(self):
+        self.assertEqual(self.server.dom("&diagsim=cable&scenario=helpsettings").find("diag-snap").all_text(), "settings")
 
     def test_help_describes_diagnostics(self):
         text = self.server.dom().find("help").all_text()

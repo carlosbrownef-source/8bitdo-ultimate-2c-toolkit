@@ -302,7 +302,13 @@ $("details").onclick = () => { detailsOpen = !detailsOpen; showDetails(detailsOp
 TABS.forEach((t) => ($(`strip-${t}`).onclick = () => showTab(t)));
 $("force-go").onclick = () => showTab("diagnostics");
 $("privacy-open").onclick = () => bridge().postMessage({ op: "privacy" });
-$("help-open").onclick = () => $("help").showModal();
+function showHelp(part) {  // one section at a time, from the top
+  document.querySelectorAll("[data-help]").forEach((b) => setOn(b, b.dataset.help === part));
+  document.querySelectorAll("[data-hsec]").forEach((x) => (x.hidden = x.dataset.hsec !== part));
+  $("help-body").scrollTop = 0;
+}
+document.querySelectorAll("[data-help]").forEach((b) => (b.onclick = () => showHelp(b.dataset.help)));
+$("help-open").onclick = () => { showHelp(tab === "firmware" ? "start" : tab); $("help").showModal(); };  // opens on the tab in view
 $("help-close").onclick = () => $("help").close();
 tweakBoxes().forEach((x) => (x.onchange = render));
 function popover(button, ...content) {  // a small pop-up under an (i) button, outside any label so clicks in it toggle nothing
