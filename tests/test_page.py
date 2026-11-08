@@ -286,6 +286,18 @@ class SettingsTabTest(PageCase):
         self.assertNotIn("No answer", dom.find("ring-note").all_text())
         self.assertIn("Sent", dom.find("ring-note").all_text())
 
+    def test_the_save_row_is_at_the_top_and_says_how_saving_works(self):
+        dom = self.server.dom(self.READY)
+        tab = dom.find("tab-settings")
+        ids = [n.attrs["id"] for n in tab.walk() if n.attrs.get("id") in ("settings-actions", "ring-card", "live-card", "settings-cards")]
+        self.assertEqual(ids, ["settings-actions", "ring-card", "live-card", "settings-cards"])
+        self.assertIn("Changes apply at once. Save them to keep them after the controller turns off.", dom.find("settings-actions").all_text())
+        self.assertEqual(dom.find("ring-save").all_text(), "Save Ring Level")
+        self.assertNotIn("Changes at once", tab.all_text())
+        self.assertIn("Live view", dom.find("live-card").all_text())
+        slots = [n.attrs["data-slot"] for n in dom.find("settings-cards").walk() if n.attrs.get("data-slot") and n.attrs.get("data-bit") == "13"]
+        self.assertEqual(slots, ["l4", "r4"])
+
     def test_mapping_warning_text(self):
         text = " ".join(self.server.dom(self.READY).find("settings-cards").all_text().split())
         self.assertIn("Pressing L4 and R4 together changes the Home ring's brightness, and games also receive the buttons you mapped to them.", text)

@@ -63,7 +63,7 @@ The Settings tab changes the controller while it's connected by cable, once the 
 - **Calibration:** a guide to the controller's own stick calibration. The app doesn't send it anything.
 - **Home ring:** its brightness. This also works over Bluetooth, with Rumble over Bluetooth installed.
 
-With every setting at its default, the sticks, triggers and buttons run the firmware's original code. The live view at the top of the tab is only available in the Mac app; the settings work anyway.
+With every setting at its default, the sticks, triggers and buttons run the firmware's original code. The live view is only available in the Mac app; the settings work anyway.
 
 ## Diagnostics
 

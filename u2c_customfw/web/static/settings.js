@@ -62,7 +62,7 @@ function settingsMount() {
     section.querySelector("h2").textContent = card.title;
     section.querySelector("p").textContent = card.text;
     if (card.title === "Sticks") section.append(deadZoneRow());
-    if (card.kind === "mapping") section.append(...[["R4", "r4"], ["L4", "l4"]].map(mappingRow));
+    if (card.kind === "mapping") section.append(...[["L4", "l4"], ["R4", "r4"]].map(mappingRow));
     if (card.kind === "remap") {
       const grid = document.createElement("div");
       grid.className = "set-remap";
