@@ -19,13 +19,13 @@ U2C Firmware Toolkit is a toolkit for the **8BitDo Ultimate 2C Wireless** and it
 - **Tests the controller.** See what macOS reports, including the battery, check every button, stick and trigger, and try the vibration.
 - **Backs up and restores.** Save a full copy of the controller's or the dongle's memory first, and go back to it or to 8BitDo's original firmware at any time.
 
-It works with the Ultimate 2C Wireless on firmware 1.09 and its 2.4 GHz dongle on firmware 1.03, on Macs with Apple silicon. It doesn't work with other models.
+It works with the Ultimate 2C Wireless on firmware 1.09 and its 2.4 GHz dongle on firmware 1.03, on Macs with Apple silicon or Intel and macOS 13 or later. It doesn't work with other models.
 
 > **This is a vibe-coded project, written with an AI assistant (Opus 5.5). There's no warranty, and you use it at your own risk.** Installing modified firmware probably voids the controller's and the dongle's warranty. Please read the [full disclaimer](DISCLAIMER.md) before using it. Not affiliated with or endorsed by 8BitDo.
 
-## Install (macOS, Apple silicon)
+## Install (macOS 13 or later)
 
-1. Download `firmware-toolkit-<version>-macos-arm64.zip` from the releases page and unzip it.
+1. Download the zip for your Mac from the releases page and unzip it: `firmware-toolkit-<version>-macos-arm64.zip` for Apple silicon, or `firmware-toolkit-<version>-macos-x86_64.zip` for Intel. The Intel build has been tested under Rosetta, not yet on an Intel Mac.
 2. Open the app once. macOS will block it because it is not signed: open **System Settings → Privacy & Security**, scroll to the message about the app and click **Open Anyway** (right-click → Open no longer works on current macOS). You can also remove it from Quarantine with xattr.
 3. When asked, allow **Input Monitoring** (System Settings → Privacy & Security → Input Monitoring). The app needs it to talk to the controller and the dongle.
 

@@ -153,6 +153,8 @@ battery log in an unused flash area), the command line of this repository and sm
    1.0 ms, 99 % within 1.2 ms, longest 11.3 ms (over Bluetooth: 104 per second, median 14.8 ms). The app reads the paired
    dongle's firmware through it in about 4.5 s and shows it as the dongle with the controller connected. The app's own Back Up of the dongle ran on it the same day (about 45 s), and the app then read the dongle as 1.03 with the tweak, with its backup offered for Restore.
 
+9. **Intel build.** Built for x86_64 with its own Python and run under Rosetta on the same Mac (both processes "X86-64 (translated)"): the window and pages load, the dongle is found and read through IOKit, identified by hash, and its backup recognised. Not yet run on an Intel Mac.
+
 Still to do: Restore when a 4 KB block outside the firmware area differs from the backup; quitting or closing the window during
 a real write; the 12.5 ms request on Linux or Windows; and, from 0.4, a sleeping Mac with the cable in and the closed Bluetooth
 update.

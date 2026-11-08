@@ -25,9 +25,10 @@ class NameTest(unittest.TestCase):
         self.assertIn("<title>U2C Firmware Toolkit</title>", page)
         self.assertIn("<b>U2C Firmware Toolkit</b>", page)
         build = (ROOT / "macos/build.sh").read_text()
-        self.assertIn('app="dist/Firmware Toolkit.app"', build)
-        self.assertIn("firmware-toolkit-$version-macos-arm64.zip", build)
-        self.assertIn("firmware-toolkit-$v-macos-arm64.zip", (ROOT / ".github/workflows/homebrew.yml").read_text())
+        self.assertIn('app="$out/Firmware Toolkit.app"', build)
+        self.assertIn("firmware-toolkit-$version-macos-$arch.zip", build)
+        self.assertIn("firmware-toolkit-$v-macos-$arch.zip", (ROOT / ".github/workflows/homebrew.yml").read_text())
+        self.assertIn("for arch in arm64 x86_64", (ROOT / ".github/workflows/homebrew.yml").read_text())
 
     def test_homebrew_uses_the_new_name(self):
         workflow = (ROOT / ".github/workflows/homebrew.yml").read_text()
@@ -81,7 +82,10 @@ class DisclaimerTest(unittest.TestCase):
 class MacBuildTest(unittest.TestCase):
     def test_the_app_is_built_for_the_macos_it_declares(self):
         minimum = re.search(r"LSMinimumSystemVersion</key><string>([\d.]+)", (ROOT / "macos/Info.plist").read_text()).group(1)
-        self.assertIn(f"-target arm64-apple-macos{minimum}", (ROOT / "macos/build.sh").read_text())
+        script = (ROOT / "macos/build.sh").read_text()
+        self.assertIn(f'-target "$arch-apple-macos{minimum}"', script)
+        for arch in ("arm64)", "x86_64)"):   # Apple silicon and Intel, each with its own Python
+            self.assertIn(arch, script)
 
 
 if __name__ == "__main__":
