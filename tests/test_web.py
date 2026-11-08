@@ -455,5 +455,20 @@ class WebTest(unittest.TestCase):
         self.assertEqual(e.exception.code, 403)
 
 
+class SimulationStoreTest(unittest.TestCase):
+    def test_the_simulation_leaves_the_real_store_alone(self):
+        import os
+        import subprocess
+        import sys
+        home = Path(tempfile.mkdtemp())
+        env = dict(os.environ, U2C_SIM="1", HOME=str(home), PYTHONPATH=str(Path(__file__).parent.parent))
+        proc = subprocess.Popen([sys.executable, "-m", "u2c_customfw.web"], stdout=subprocess.PIPE, text=True, env=env)
+        try:
+            self.assertTrue(proc.stdout.readline().startswith("U2C_URL "))
+        finally:
+            proc.terminate(); proc.wait(); proc.stdout.close()
+        self.assertEqual(list(home.rglob("controller-*.bin")), [])
+
+
 if __name__ == "__main__":
     unittest.main()
