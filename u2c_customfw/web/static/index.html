@@ -32,10 +32,10 @@
     <div class="chips" id="chips" hidden></div>
   </section>
 
-  <section class="cd wide">
+  <section class="cd wide" id="backup-card">
     <h2><span class="no">1</span>Back Up<span class="tag">Nothing is written to the controller</span></h2>
-    <p>Saves a full copy of the controller's memory on this Mac, so you can always go back to it. You need a backup before installing anything.<span id="backup-connect"> Connect the controller by cable to start.</span></p>
-    <div class="btns"><button id="backup" class="job">Back Up</button><span class="hint" id="last-backup"></span></div>
+    <p>Saves a full copy of the controller's memory on this Mac, so you can always go back to it.<span id="backup-connect"> Connect the controller by cable to start.</span></p>
+    <div class="btns"><span class="hint" id="last-backup"></span><button id="backup" class="job">Back Up</button></div>
   </section>
 
   <div class="stack">
@@ -56,7 +56,6 @@
       </div>
       <div class="opts"><span>The tweaks are added to 8BitDo's original firmware 1.09. Take it from:</span>
         <div><div class="seg"><button data-base="backup" class="on">Your Backup</button><button data-base="download">8BitDo's Server</button></div></div></div>
-      <div class="go"><div class="boot" id="boot-box"><span id="boot-icon"></span><div><b><span id="boot-title">Update mode</span><button type="button" class="info" id="boot-info" aria-label="Show where the light is">?</button></b><span id="boot-text">Turn the controller fully off, then hold LB + RB while plugging in the cable. The small light below the Home ring will blink white.</span></div></div></div>
       <div class="act" id="tweaks-act"><ul class="pre"><li id="pre-backup"></li><li id="pre-boot"></li></ul><div class="btns"><button id="patch-dry" class="sec job">Check First</button><button id="patch-write" class="job">Install Tweaks…</button></div>
         <p><span id="choose-one" hidden></span> Installing modified firmware probably voids the controller's warranty.</p></div>
     </section>

@@ -16,7 +16,6 @@ const ICON = {
   no: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
   dash: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 8h8"/></svg>',
   warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></svg>',
-  plug: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v5M15 3v5M6 8h12v4a6 6 0 0 1-12 0zM12 18v3"/></svg>',
 };
 
 /* Ultimate 2C, drawn from scratch: offset sticks, d-pad lower left, ABXY upper right, home button with its LED ring. */
@@ -35,6 +34,8 @@ ${face(215, 43, "Y")}${face(198, 60, "X")}${face(232, 60, "B")}${face(215, 77, "
 
 const CONTROLLER = ["cable", "cable_360", "boot"];
 let st = null, fw = null, reading = false, busy = false, base = "backup";
+const bootInfo = document.createElement("button");
+bootInfo.type = "button"; bootInfo.className = "info"; bootInfo.id = "boot-info"; bootInfo.textContent = "?"; bootInfo.setAttribute("aria-label", "How to enter update mode");
 
 const tweakBoxes = () => [...document.querySelectorAll(".tweak")];
 const RING_NAMES = { ring_normal: "normal", ring_25: "25 %", ring_5: "5 %", ring_1: "1 %", ring_0_1: "0.1 %", ring_off: "off" };
@@ -109,11 +110,7 @@ function render() {
   const pre = (el, ok, yes, no) => { el.className = ok ? "ok" : ""; el.innerHTML = ok ? ICON.ok : ICON.no; el.append(ok ? yes : no); };
   pre($("pre-backup"), backed, "Backup saved", "No backup yet");
   pre($("pre-boot"), boot, "In update mode", "Not in update mode");
-  $("boot-box").className = "boot" + (boot ? " ok" : "");
-  $("boot-icon").innerHTML = boot ? ICON.ok.replace("<svg", '<svg width="20"') : ICON.plug;
-  $("boot-title").textContent = boot ? "The controller is in update mode" : "Update mode";
-  $("boot-info").hidden = boot;
-  $("boot-text").textContent = boot ? "You can check or install now." : "Turn the controller fully off, then hold LB + RB while plugging in the cable. The small light below the Home ring will blink white.";
+  if (!boot) $("pre-boot").append(bootInfo);  // its ? shows how to get there
 
   const xbox = tweakBoxes().find((x) => x.value === "bt_xbox"), rumble = tweakBoxes().find((x) => x.value === "bt_rumble");
   if (!xbox.checked) rumble.checked = false;
@@ -336,8 +333,8 @@ tweakBoxes().forEach((x) => {  // each explanation sits behind an (i) button nex
   fig.className = "pop-pad";
   fig.innerHTML = pad(null, false, "gboot").replace(/(data-k="[LR]B" )/g, '$1class="hold" ')
     .replace('<circle cx="150" cy="59" r="1.6" fill="#1c2026"/>', '<circle class="blink" cx="150" cy="59" r="6" fill="#fff" opacity=".25"/><circle class="blink" cx="150" cy="59" r="2.4" fill="#fff"/>');
-  cap.textContent = "Hold LB and RB, shown in colour, while plugging in the cable. The small light below the Home ring blinks white in update mode.";
-  popover($("boot-info"), fig, cap);
+  cap.textContent = "Turn the controller fully off, then hold LB and RB, shown in colour, while plugging in the cable. The small light below the Home ring will blink white.";
+  popover(bootInfo, fig, cap);
 }
 document.querySelectorAll("[data-base]").forEach((b) => (b.onclick = () => {
   base = b.dataset.base; document.querySelectorAll("[data-base]").forEach((x) => setOn(x, x === b));

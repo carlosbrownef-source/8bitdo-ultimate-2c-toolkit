@@ -143,10 +143,14 @@ class TabsTest(PageCase):
         self.assertIn("hidden", self.server.dom("&diagsim=web&permission=1").find("privacy-open").attrs)   # only the Mac app can open it
         self.assertIn("hidden", self.server.dom().find("privacy-open").attrs)
 
-    def test_update_mode_box_says_what_to_do_once_ready(self):
+    def test_update_mode_help_is_behind_the_question_mark_until_ready(self):
         dom = self.server.dom()
-        self.assertEqual(dom.find("boot-text").all_text(), "You can check or install now.")
-        self.assertIn("Turn the controller fully off", self.server.dom("&diagsim=cable").find("boot-text").all_text())
+        self.assertEqual(dom.find("pre-boot").all_text().strip(), "In update mode")
+        dom = self.server.dom("&diagsim=cable")
+        self.assertEqual(dom.find("pre-boot").all_text().split(), ["Not", "in", "update", "mode", "?"])
+        pop = dom.find(dom.find("boot-info").attrs["aria-controls"]).all_text()
+        self.assertIn("Turn the controller fully off, then hold LB and RB", pop)
+        self.assertIn("The small light below the Home ring will blink white.", pop)
 
     def test_the_last_resort_is_one_calm_line_unless_it_applies(self):
         dom = self.server.dom()
