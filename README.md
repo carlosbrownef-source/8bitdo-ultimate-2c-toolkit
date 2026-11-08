@@ -1,15 +1,15 @@
 # U2C Firmware Toolkit
 
 <p align="center">
-  <img src="docs/images/firmware.png" alt="The Firmware tab, showing firmware 1.09 with its tweaks, the backup and restore steps" width="420">
+  <img src="docs/images/firmware.png" alt="The Firmware tab, showing firmware 1.09 with its tweaks next to the backup and restore steps" width="420">
   <img src="docs/images/diagnostics.png" alt="The Diagnostics tab, testing a controller over Bluetooth" width="420">
 </p>
 
-U2C Firmware Toolkit is a toolkit for the **8BitDo Ultimate 2C Wireless** on a Mac: everything the controller needs, in one app. It makes macOS and its games treat the controller as a native one, adds rumble and control over its light, and lets you test it, back it up and restore it. There are no drivers or background programs, because the changes live in the controller itself.
+U2C Firmware Toolkit is a toolkit for the **8BitDo Ultimate 2C Wireless** and its **2.4 GHz dongle** on a Mac: everything they need, in one app. It makes macOS and its games treat the controller as a native one, by cable, over Bluetooth and through the dongle, adds rumble and control over its light, and lets you test it, back both up and restore them. There are no drivers or background programs, because the changes live in the controller and the dongle themselves.
 
 ## What it does
 
-- **Works as a native controller.** Over Bluetooth it presents itself as an Xbox Series X|S controller, and by cable as an Xbox 360 controller, so macOS and its games recognise it.
+- **Works as a native controller.** Over Bluetooth it presents itself as an Xbox Series X|S controller, and by cable as an Xbox 360 controller. Through the 2.4 GHz dongle it presents itself as a wired Xbox 360 controller too, at up to 1,000 reports a second. macOS and its games recognise it every way.
 - **Rumble over Bluetooth.** The original firmware doesn't vibrate over Bluetooth, and this makes it respond to games.
 - **Adjustable light.** Choose how bright the ring around the Home button is, or turn it off, and change it at any time from the app or with L4 + R4 on the controller. You can also dim the other lights.
 - **Battery alerts.** The ring and motors tell you when the battery is low, and when charging starts and completes.
@@ -17,18 +17,17 @@ U2C Firmware Toolkit is a toolkit for the **8BitDo Ultimate 2C Wireless** on a M
 - **Processor rest.** Over Bluetooth, the controller's processor rests between radio events instead of running without a pause, which may make the battery last longer, and a watchdog restarts the controller if it ever stops responding.
 - **Fewer interruptions.** Playing only with the sticks no longer turns the controller off, a lost connection gets its full minute to come back, and unplugging the cable reconnects it over Bluetooth at once. Slow stick movements can also advance in finer steps.
 - **Tests the controller.** See what macOS reports, including the battery, check every button, stick and trigger, and try the vibration.
-- **Backs up and restores.** Save a full copy of the controller's memory first, and go back to it or to 8BitDo's original firmware at any time.
-- **The 2.4 GHz dongle too.** It can present itself as a wired Xbox 360 controller, with the same backup and restore.
+- **Backs up and restores.** Save a full copy of the controller's or the dongle's memory first, and go back to it or to 8BitDo's original firmware at any time.
 
 It works with the Ultimate 2C Wireless on firmware 1.09 and its 2.4 GHz dongle on firmware 1.03, on Macs with Apple silicon. It doesn't work with other models.
 
-> **This is a vibe-coded project, written with an AI assistant (Opus 5.5). There's no warranty, and you use it at your own risk.** Installing modified firmware probably voids the controller's warranty. Please read the [full disclaimer](DISCLAIMER.md) before using it. Not affiliated with or endorsed by 8BitDo.
+> **This is a vibe-coded project, written with an AI assistant (Opus 5.5). There's no warranty, and you use it at your own risk.** Installing modified firmware probably voids the controller's and the dongle's warranty. Please read the [full disclaimer](DISCLAIMER.md) before using it. Not affiliated with or endorsed by 8BitDo.
 
 ## Install (macOS, Apple silicon)
 
 1. Download `firmware-toolkit-<version>-macos-arm64.zip` from the releases page and unzip it.
 2. Open the app once. macOS will block it because it is not signed: open **System Settings → Privacy & Security**, scroll to the message about the app and click **Open Anyway** (right-click → Open no longer works on current macOS). You can also remove it from Quarantine with xattr.
-3. When asked, allow **Input Monitoring** (System Settings → Privacy & Security → Input Monitoring). The app needs it to talk to the controller.
+3. When asked, allow **Input Monitoring** (System Settings → Privacy & Security → Input Monitoring). The app needs it to talk to the controller and the dongle.
 
 Or with [Homebrew](https://github.com/carlosbrownef-source/homebrew-tap), which replaces step 1:
 
@@ -50,7 +49,9 @@ The app's **Help** button explains each step and why each tweak is needed.
 2. **Tweaks**: choose tweaks, put the controller in update mode (turn it fully off, then hold LB + RB while plugging in the cable; the small light below the Home ring will blink white), use *Check First*, then *Install Tweaks…*. Afterwards unplug the cable; if a Bluetooth tweak changed, remove the controller from Bluetooth settings and pair it again (macOS remembers the old description).
 3. **Restore**: if anything looks wrong, put the controller in update mode (turn it fully off, then hold LB + RB while plugging in the cable) and restore your backup, or 8BitDo's original firmware 1.09 (downloaded from 8BitDo's update server and checked against its known SHA-256).
 
-Safeguards, enforced in the code: the app writes nothing below `0x6000` (bootloader) or at/above `0x73000` (configuration, MAC, calibration, Bluetooth pairings), while saving a Home ring level, a mapping or the dead zone switch makes the firmware rewrite its own settings record at `0x73000`, as it does for its other settings, and saving the settings makes it write its own record at `0x7a000`, which is blank on an original controller; a write needs a backup of the same unit (the bootloader matches, and so does the MAC, allowing for the small change each new pairing makes); the firmware must be the original 1.09, with or without the tweaks; the dongle is refused, by the bootloader's identity and by how its flash reads back; a pending firmware update refuses the patch; restoring 8BitDo's v1.09 is refused unless the controller really is on 1.09 (read from its update record, or, if that is blank, identified by the hash of bank A or bank B) and is also refused when the version cannot be determined (unless you use *Install Firmware 1.09 Anyway…* in the Diagnostics tab, behind a warning and a confirmation that spells out the risks; it never overrides a version that is known to be different); every edit checks the stock bytes it replaces.
+For the **dongle**, turn the controller off and plug the dongle in on its own. The steps are the same, but simpler: back it up, then switch its one tweak on or off and install, or restore your backup or 8BitDo's original 1.03. The dongle has no buttons, so the app puts it in update mode by itself whenever it writes.
+
+Safeguards, enforced in the code: the app writes nothing below `0x6000` (bootloader) or at/above `0x73000` (configuration, MAC, calibration, Bluetooth pairings), while saving a Home ring level, a mapping or the dead zone switch makes the firmware rewrite its own settings record at `0x73000`, as it does for its other settings, and saving the settings makes it write its own record at `0x7a000`, which is blank on an original controller; a write needs a backup of the same unit (the bootloader matches, and so does the MAC, allowing for the small change each new pairing makes); the firmware must be the original 1.09, with or without the tweaks; the controller's steps never write to the dongle, which is told apart by its bootloader's identity, its USB version and how its flash reads back; a pending firmware update refuses the patch; restoring 8BitDo's v1.09 is refused unless the controller really is on 1.09 (read from its update record, or, if that is blank, identified by the hash of bank A or bank B) and is also refused when the version cannot be determined (unless you use *Install Firmware 1.09 Anyway…* in the Diagnostics tab, behind a warning and a confirmation that spells out the risks; it never overrides a version that is known to be different); every edit checks the stock bytes it replaces. For the dongle: a write needs a backup of the same dongle (its bootloader and calibration match), it only rewrites the firmware (`0x6000`-`0x10000`) with the app header written last, and it never writes the update record, the second firmware copy, the calibration or the licence sector.
 
 ## Settings
 
@@ -72,7 +73,7 @@ With every setting at its default, the sticks, triggers and buttons run the firm
 The Diagnostics tab helps you check how macOS sees the controller after installing tweaks, and gather information if something goes wrong.
 
 - **Controller test:** shows what macOS's GameController reports, which is what a game gets, including the battery when macOS provides it. Press each button, stick and trigger to see it light up, and make the controller vibrate either the way a native game would or by sending the report straight to the controller. If only the direct report vibrates, the firmware isn't the problem.
-- **Firmware details:** what the app read from the controller, including where the version came from, whether a firmware update is pending, and how the bootloader identifies itself.
+- **Firmware details:** what the app read from the controller or the dongle, including where the version came from, whether a firmware update is pending, and how the bootloader identifies itself.
 - **Problem report:** a text you can attach to a bug report.
 - **Install Firmware 1.09 Anyway…:** the last resort for a controller whose firmware can't be identified.
 
@@ -97,28 +98,26 @@ The controller test is only available in the Mac app for now, because it uses ma
 
 Each tweak is a hash-checked set of byte edits to the stock v1.09 image; nothing else in the firmware changes, and the controller's bootloader, MAC, calibration and pairings are never written.
 
-## The 2.4 GHz dongle
+### The dongle's tweak
 
-With the controller off, plug the dongle in on its own: the Firmware tab shows its firmware (v1.03) and its one tweak.
-
-| Tweak | What it does |
+| Tweak | Effect |
 |---|---|
 | Xbox 360 controller over 2.4 GHz | With the controller connected through it, the dongle presents as a wired Xbox 360 pad (`045e:028e`, class `ff`), which Apple's own driver takes. Its bcdDevice becomes `0x0103` instead of `0x0114`, so the app can tell a paired dongle from the controller by cable without reading it; Apple's driver matches on vendor, product and interface class only. 9 bytes of its X-input device descriptor. |
 
-Back up the dongle first. The dongle has no buttons, so the app sends it the command that restarts it into its update mode, checks there that its update-mode code and calibration match the backup, erases and writes only its firmware (`0x6000`-`0x10000`, with the app header written last), reads it back and restarts it. If a write stops before the header is written, the dongle stays in update mode, where Restore still works. Its update record, second firmware copy, calibration and licence sector are never written. Restoring the original 1.03 rebuilds it from your backup and checks it against its known SHA-256, so nothing is downloaded. With the controller connected through the dongle, the app reads the dongle but changes nothing: turn the controller off first.
+To write, the app sends the dongle the command that restarts it into its update mode, checks there that its update-mode code and calibration match the backup, erases and writes only its firmware, reads it back and restarts it. If a write stops before the header is written, the dongle stays in update mode, the app says so, and Restore still works. Restoring the original 1.03 rebuilds it from your backup and checks it against its known SHA-256, so nothing is downloaded. With the controller connected through the dongle, the app shows that and reads the dongle, but changes nothing: turn the controller off first. The controller's own firmware can only be read by cable.
 
 ## Why this is public
 
 Out of the box, macOS and most Mac games don't recognise the Ultimate 2C as a standard controller (just as a HID device). This project is
-public to help Mac users use it as a native controller on their system. This doesn't happen on Windows, as it isn't as inflexible as macOS in detecting Xbox 360-compatible controllers (when using a cable), and because it supports Xbox 360 controllers via bluetooth, and macOS does not.
+public to help Mac users use it as a native controller on their system. Its 2.4 GHz dongle has the same problem, and the same kind of fix. This doesn't happen on Windows, as it isn't as inflexible as macOS in detecting Xbox 360-compatible controllers (when using a cable), and because it supports Xbox 360 controllers via bluetooth, and macOS does not.
 
-It only supports this controller with firmware 1.09, because that is the only one I have and could test. The same
+It only supports this controller with firmware 1.09 and its dongle with firmware 1.03, because those are the ones I have and could test. The same
 approach could probably be extended to other firmware versions, and perhaps to other 8BitDo controllers, but I can't do that
 myself without the hardware. If you have one, [docs/firmware-notes.md](docs/firmware-notes.md) explains how the
 firmware is laid out and [docs/porting.md](docs/porting.md) how to port the app to Linux. It would only work if the firmware is not encrypted.
 
-This is possible because the controller's firmware is neither encrypted nor signed: 8BitDo's update file is a plain
-image, and the controller's bootloader only checks a CRC on each block it receives, so it accepts and runs a modified
+This is possible because the firmware of the controller and the dongle is neither encrypted nor signed: 8BitDo's update file is a plain
+image, and each bootloader only checks a CRC on each block it receives, so it accepts and runs a modified
 firmware. Each tweak here is a small, hash-checked edit to that image.
 
 ## Porting to Linux
