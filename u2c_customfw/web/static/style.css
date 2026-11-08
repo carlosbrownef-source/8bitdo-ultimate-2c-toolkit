@@ -40,12 +40,11 @@ main{flex:1;overflow:auto;padding:18px 22px 22px}
 .chips{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:14px 0 0}
 .chip{display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;color:var(--dim)}
 .chip svg{width:14px;flex:none}.chip.on{color:var(--fg)}.chip.on svg{color:var(--accent)}
-.herob{margin-top:14px}
 
 .wide{margin-top:16px}
 .ring-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px}
 .set-empty{margin-top:16px}.set-empty p{margin:0 0 4px}.set-empty button{margin-top:10px}
-#privacy-open{margin-top:10px}
+#privacy-open{margin-top:8px}
 .set-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;align-items:start}
 .set-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px;padding:8px 0;font-size:14px}
 .set-toggle{position:relative;cursor:pointer}.set-toggle .sw{display:block}.set-toggle input{position:absolute;opacity:0;pointer-events:none}
@@ -82,7 +81,6 @@ main{flex:1;overflow:auto;padding:18px 22px 22px}
 .sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s}
 .tw input:checked+.sw,.set-toggle input:checked+.sw{background:var(--accent)}.tw input:checked+.sw::after,.set-toggle input:checked+.sw::after{left:16px}
 .tw small{display:block;color:var(--dim);font-size:12px;line-height:1.4;margin-top:1px}
-.base{display:flex;gap:8px;align-items:center;margin:12px 0;font-size:14px;color:var(--dim);flex-wrap:wrap}
 .seg{display:inline-flex;background:var(--card2);border-radius:9px;padding:3px;box-shadow:inset 0 0 0 1px var(--line)}
 .seg button{background:none;color:var(--dim);padding:5px 11px;font-weight:500;font-size:13px}.seg button.on{background:var(--accent);color:var(--on-accent);font-weight:600}
 .boot{display:flex;gap:12px;align-items:flex-start;padding:11px 13px;border-radius:10px;background:var(--card2);margin:12px 0;font-size:14px;color:var(--dim)}
@@ -136,3 +134,22 @@ dialog label{display:flex;gap:10px;align-items:flex-start;margin-top:10px}dialog
 #report{width:min(640px,calc(100% - 32px))}#report pre{background:#07090c;border:1px solid var(--line);border-radius:8px;padding:10px 12px;white-space:pre-wrap;max-height:50vh;overflow:auto}
 
 @media (max-width:820px){.test,.cols.even,.set-cards,.set-cols{grid-template-columns:1fr}.hero{grid-template-columns:1fr}.hero .pic{width:200px;margin:auto}.cols{grid-template-columns:1fr}.danger-zone{grid-template-columns:1fr}.only{display:none}}
+
+/* The Firmware tab: a compact summary whose tweak list opens in place, the steps one above the other, and the
+   install row pinned to the bottom of the window while the Tweaks card is on screen. */
+.hero.compact{grid-template-columns:120px 1fr;gap:20px;padding:16px 20px;align-items:start}
+.hero.compact .pic{width:120px;margin:4px 0 0}
+.hhead{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.hero.compact h1{font-size:20px;margin:0 0 2px}
+.sumrow{display:flex;align-items:center;gap:12px;margin-top:8px}
+.sum{margin:0;font-size:14px;color:var(--fg)}
+.hero.compact .chips{grid-column:1/-1;gap:2px 16px;margin:2px 0 0;padding-top:10px;border-top:1px solid var(--line)}
+.stack{display:grid;gap:16px;margin-top:16px}
+.twgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:14px}.twgrid .tw{margin:0}
+.opts{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;grid-auto-flow:column;gap:6px 20px;margin:14px 0;font-size:14px;color:var(--dim)}
+.go{display:flex;align-items:center;gap:16px;margin:12px 0 0}.go .boot{flex:1;margin:0}
+.act{position:sticky;bottom:-22px;z-index:1;margin:14px -20px -18px;padding:12px 20px 14px;background:var(--card);border-top:1px solid var(--line);border-radius:0 0 16px 16px;box-shadow:0 -10px 18px -10px rgba(0,0,0,.55);display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px}
+.act .pre{margin:0}.act .btns{margin-left:auto}
+.cd .act p{flex-basis:100%;margin:2px 0 0;font-size:13px}
+@media (max-width:820px){.hero.compact{grid-template-columns:96px 1fr;gap:16px}.hero.compact .pic{width:96px;margin:4px 0 0}.twgrid{grid-template-columns:1fr}
+  .opts{grid-template-columns:auto 1fr;grid-template-rows:none;grid-auto-flow:row;align-items:center}}

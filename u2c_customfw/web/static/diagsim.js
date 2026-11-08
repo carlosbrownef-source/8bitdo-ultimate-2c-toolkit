@@ -27,7 +27,13 @@
     if (path.startsWith("/api/firmware") && device === "dongle") return json({ error: "That is the 2.4 GHz dongle, which this app does not support." });
     if (path.startsWith("/api/firmware") && query.get("permission")) return json({ error: "macOS refused access to the controller. Allow Input Monitoring for this app in System Settings > Privacy & Security > Input Monitoring, then try again.", permission: true });
     const answer = await realFetch(url, options);
-    if (path.startsWith("/api/firmware") && query.get("tweaks")) return json({ ...(await answer.json()), recipes: ["bt_xbox", "ring_5", ...(query.get("settings") ? ["settings"] : [])], titles: ["Dimmer LEDs", "Home ring: 5 %"], ring_level: 2, outdated: !!query.get("outdated") });
+    if (path.startsWith("/api/firmware") && query.get("tweaks")) {  // &tweaks=all: the default tweaks with the ring at 5 %
+      const got = await answer.json(), all = query.get("tweaks") === "all";
+      if (!got.tweaks) return json(got);
+      const recipes = all ? ["bt_xbox", "bt_rumble", "cable_360", "dim_leds", "battery_alerts", "settings", "fixes", "cpu_rest", "ring_5"] : ["bt_xbox", "ring_5", ...(query.get("settings") ? ["settings"] : [])];
+      const tweaks = got.tweaks.map((t) => t.key === "ring" ? { ...t, title: "Home ring: 5 %", on: true } : { ...t, on: recipes.includes(t.key) });
+      return json({ ...got, recipes, titles: all ? tweaks.filter((t) => t.on).map((t) => t.title) : ["Dimmer LEDs", "Home ring: 5 %"], tweaks, ring_level: 2, outdated: !!query.get("outdated") });
+    }
     if (path.startsWith("/api/firmware") && query.get("identity") === "none") return json({ ...(await answer.json()), boot_identity: null });
     if (path.startsWith("/api/state") && (device || query.get("nobackup"))) {
       const got = await answer.json();
@@ -94,6 +100,7 @@
     quit: () => $("disclaimer-quit").click(),
     gotofirmware: () => $("settings-goto").click(),
     privacy: () => $("privacy-open").click(),
+    details: () => $("details").click(),
     helpopen: () => { $("help-open").click(); setTimeout(() => { document.getElementById("diag-snap").textContent = `${document.activeElement.id} ${$("help").scrollTop}`; }, 100); },
     notweaks: () => { tweakBoxes().forEach((x) => { x.checked = false; }); render(); },
     checkjob: () => runJob("Checking…", "/api/patch", { tweaks: ["dim_leds"], base: "backup", write: false }, "Check passed"),

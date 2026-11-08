@@ -73,7 +73,7 @@ function hero(devs, ctrl, boot) {
 
   const badge = ctrl ? `${boot ? "Update mode" : "Connected by cable"} · 8BitDo Ultimate 2C Wireless`
     : dongle ? "2.4 GHz dongle" : bt ? "Connected over Bluetooth · 8BitDo Ultimate 2C Wireless" : "Not connected";
-  $("hero").className = "hero " + cls;
+  $("hero").className = "hero compact " + cls;
   $("badge").className = "badge " + (cls === "bad" ? "bad" : boot ? "isboot" : ctrl || bt ? "ok" : "");
   $("badge-text").textContent = badge;
   $("fw-title").textContent = title;
@@ -81,12 +81,20 @@ function hero(devs, ctrl, boot) {
   $("privacy-open").hidden = !(fw && fw.permission && bridge());
   const led = cls === "none" ? null : cls === "bad" ? "#e8695b" : boot ? "#ffffff" : getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
   $("pic").innerHTML = pad(led, cls === "none");
-  const box = $("chips"); box.textContent = ""; box.hidden = !chips;
-  const order = [...tweakBoxes().map((x) => x.value), "ring"];   // as the toggles, the Home ring last
-  for (const t of (chips || []).slice().sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key))) {
+  const n = chips ? chips.filter((t) => t.on).length : 0;
+  $("sumrow").hidden = !chips;
+  $("sum").textContent = !n ? "No tweaks installed." : `${n} ${n === 1 ? "tweak" : "tweaks"} installed.`;
+  const box = $("chips"); box.textContent = ""; showDetails(detailsOpen && !!chips);
+  const order = [...tweakBoxes().map((x) => x.value), "ring"];   // installed first, each group as the toggles, the Home ring last
+  for (const t of (chips || []).slice().sort((a, b) => b.on - a.on || order.indexOf(a.key) - order.indexOf(b.key))) {
     const c = document.createElement("span"); c.className = "chip" + (t.on ? " on" : "");
     c.innerHTML = t.on ? ICON.ok : ICON.dash; c.append(t.title); box.append(c);
   }
+}
+
+let detailsOpen = false;
+function showDetails(open) {
+  $("chips").hidden = !open; $("details").textContent = open ? "Hide Details" : "Show Details"; $("details").setAttribute("aria-expanded", open);
 }
 
 function render() {
@@ -97,6 +105,7 @@ function render() {
   hero(devs, ctrl, boot);
 
   $("last-backup").textContent = st ? lastBackup(st.backups) : "";
+  $("backup-connect").hidden = !!ctrl;
   const pre = (el, ok, yes, no) => { el.className = ok ? "ok" : ""; el.innerHTML = ok ? ICON.ok : ICON.no; el.append(ok ? yes : no); };
   pre($("pre-backup"), backed, "Backup saved", "No backup yet");
   pre($("pre-boot"), boot, "In update mode", "Not in update mode");
@@ -285,6 +294,7 @@ $("disclaimer-quit").hidden = !bridge();   // declining: only the Mac app can qu
 $("disclaimer-quit").onclick = () => bridge().postMessage({ op: "quit" });
 $("accept").onclick = async () => { await api("POST", "/api/accept"); $("disclaimer").close(); refresh(); };
 $("refresh").onclick = refresh;
+$("details").onclick = () => { detailsOpen = !detailsOpen; showDetails(detailsOpen); };
 TABS.forEach((t) => ($(`strip-${t}`).onclick = () => showTab(t)));
 $("force-go").onclick = () => showTab("diagnostics");
 $("privacy-open").onclick = () => bridge().postMessage({ op: "privacy" });

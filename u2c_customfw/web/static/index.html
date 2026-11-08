@@ -22,44 +22,44 @@
     <div><h2>This firmware can't be identified</h2><p>If restoring your backup doesn't repair it, there's a last-resort option in Diagnostics.</p></div>
     <button id="force-go" class="wtxt">Open Diagnostics</button>
   </section>
-  <section class="hero none" id="hero">
+  <section class="hero compact none" id="hero">
     <div class="pic" id="pic"></div>
     <div>
-      <h1 id="fw-title">No controller found</h1>
-      <p class="src" id="fw-note"></p>
+      <div class="hhead"><div><h1 id="fw-title">No controller found</h1><p class="src" id="fw-note"></p></div><button id="refresh" class="sec small">Read Again</button></div>
       <button id="privacy-open" class="sec small" hidden>Open Input Monitoring Settings…</button>
-      <div class="chips" id="chips"></div>
-      <div class="herob"><button id="refresh" class="sec">Read Again</button></div>
+      <div class="sumrow" id="sumrow" hidden><p class="sum" id="sum"></p><button id="details" class="sec small" aria-expanded="false" aria-controls="chips">Show Details</button></div>
     </div>
+    <div class="chips" id="chips" hidden></div>
   </section>
 
   <section class="cd wide">
     <h2><span class="no">1</span>Back up<span class="tag">Nothing is written to the controller</span></h2>
-    <p>Saves a full copy of the controller's memory on this Mac, so you can always go back to it. You need a backup before installing anything. Connect the controller by cable to start.</p>
+    <p>Saves a full copy of the controller's memory on this Mac, so you can always go back to it. You need a backup before installing anything.<span id="backup-connect"> Connect the controller by cable to start.</span></p>
     <div class="btns"><button id="backup" class="job">Back up</button><span class="hint" id="last-backup"></span></div>
   </section>
 
-  <div class="cols">
-    <section class="cd">
+  <div class="stack">
+    <section class="cd" id="tweaks-card">
       <h2><span class="no">2</span>Tweaks<span class="tag">Installs new firmware</span></h2>
-      <ul class="pre"><li id="pre-backup"></li><li id="pre-boot"></li></ul>
-      <label class="tw"><input type="checkbox" class="tweak" value="bt_xbox" checked><span class="sw"></span><span>Xbox Series X|S controller over Bluetooth<small>macOS and its games recognise the controller over Bluetooth.</small></span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="bt_rumble" checked><span class="sw"></span><span>Rumble over Bluetooth<small>Games can make it vibrate over Bluetooth. Needs the tweak above.</small></span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="cable_360" checked><span class="sw"></span><span>Xbox 360 controller over cable<small>macOS recognises the controller when it's connected by cable.</small></span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="dim_leds" checked><span class="sw"></span><span>Dimmer LEDs<small>Makes the three lights slightly dimmer. For the ring, use Home ring brightness.</small></span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="battery_alerts" checked><span class="sw"></span><span>Battery alerts<small>The ring and motors tell you about charging and a low battery.</small></span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="settings" checked><span class="sw"></span><span>Controller settings<small>Lets you change the sticks, triggers, vibration, power and button mapping in the Settings tab.</small></span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="fixes" checked><span class="sw"></span><span>Fixes<small>Playing only with the sticks no longer turns it off, a lost connection gets its full minute to come back, unplugging reconnects at once, and firmware updates over Bluetooth are closed.</small></span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="cpu_rest" checked><span class="sw"></span><span>Processor rest<small>Saves battery over Bluetooth by letting the processor rest between radio events.</small></span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="stick_precision"><span class="sw"></span><span>Finer stick movement<small>Slow stick movements advance in smaller steps. A stick held still may move by one step now and then.</small></span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="fast_scan"><span class="sw"></span><span>Faster button reading<small>Presses arrive about 1.25 ms sooner. A worn button could register twice.</small></span></label>
-      <div class="base"><span>Home ring brightness:</span>
-        <div class="seg" id="ring"><button data-ring="" class="on">Normal</button><button data-ring="ring_25">25 %</button><button data-ring="ring_5">5 %</button><button data-ring="ring_1">1 %</button><button data-ring="ring_0_1">0.1 %</button><button data-ring="ring_off">Off</button></div></div>
-      <div class="base"><span>Take the original firmware 1.09 from:</span>
-        <div class="seg"><button data-base="backup" class="on">Your backup</button><button data-base="download">8BitDo's server</button></div></div>
-      <div class="boot" id="boot-box"><span id="boot-icon"></span><div><b id="boot-title">Update mode</b><span id="boot-text">Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white.</span></div></div>
-      <div class="btns"><button id="patch-dry" class="sec job">Check first</button><button id="patch-write" class="job">Install tweaks…</button></div>
-      <p style="margin:10px 0 0;font-size:13px"><span id="choose-one" hidden></span> Changing the firmware voids the controller's warranty.</p>
+      <div class="twgrid">
+        <label class="tw"><input type="checkbox" class="tweak" value="bt_xbox" checked><span class="sw"></span><span>Xbox Series X|S controller over Bluetooth<small>macOS and its games recognise the controller over Bluetooth.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="bt_rumble" checked><span class="sw"></span><span>Rumble over Bluetooth<small>Games can make it vibrate over Bluetooth. Needs the tweak above.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="cable_360" checked><span class="sw"></span><span>Xbox 360 controller over cable<small>macOS recognises the controller when it's connected by cable.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="dim_leds" checked><span class="sw"></span><span>Dimmer LEDs<small>Makes the three lights slightly dimmer. For the ring, use Home ring brightness.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="battery_alerts" checked><span class="sw"></span><span>Battery alerts<small>The ring and motors tell you about charging and a low battery.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="settings" checked><span class="sw"></span><span>Controller settings<small>Lets you change the sticks, triggers, vibration, power and button mapping in the Settings tab.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="fixes" checked><span class="sw"></span><span>Fixes<small>Playing only with the sticks no longer turns it off, a lost connection gets its full minute to come back, unplugging reconnects at once, and firmware updates over Bluetooth are closed.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="cpu_rest" checked><span class="sw"></span><span>Processor rest<small>Saves battery over Bluetooth by letting the processor rest between radio events.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="stick_precision"><span class="sw"></span><span>Finer stick movement<small>Slow stick movements advance in smaller steps. A stick held still may move by one step now and then.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="fast_scan"><span class="sw"></span><span>Faster button reading<small>Presses arrive about 1.25 ms sooner. A worn button could register twice.</small></span></label>
+      </div>
+      <div class="opts"><span>Home ring brightness:</span>
+        <div><div class="seg" id="ring"><button data-ring="" class="on">Normal</button><button data-ring="ring_25">25 %</button><button data-ring="ring_5">5 %</button><button data-ring="ring_1">1 %</button><button data-ring="ring_0_1">0.1 %</button><button data-ring="ring_off">Off</button></div></div>
+        <span>Take the original firmware 1.09 from:</span>
+        <div><div class="seg"><button data-base="backup" class="on">Your backup</button><button data-base="download">8BitDo's server</button></div></div></div>
+      <div class="go"><div class="boot" id="boot-box"><span id="boot-icon"></span><div><b id="boot-title">Update mode</b><span id="boot-text">Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white.</span></div></div></div>
+      <div class="act" id="tweaks-act"><ul class="pre"><li id="pre-backup"></li><li id="pre-boot"></li></ul><div class="btns"><button id="patch-dry" class="sec job">Check first</button><button id="patch-write" class="job">Install tweaks…</button></div>
+        <p><span id="choose-one" hidden></span> Changing the firmware voids the controller's warranty.</p></div>
     </section>
 
     <section class="cd">

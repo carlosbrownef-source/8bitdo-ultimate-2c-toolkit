@@ -173,11 +173,41 @@ class TabsTest(PageCase):
 
     def test_back_up_comes_first_across_the_whole_width(self):
         tab = self.server.dom().find("tab-firmware")
-        cols = next(n for n in tab.walk() if n.attrs.get("class") == "cols").all_text()
+        cols = next(n for n in tab.walk() if n.attrs.get("class") == "stack").all_text()
         self.assertNotIn("Back up", cols)
         self.assertLess(cols.index("Tweaks"), cols.index("Restore"))
         text = tab.all_text()
         self.assertLess(text.index("Back up"), text.index("Tweaks"))
+
+    def test_the_tweak_list_is_collapsed_at_first(self):
+        dom = self.server.dom()
+        self.assertEqual(dom.find("sum").all_text(), "No tweaks installed.")
+        self.assertIn("hidden", dom.find("chips").attrs)
+        self.assertEqual(dom.find("details").all_text(), "Show Details")
+        self.assertEqual(dom.find("details").attrs.get("aria-expanded"), "false")
+        self.assertIn("hidden", self.server.dom("&diagsim=bt").find("sumrow").attrs)   # nothing read, nothing to list
+
+    def test_show_details_lists_the_installed_tweaks_first(self):
+        dom = self.server.dom("&diagsim=cable&tweaks=1&scenario=details")
+        self.assertEqual(dom.find("sum").all_text(), "2 tweaks installed.")
+        self.assertNotIn("hidden", dom.find("chips").attrs)
+        self.assertEqual((dom.find("details").all_text(), dom.find("details").attrs.get("aria-expanded")), ("Hide Details", "true"))
+        chips = dom.find("chips").children
+        self.assertEqual([" ".join(n.text) for n in chips[:3]], ["Xbox Series X|S controller over Bluetooth", "Home ring: 5 %", "Rumble over Bluetooth"])
+        self.assertEqual(["on" in n.classes() for n in chips[:3]], [True, True, False])
+
+    def test_the_install_row_is_pinned_at_the_end_of_the_tweaks_card(self):
+        dom = self.server.dom()
+        card = dom.find("tweaks-card")
+        row = card.children[-1]
+        self.assertEqual((row.attrs.get("id"), row.classes()), ("tweaks-act", ["act"]))
+        for id_ in ("pre-backup", "pre-boot", "patch-dry", "patch-write", "choose-one"):
+            self.assertIsNotNone(row.find(id_), id_)
+        self.assertIn("warranty", row.all_text())
+
+    def test_the_back_up_step_asks_for_the_cable_only_without_a_controller(self):
+        self.assertIn("hidden", self.server.dom().find("backup-connect").attrs)
+        self.assertNotIn("hidden", self.server.dom("&diagsim=bt").find("backup-connect").attrs)
 
     def test_help_explains_the_stick_dead_zone(self):
         text = self.server.dom().find("help").all_text()
