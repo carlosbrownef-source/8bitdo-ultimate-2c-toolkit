@@ -630,7 +630,7 @@ def test_stall_hook_still_stops_idle_motors():
 
 
 def test_stalls_on_battery_with_motors_still():
-    assert stall(0, 0, 0, 0)[1] == (0x80, 0x2001, 48000, 0, 1, 0)
+    assert stall(0, 0, 0, 0)[1] == (0x80, 0x102001, 48000, 0, 1, 0)  # wake: system timer (BLE events), RF, timer0
 
 
 def test_no_stall_on_cable():

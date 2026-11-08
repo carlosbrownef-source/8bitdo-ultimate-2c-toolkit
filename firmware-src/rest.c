@@ -92,8 +92,9 @@ void rest_main_poll(void)
 
 /* In place of the Bluetooth branch's call to motor_set(0, 0, 0) at 0xa4ae, which it still makes. That call stores the
  * three zeros unless a hold is running, so afterwards rumble is active exactly when the hold is non-zero. Then, on battery
- * and with the motors still, the CPU stops for up to STALL_MS ms: timer0 or the radio wakes it, through the wake mask
- * 0x800078 (bit 0 and bit 13). The interrupt mask 0x800640 is left alone: the stock handler has no timer0 case, so an
+ * and with the motors still, the CPU stops for up to STALL_MS ms: timer0, the radio or the system timer wakes it, through
+ * the wake mask 0x800078 (bits 0, 13 and 20). The system timer starts each Bluetooth connection event: waking even
+ * slightly after it misses the Mac's packet, and the link drops within a second (tried without it). The interrupt mask 0x800640 is left alone: the stock handler has no timer0 case, so an
  * enabled, unhandled timer0 interrupt could re-enter for ever. */
 void stall_hook(void)
 {
@@ -104,16 +105,16 @@ void stall_hook(void)
 		return;
 	OPAQUE(t);
 	OPAQUE(lo);
-	*(volatile u32 *)(lo + 0x18) = 1 << 13 | 1;
+	*(volatile u32 *)(lo + 0x18) = 1 << 20 | 1 << 13 | 1;
 	*(volatile u32 *)(t + 0x10) = 0;
 	*(volatile u32 *)(t + 4) = STALL_MS * SCLK_PER_MS;
 	t[3] = 1;
-	*(volatile u32 *)t |= 1; /* timer0 on; whole-word writes clear any status bit 24-27 that reads as set, which nothing here needs */
+	t[0] |= 1; /* timer0 on, through the low byte only: the word also holds the watchdog */
 	lo[0xf] = 0x80;
 	TNOP();
 	TNOP();
 	TNOP();
 	TNOP();
 	t[3] = 1;
-	*(volatile u32 *)t &= ~1u;
+	t[0] &= ~1;
 }
