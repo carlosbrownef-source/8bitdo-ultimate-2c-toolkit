@@ -27,6 +27,7 @@
     <div>
       <h1 id="fw-title">No controller found</h1>
       <p class="src" id="fw-note"></p>
+      <button id="privacy-open" class="sec small" hidden>Open Input Monitoring Settings…</button>
       <div class="chips" id="chips"></div>
       <div class="herob"><button id="refresh" class="sec">Refresh</button></div>
     </div>
@@ -56,7 +57,7 @@
         <div class="seg" id="ring"><button data-ring="" class="on">Normal</button><button data-ring="ring_25">25 %</button><button data-ring="ring_5">5 %</button><button data-ring="ring_1">1 %</button><button data-ring="ring_0_1">0.1 %</button><button data-ring="ring_off">Off</button></div></div>
       <div class="base"><span>Take the original firmware 1.09 from:</span>
         <div class="seg"><button data-base="backup" class="on">your backup</button><button data-base="download">8BitDo's server</button></div></div>
-      <div class="boot" id="boot-box"><span id="boot-icon"></span><div><b id="boot-title">Update mode</b>Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white.</div></div>
+      <div class="boot" id="boot-box"><span id="boot-icon"></span><div><b id="boot-title">Update mode</b><span id="boot-text">Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white.</span></div></div>
       <div class="btns"><button id="patch-dry" class="sec job">Check first</button><button id="patch-write" class="job">Install tweaks…</button></div>
       <p style="margin:10px 0 0;font-size:13px"><span id="choose-one" hidden></span> Changing the firmware voids the controller's warranty.</p>
     </section>
@@ -88,8 +89,8 @@
       </div><button id="ring-save" class="sec small">Save Ring Level</button></div>
       <p class="res" id="ring-note"></p>
     </section>
-    <p class="set-note" id="settings-note"></p>
-    <button id="settings-retry" class="sec small" hidden>Try again</button>
+    <section class="cd set-empty" id="settings-empty"><p id="settings-note"></p>
+      <button id="settings-retry" class="sec small" hidden>Try Again</button><button id="settings-goto" class="sec small" hidden>Open Firmware Tab</button></section>
     <section class="cd set-live" id="live-card" hidden>
       <h2>Live view</h2>
       <div class="live-pad"><div><i id="live-left"></i></div><span>Left stick</span></div>

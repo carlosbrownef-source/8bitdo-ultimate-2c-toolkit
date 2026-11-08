@@ -44,7 +44,8 @@ main{flex:1;overflow:auto;padding:18px 22px 22px}
 
 .wide{margin-top:16px}
 .ring-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px}
-.set-note{color:var(--dim);font-size:14px;margin:16px 2px 0}
+.set-empty{margin-top:16px}.set-empty p{margin:0 0 4px}.set-empty button{margin-top:10px}
+#privacy-open{margin-top:10px}
 .set-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;align-items:start}
 .set-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px;padding:8px 0;font-size:14px}
 .set-toggle{position:relative;cursor:pointer}.set-toggle .sw{display:block}.set-toggle input{position:absolute;opacity:0;pointer-events:none}

@@ -39,6 +39,7 @@ const REMAP_NAMES = ["Menu", "LS", "RS", "View", "X", "Y", "Right", "Left", "Dow
 const REMAP_ORDER = [13, 12, 4, 5, 10, 11, 1, 2, 3, 0, 9, 8, 7, 6];
 const MAP_BUTTONS = [["A", 13], ["B", 12], ["X", 4], ["Y", 5], ["LB", 10], ["RB", 11], ["LT", 14], ["RT", 15], ["LS", 1], ["RS", 2], ["View", 3], ["Menu", 0], ["Up", 9], ["Down", 8], ["Left", 7], ["Right", 6]];
 
+const SETTINGS_MISSING = "Controller settings isn't installed. Install it in the Firmware tab to change the sticks, triggers, buttons and vibration.";
 let settingsData = null, settingsValues = {}, settingsDirty = false, settingsBusy = false, settingsMessage = "", settingsLoading = false, settingsRead = null;
 
 function settingsAccess() {  // the reason the settings can't be changed right now, or null if they can
@@ -48,7 +49,7 @@ function settingsAccess() {  // the reason the settings can't be changed right n
   if (!modes.some((m) => m === "cable" || m === "cable_360")) return "Connect the controller by cable to change these settings.";
   if (!fw) return "Reading the firmware…";
   if (fw.error) return fw.error;
-  if (!fw.recipes || !fw.recipes.includes("settings")) return "To change these settings, install Controller settings in the Firmware tab.";
+  if (!fw.recipes || !fw.recipes.includes("settings")) return SETTINGS_MISSING;
   return null;
 }
 
@@ -292,8 +293,9 @@ function settingsRender() {
   if (!reason && !settingsData && !settingsLoading && tab === "settings") settingsLoad();
   const ready = !reason && settingsData && settingsData.available;
   $("settings-note").textContent = reason || (settingsData && settingsData.note) || (ready ? "" : "Reading the settings…");
-  $("settings-note").hidden = !!ready;
+  $("settings-empty").hidden = !!ready;
   $("settings-retry").hidden = !(!reason && settingsData && !settingsData.available);
+  $("settings-goto").hidden = $("settings-note").textContent !== SETTINGS_MISSING;
   $("settings-cards").hidden = $("settings-actions").hidden = $("live-card").hidden = !ready;
   if (ready) settingsPaint();
 }
@@ -359,4 +361,5 @@ addEventListener("DOMContentLoaded", () => {
   $("settings-save").onclick = settingsSave;
   $("settings-reset").onclick = settingsReset;
   $("settings-retry").onclick = () => { settingsData = null; settingsRender(); };
+  $("settings-goto").onclick = () => showTab("firmware");
 });

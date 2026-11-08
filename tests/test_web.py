@@ -446,7 +446,20 @@ class WebTest(unittest.TestCase):
         info = transport.DeviceInfo(0x045E, 0x0B13, 1, "Bluetooth Low Energy", "x", None)
         with mock.patch.object(cli, "find", lambda: [devices.Found(info, "bluetooth_xbox")]):
             data = json.loads(self.call("GET", "/api/firmware")[1])
-        self.assertEqual(data["note"], "The controller firmware cannot be read over Bluetooth. Connect the controller by cable for firmware diagnostics.")
+        self.assertEqual(data["note"], "Connect the controller by cable to see or change its firmware. Over Bluetooth, you can test it in Diagnostics and change the Home ring in Settings.")
+        info = transport.DeviceInfo(0x2DC8, 0x301B, 1, "Bluetooth Low Energy", "x", None)
+        with mock.patch.object(cli, "find", lambda: [devices.Found(info, "bluetooth")]):
+            data = json.loads(self.call("GET", "/api/firmware")[1])
+        self.assertEqual(data["note"], "Connect the controller by cable to see or change its firmware.")   # the ring needs the Xbox tweak
+
+    def test_firmware_endpoint_marks_a_permission_error(self):
+        info = transport.DeviceInfo(0x2DC8, 0x310A, 0xFF7A, "USB", "x", None)
+
+        def refused(i, rid):
+            raise transport.PermissionDenied("macOS refused access to the controller.")
+        with mock.patch.object(cli, "find", lambda: [devices.Found(info, "cable")]), mock.patch.object(cli, "open_channel", refused):
+            data = json.loads(self.call("GET", "/api/firmware")[1])
+        self.assertEqual(data, {"error": "macOS refused access to the controller.", "permission": True})
 
     def test_firmware_endpoint_is_refused_while_a_job_runs(self):
         release = threading.Event()

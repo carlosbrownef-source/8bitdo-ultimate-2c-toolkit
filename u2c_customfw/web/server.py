@@ -18,7 +18,7 @@ from ..transport import PermissionDenied
 from . import jobs
 
 STATIC = Path(__file__).parent / "static"
-SETTINGS_MISSING = "To change these settings, install Controller settings in the Firmware tab."
+SETTINGS_MISSING = "Controller settings isn't installed. Install it in the Firmware tab to change the sticks, triggers, buttons and vibration."
 KEEPALIVE_S = 15
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css"}
 
@@ -218,7 +218,9 @@ def make_server(store: Path, port: int = 0):
             if not ours:
                 note = "Connect it by cable, or put it in update mode."
                 if any(f.mode.startswith("bluetooth") for f in found):
-                    note = "The controller firmware cannot be read over Bluetooth. Connect the controller by cable for firmware diagnostics."
+                    note = "Connect the controller by cable to see or change its firmware."
+                if any(f.mode == "bluetooth_xbox" for f in found):
+                    note += " Over Bluetooth, you can test it in Diagnostics and change the Home ring in Settings."
                 return self.send(200, json.dumps({"note": note}))
             f = ours[0]
             if f.mode == "dongle":
@@ -231,7 +233,9 @@ def make_server(store: Path, port: int = 0):
                 finally:
                     ch.close()
                 st, version = fw.state, fw.version
-            except (OpError, PermissionDenied, OSError, ProtocolError) as e:
+            except PermissionDenied as e:   # the page offers a button to Input Monitoring
+                return self.send(200, json.dumps({"error": str(e), "permission": True}))
+            except (OpError, OSError, ProtocolError) as e:
                 return self.send(200, json.dumps({"error": str(e)}))
             keys = shown(st.recipes)
             ring = [recipes.RECIPES[k].title for k in keys if recipes.RECIPES[k].group == "ring"]

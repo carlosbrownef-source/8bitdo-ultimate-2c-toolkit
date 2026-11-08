@@ -122,6 +122,32 @@ class TabsTest(PageCase):
         self.assertEqual(self.why("", "choose-one"), "")
         self.assertEqual(self.why("&diagsim=boot&scenario=notweaks", "choose-one"), "Choose at least one tweak.")
 
+    def hero(self, query):
+        dom = self.server.dom(query)
+        return dom, dom.find("fw-title").all_text(), dom.find("fw-note").all_text()
+
+    def test_the_dongle_is_named_and_the_drawing_dimmed(self):
+        dom, title, note = self.hero("&diagsim=dongle")
+        self.assertEqual((title, note), ("This is the 2.4 GHz dongle", "The app works only with the controller itself. Connect the controller by cable."))
+        self.assertIn("none", dom.find("hero").classes())
+
+    def test_bluetooth_says_what_works_over_it(self):
+        _, title, note = self.hero("&diagsim=bt")
+        self.assertEqual(title, "Connected over Bluetooth")
+        self.assertEqual(note, "Connect the controller by cable to see or change its firmware. Over Bluetooth, you can test it in Diagnostics and change the Home ring in Settings.")
+
+    def test_input_monitoring_has_a_button_to_its_settings(self):
+        dom = self.server.dom("&diagsim=boot&permission=1&scenario=privacy")
+        self.assertNotIn("hidden", dom.find("privacy-open").attrs)
+        self.assertIn('{"op":"privacy"}', dom.find("diag-sent").all_text())
+        self.assertIn("hidden", self.server.dom("&diagsim=web&permission=1").find("privacy-open").attrs)   # only the Mac app can open it
+        self.assertIn("hidden", self.server.dom().find("privacy-open").attrs)
+
+    def test_update_mode_box_says_what_to_do_once_ready(self):
+        dom = self.server.dom()
+        self.assertEqual(dom.find("boot-text").all_text(), "You can check or install now.")
+        self.assertIn("Turn the controller fully off", self.server.dom("&diagsim=cable").find("boot-text").all_text())
+
     def test_no_hint_when_the_firmware_is_known(self):
         dom = self.server.dom()
         self.assertIn("hidden", dom.find("force-hint").attrs)
@@ -194,13 +220,21 @@ class SettingsTabTest(PageCase):
         self.explains("&diagsim=bt&open=settings", "by cable")
 
     def test_tab_explains_missing_tweak(self):
-        self.explains("&diagsim=cable&tweaks=1&open=settings", "install Controller settings")
+        self.explains("&diagsim=cable&tweaks=1&open=settings", "Controller settings isn't installed. Install it in the Firmware tab")
+
+    def test_a_missing_tweak_offers_the_way_to_the_firmware_tab(self):
+        dom = self.server.dom("&diagsim=cable&tweaks=1&open=settings")
+        self.assertNotIn("hidden", dom.find("settings-goto").attrs)
+        self.assertEqual(dom.find("settings-goto").all_text(), "Open Firmware Tab")
+        self.assertIn("hidden", self.server.dom("&diagsim=bt&open=settings").find("settings-goto").attrs)
+        dom = self.server.dom("&diagsim=cable&tweaks=1&open=settings&scenario=gotofirmware")
+        self.assertNotIn("hidden", dom.find("tab-firmware").attrs)
 
     def test_tab_explains_update_mode(self):
         self.explains("&diagsim=boot&open=settings", "update mode")
 
     def test_tab_explains_firmware_from_an_earlier_version(self):
-        self.explains("&diagsim=cable&tweaks=1&outdated=1&open=settings", "install Controller settings")
+        self.explains("&diagsim=cable&tweaks=1&outdated=1&open=settings", "Install it in the Firmware tab")
 
     def test_tab_says_nothing_is_sent_during_a_job(self):
         dom = self.server.dom("&diagsim=busy&open=settings", 7000)

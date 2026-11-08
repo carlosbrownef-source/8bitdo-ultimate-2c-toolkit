@@ -8,7 +8,7 @@
   window.fetch = async (url, options) => {
     const path = String(url);
     document.getElementById("diag-fetch").textContent += path + " ";
-    const device = window.simReplugged ? "bluetooth_xbox" : { bt: "bluetooth_xbox", btstock: "bluetooth", cable: "cable", web: "cable", none: "bluetooth_xbox", background: "bluetooth_xbox", noext: "bluetooth_xbox", busy: "bluetooth_xbox" }[mode];
+    const device = window.simReplugged ? "bluetooth_xbox" : { bt: "bluetooth_xbox", btstock: "bluetooth", cable: "cable", web: "cable", none: "bluetooth_xbox", background: "bluetooth_xbox", noext: "bluetooth_xbox", busy: "bluetooth_xbox", dongle: "dongle" }[mode];
     if (path.startsWith("/api/restore")) document.getElementById("diag-posted").textContent += options.body + " ";
     if (query.get("job") && /^\/api\/(backup|patch|restore)/.test(path)) return new Response('{"started": "job"}', { status: 202 });
     if (query.get("job") && path.startsWith("/api/events")) return new Response(JOB_EVENTS[query.get("job")].map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""), { status: 200 });
@@ -23,7 +23,9 @@
       return json({ ...answer, available: true, note: "", values: Object.fromEntries(answer.fields.map((f) => [f.name, f.default])), dead_zone_off: false, mapping: { r4: 0, l4: query.get("mapped") ? 1 << 14 : 0 } });
     }
     if (path.startsWith("/api/ring")) return query.get("ringfail") ? new Response(JSON.stringify({ error: "The controller said no." }), { status: 409 }) : json({ ok: true });
-    if (path.startsWith("/api/firmware") && device === "bluetooth_xbox") return json({ note: "The controller firmware cannot be read over Bluetooth. Connect the controller by cable for firmware diagnostics." });
+    if (path.startsWith("/api/firmware") && device === "bluetooth_xbox") return json({ note: "Connect the controller by cable to see or change its firmware. Over Bluetooth, you can test it in Diagnostics and change the Home ring in Settings." });
+    if (path.startsWith("/api/firmware") && device === "dongle") return json({ error: "That is the 2.4 GHz dongle, which this app does not support." });
+    if (path.startsWith("/api/firmware") && query.get("permission")) return json({ error: "macOS refused access to the controller. Allow Input Monitoring for this app in System Settings > Privacy & Security > Input Monitoring, then try again.", permission: true });
     const answer = await realFetch(url, options);
     if (path.startsWith("/api/firmware") && query.get("tweaks")) return json({ ...(await answer.json()), recipes: ["bt_xbox", "ring_5", ...(query.get("settings") ? ["settings"] : [])], titles: ["Dimmer LEDs", "Home ring: 5 %"], ring_level: 2, outdated: !!query.get("outdated") });
     if (path.startsWith("/api/firmware") && query.get("identity") === "none") return json({ ...(await answer.json()), boot_identity: null });
@@ -89,6 +91,8 @@
     restorecheck: () => $("restore-backup-dry").click(),
     installask: () => $("patch-write").click(),
     backupjob: () => $("backup").click(),
+    gotofirmware: () => $("settings-goto").click(),
+    privacy: () => $("privacy-open").click(),
     helpopen: () => { $("help-open").click(); setTimeout(() => { document.getElementById("diag-snap").textContent = `${document.activeElement.id} ${$("help").scrollTop}`; }, 100); },
     notweaks: () => { tweakBoxes().forEach((x) => { x.checked = false; }); render(); },
     checkjob: () => runJob("Checking…", "/api/patch", { tweaks: ["dim_leds"], base: "backup", write: false }, "Check passed"),

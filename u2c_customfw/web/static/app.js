@@ -57,9 +57,10 @@ function hero(devs, ctrl, boot) {
   let cls = "", title = "Firmware not read", note = "", chips = null;
   if (err) [cls, title, note] = ["bad", "Can't look for controllers", err.name];
   else if (!ctrl && !bt && !dongle) [cls, title, note] = ["none", "No controller found", "Connect it by cable, or put it in update mode."];
+  else if (!ctrl && dongle) [cls, title, note] = ["none", "This is the 2.4 GHz dongle", "The app works only with the controller itself. Connect the controller by cable."];
   else if (reading) title = "Reading the firmware…";
   else if (fw && fw.error) [cls, title, note] = ["bad", "Can't read the firmware", fw.error];
-  else if (fw && fw.note) note = fw.note;
+  else if (fw && fw.note) [title, note] = [!ctrl && bt ? "Connected over Bluetooth" : title, fw.note];
   else if (fw && fw.known) {
     title = fw.recipes.length ? "Firmware 1.09 with tweaks" : "Original firmware 1.09";
     note = fw.version_from && fw.version_from !== "unknown" ? "Version read from the controller" : "";
@@ -76,6 +77,7 @@ function hero(devs, ctrl, boot) {
   $("badge-text").textContent = badge;
   $("fw-title").textContent = title;
   $("fw-note").textContent = note;
+  $("privacy-open").hidden = !(fw && fw.permission && bridge());
   const led = cls === "none" ? null : cls === "bad" ? "#e8695b" : boot ? "#ffffff" : getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
   $("pic").innerHTML = pad(led, cls === "none");
   const box = $("chips"); box.textContent = ""; box.hidden = !chips;
@@ -99,6 +101,7 @@ function render() {
   $("boot-box").className = "boot" + (boot ? " ok" : "");
   $("boot-icon").innerHTML = boot ? ICON.ok.replace("<svg", '<svg width="20"') : ICON.plug;
   $("boot-title").textContent = boot ? "The controller is in update mode" : "Update mode";
+  $("boot-text").textContent = boot ? "You can check or install now." : "Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white.";
 
   const xbox = tweakBoxes().find((x) => x.value === "bt_xbox"), rumble = tweakBoxes().find((x) => x.value === "bt_rumble");
   if (!xbox.checked) rumble.checked = false;
@@ -279,6 +282,7 @@ $("refresh").onclick = refresh;
 $("details-refresh").onclick = refresh;
 TABS.forEach((t) => ($(`strip-${t}`).onclick = () => showTab(t)));
 $("force-go").onclick = () => showTab("diagnostics");
+$("privacy-open").onclick = () => bridge().postMessage({ op: "privacy" });
 $("help-open").onclick = () => $("help").showModal();
 $("help-close").onclick = () => $("help").close();
 tweakBoxes().forEach((x) => (x.onchange = render));
