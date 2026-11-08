@@ -11,7 +11,7 @@ from unittest import mock
 
 from u2c_customfw import cli, state
 from u2c_customfw.firmware import image, recipes
-from u2c_customfw.ops import devices, probe
+from u2c_customfw.ops import devices, probe, report
 from u2c_customfw import transport
 from u2c_customfw.protocol import app
 from u2c_customfw.sim import SimApp, SimBoot
@@ -157,6 +157,22 @@ class WebTest(unittest.TestCase):
         self.call("POST", "/api/restore", {"source": "stock", "write": True, "force_unknown": True})
         self.events()
         self.assertTrue(seen["force_unknown"])
+
+    def test_jobs_are_logged_for_the_problem_report(self):
+        def fake(args, store):
+            args.say("The check passed and nothing was written.")
+            if args.write:
+                raise cli.Exit(2, "Nothing was written.")
+        state.accept(self.store)
+        jobs.ACTIONS["patch"] = fake
+        self.call("POST", "/api/patch", {"tweaks": ["dim_leds"], "write": False})
+        self.events()
+        self.call("POST", "/api/patch", {"tweaks": ["dim_leds"], "write": True})
+        self.events()
+        log = report.log_tail(self.store)
+        for line in ("job patch", "'tweaks': 'dim_leds'", "The check passed and nothing was written.", "done", "error: Nothing was written."):
+            self.assertIn(line, log)
+        self.assertNotIn(str(self.store), log)
 
     def test_errors_become_error_events(self):
         def fake(args, store):

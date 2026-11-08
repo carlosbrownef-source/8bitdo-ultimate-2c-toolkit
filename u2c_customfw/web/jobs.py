@@ -4,6 +4,7 @@ import threading
 from types import SimpleNamespace
 
 from .. import cli, fetch
+from ..ops.log import get_logger
 from ..ops.plan import OpError
 from ..transport import PermissionDenied
 
@@ -41,7 +42,13 @@ class Runner:
             self.running, self.events = True, []
         args = SimpleNamespace(**{**dict(write=False, tweaks="", backup=None, download=False, source="backup", expect=None,
                                          accept_disclaimer=False, force_unknown=False), **params})
-        args.say = lambda text: self.push({"type": "log", "text": str(text)})
+        log = get_logger(self.store)
+        log.info("job %s %s", name, params)   # the page never sends a path
+
+        def say(text):
+            log.info("  %s", text)
+            self.push({"type": "log", "text": str(text)})
+        args.say = say
         args.hint = lambda text: None  # command-line advice, meaningless in the app
         args.progress = lambda label, done, total: self.push({"type": "progress", "label": label, "done": done, "total": total})
         threading.Thread(target=self._run, args=(name, args), daemon=True).start()
@@ -57,6 +64,7 @@ class Runner:
             end = {"type": "error", "message": str(e)}
         except Exception as e:  # shown to the user, never a hang
             end = {"type": "error", "message": f"{type(e).__name__}: {e}"}
+        get_logger(self.store).info("done" if end["type"] == "done" else f"error: {end['message']}")
         with self.cond:
             self.events.append(end)
             self.running = False
