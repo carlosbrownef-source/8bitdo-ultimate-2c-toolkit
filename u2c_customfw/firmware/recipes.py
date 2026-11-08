@@ -151,8 +151,8 @@ def _make() -> dict[str, Recipe]:
             Edit(0xA4AE, _blob("hstall.bin")),                   # the Bluetooth branch's motor call, then the stall
             Edit(REST_FLAG, b"\1"),
         ), requires_group="ring"),
-        Recipe("ble_interval", "Standard Bluetooth connection request", (), (
-            Edit(0xA0DE, bytes.fromhex("09a00ca100a2c8a3")),     # min 11.25 ms, max 15 ms, latency 0, timeout 2 s, instead of 7.5 ms and latency 59
+        Recipe("ble_interval", "Bluetooth connection request of 12.5 ms", (), (
+            Edit(0xA0DE, bytes.fromhex("0aa00aa100a2c8a3")),     # min = max 12.5 ms, latency 0, timeout 2 s, instead of 7.5 ms and latency 59
         )),
         Recipe("fast_scan", "Faster button reading", (), (
             Edit(0xD288, (40000).to_bytes(4, "little")),         # the scan period, in 16 MHz ticks: 2.5 ms instead of 5

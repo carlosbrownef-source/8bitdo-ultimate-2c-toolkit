@@ -349,7 +349,7 @@ class SettingsTabTest(PageCase):
 
     def test_installing_includes_settings_by_default_with_the_ring_code(self):
         dom = self.server.dom("&diagsim=boot&scenario=installed")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,fixes,cpu_rest,ring_normal")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,fixes,cpu_rest,ring_normal,ble_interval")
 
     def test_sticks_and_triggers_have_their_controls(self):
         dom = self.server.dom(self.READY)
@@ -583,19 +583,19 @@ class ControllerTestCard(PageCase):
 
     def test_tweak_controls_start_from_what_is_installed(self):
         dom, _, _ = self.body("boot&tweaks=1&scenario=installed")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ring_5")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ring_5,ble_interval")
 
     def test_alerts_off_with_normal_installs_no_ring_code(self):  # with the other tweaks that need it off too
         dom, _, _ = self.body("boot&scenario=noalerts")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,ble_interval")
 
     def test_reading_the_same_firmware_keeps_the_choice_made(self):
         dom, _, _ = self.body("boot&tweaks=1&scenario=keptchoice")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,cable_360,ring_5")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,cable_360,ring_5,ble_interval")
 
     def test_original_firmware_keeps_the_suggested_tweaks(self):
         dom, _, _ = self.body("boot&scenario=installed")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,fixes,cpu_rest,ring_normal")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,fixes,cpu_rest,ring_normal,ble_interval")
 
     def ring_button(self, dom, index):
         return next(n for n in dom.find("ring-card").walk() if n.attrs.get("data-live") == str(index))
@@ -859,6 +859,7 @@ class HelpTest(PageCase):
                      "In rare cases it could make the controller stop responding. This hasn't been observed.",
                      "Installing keeps the ring's level as it is, and you change it in the Settings tab."):
             self.assertIn(fact, text)
+        self.assertIn("which may make the battery last longer", text)   # a possibility, never a promise
         for promise in ("saves battery", "battery life"):   # not claimed until it's measured
             self.assertNotIn(promise, text.lower())
             self.assertNotIn(promise, self.server.dom().find("tab-firmware").all_text().lower())

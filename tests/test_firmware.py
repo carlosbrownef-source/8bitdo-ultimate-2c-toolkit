@@ -309,9 +309,9 @@ class FromEarlierVersionsTest(unittest.TestCase):
         js = (Path(recipes.__file__).parents[1] / "web" / "static" / "app.js").read_text()
         self.assertIn('"cpu_rest"', js.split("RING_CODE_USERS = ")[1].split(";")[0])  # it needs the ring's code
 
-    def test_ble_interval_asks_for_11_25_to_15_ms(self):
+    def test_ble_interval_asks_for_12_5_ms(self):
         img = recipes.build(self.stock, ["ble_interval"], **self.k)
-        self.assertEqual(img[0xA0DE - image.BASE:0xA0E6 - image.BASE], bytes.fromhex("09a00ca100a2c8a3"))  # min 9, max 12, latency 0, timeout 200
+        self.assertEqual(img[0xA0DE - image.BASE:0xA0E6 - image.BASE], bytes.fromhex("0aa00aa100a2c8a3"))  # min 10, max 10, latency 0, timeout 200
         self.assertEqual(recipes.identify(img, **self.k).recipes, ("ble_interval",))
 
     def test_fast_scan_halves_the_scan_period_and_keeps_home_and_turbo_timings(self):
@@ -326,7 +326,9 @@ class FromEarlierVersionsTest(unittest.TestCase):
     def test_the_app_offers_faster_buttons_but_not_the_connection_request(self):
         html = (Path(recipes.__file__).parents[1] / "web" / "static" / "index.html").read_text()
         self.assertIn('value="fast_scan"', html)
-        self.assertNotIn('value="ble_interval"', html)  # macOS refuses it; whether Linux grants stock's 7.5 ms is untested
+        self.assertNotIn('value="ble_interval"', html)  # no switch: every install includes it (app.js), macOS keeps its 15 ms anyway
+        js = (Path(recipes.__file__).parents[1] / "web" / "static" / "app.js").read_text()
+        self.assertIn('"ble_interval"', js.split("const tweaks = ")[1].split("\n")[0])
 
     def test_firmware_from_0_4_is_still_recognised_without_cpu_rest(self):
         """0.4.0's blobs are pinned in test_the_published_tweaks_keep_their_bytes, so this is what a controller on 0.4.0 holds."""
