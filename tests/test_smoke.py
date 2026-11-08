@@ -58,7 +58,7 @@ class DisclaimerTest(unittest.TestCase):
 
     def test_readme_leads_with_the_app_and_a_short_warning(self):
         text = (ROOT / "README.md").read_text()
-        self.assertTrue(text.startswith("# 8BitDo Ultimate 2C Firmware Toolkit"))
+        self.assertTrue(text.startswith("# U2C Firmware Toolkit"))
         self.assertNotIn("READ THIS FIRST", text)
         self.assertIn("no warranty", text[:text.index("## Install")].lower())
         self.assertIn("written with an AI assistant (Opus 5.5)", text[:text.index("## Install")])

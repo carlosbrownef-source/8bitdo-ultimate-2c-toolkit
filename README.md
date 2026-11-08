@@ -1,11 +1,11 @@
-# 8BitDo Ultimate 2C Firmware Toolkit
+# U2C Firmware Toolkit
 
 <p align="center">
   <img src="docs/images/firmware.png" alt="The Firmware tab, showing firmware 1.09 with its tweaks, the backup and restore steps and the Home ring brightness" width="420">
   <img src="docs/images/diagnostics.png" alt="The Diagnostics tab, testing a controller over Bluetooth" width="420">
 </p>
 
-Everything your **8BitDo Ultimate 2C Wireless** needs on a Mac, in one app. Firmware Toolkit makes macOS and its games treat the controller as a native one, adds rumble and control over its light, and lets you test it, back it up and restore it. There are no drivers or background programs, because the changes live in the controller itself.
+U2C Firmware Toolkit is a toolkit for the **8BitDo Ultimate 2C Wireless** on a Mac: everything the controller needs, in one app. It makes macOS and its games treat the controller as a native one, adds rumble and control over its light, and lets you test it, back it up and restore it. There are no drivers or background programs, because the changes live in the controller itself.
 
 ## What it does
 
@@ -26,7 +26,7 @@ It works with the Ultimate 2C Wireless on firmware 1.09, on Macs with Apple sili
 ## Install (macOS, Apple silicon)
 
 1. Download `firmware-toolkit-<version>-macos-arm64.zip` from the releases page and unzip it.
-2. Open the app once. macOS will block it because it is not signed: open **System Settings → Privacy & Security**, scroll to the message about Firmware Toolkit and click **Open Anyway** (right-click → Open no longer works on current macOS). You can also remove it from Quarantine with xattr.
+2. Open the app once. macOS will block it because it is not signed: open **System Settings → Privacy & Security**, scroll to the message about the app and click **Open Anyway** (right-click → Open no longer works on current macOS). You can also remove it from Quarantine with xattr.
 3. When asked, allow **Input Monitoring** (System Settings → Privacy & Security → Input Monitoring). The app needs it to talk to the controller.
 
 Or with [Homebrew](https://github.com/carlosbrownef-source/homebrew-tap), which replaces step 1:
