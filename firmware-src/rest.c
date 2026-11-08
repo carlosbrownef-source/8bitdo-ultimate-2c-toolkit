@@ -7,7 +7,7 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
 
-#define WD_UNITS 549 /* 2^18 sysclk ticks each: 3.0 s at 48 MHz, longer while flash work runs at 16 MHz */
+#define WD_UNITS 549 /* 2^18 sysclk ticks each: 3.0 s at 48 MHz; nothing after boot lowers the clock, flash work included */
 #define WD_FEED 8
 #ifndef STALL_MS
 #define STALL_MS 1 /* 0 turns the stall off */

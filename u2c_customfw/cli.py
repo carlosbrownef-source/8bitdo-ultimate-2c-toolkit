@@ -177,7 +177,7 @@ def cmd_identify(args, store):
     data = Path(args.file).read_bytes()
     bank_a = data[image.BASE:image.APP_END] if len(data) == image.FLASH_SIZE else data
     s = recipes.identify(bank_a)
-    args.say(("original 1.09" + (f" with tweaks: {', '.join(s.recipes)}" if s.recipes else "")) if s.known else "unknown firmware")
+    args.say(("original 1.09" + (f" with tweaks: {', '.join(shown(s.recipes))}" if shown(s.recipes) else "")) if s.known else "unknown firmware")
 
 
 def unit_backups(ch, store):
@@ -225,7 +225,9 @@ def cmd_patch(args, store):
     ch = open_channel(f.info, 0)
     try:
         b = _backup_for(args, ch, store)
-        plan = patch.plan_patch(ch, b, stock_for(args, b, store), [k for k in args.tweaks.split(",") if k])
+        keys = [k for k in args.tweaks.split(",") if k]
+        keys += ["ble_interval"] if keys and "ble_interval" not in keys else []   # as the app: every install asks for 12.5 ms
+        plan = patch.plan_patch(ch, b, stock_for(args, b, store), keys)
         _write(args, ch, plan, INSTALLED, "Add --write to install.")
     finally:
         ch.close()

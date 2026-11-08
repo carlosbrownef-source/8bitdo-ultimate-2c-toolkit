@@ -117,6 +117,10 @@ class ControllerNameTest(unittest.TestCase):
         "ringhook02.bin": "36bb496143d7a87026b50fe0220ef246c168c3b6b6251f4286b33edf1498222d",
         "rumble03.bin": "f4be669cb33f916fa8e494c6b7d77bd2c29d165fff7fee62ccf9b7952c6e092d",
         "ringhook03.bin": "c5c17678cb98c19b506922d7b7a33a82dfe50a9e144183eab2ed7d6ff4facd0d",
+        "wdog.bin": "ee8ef69d98f097cc6567ff6f16a29b5cf7fceedb6055bbf87db778fcdd2590a8",      # 1.0: Processor rest
+        "stall.bin": "f4c60c286a6141864bc56fee16cd98f8d00e8e8845ba11269901874301bebe36",
+        "hstall.bin": "6dd074c9b178b74f2391e6f72f0c86bb3e04258456ab86d89a03b96e8872f0e3",
+        "resthook.bin": "5b563ff31772634b7ab5357f39b9d40f0751216101cda2df58c60fd13a20100a",
         "ringtail03.bin": "ad42bf2804072507723597786cbcb4dd1650a9932523d8c355561a08844f0943",
         "pollhook03.bin": "5c15dd176afa3d1f0ad7a6b1ba8b47c08d0151eb21b3adecf93384608d30a21b",
         "vhooka03.bin": "a55172fb21ac5276c2c817c4b541762a44f9db77bb1bdbcef228af6761133ea9",
