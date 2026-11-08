@@ -309,7 +309,7 @@ $("report-close").onclick = () => { $("report").close(); $("report-copy").textCo
 render(); refresh();
 
 // Notice a controller being connected, disconnected or put in update mode, without pressing Refresh.
-const deviceKey = (state) => state ? state.devices.map((d) => `${d.mode}:${d.vendor}:${d.product}`).sort().join() : "";
+const deviceKey = (state) => state ? state.devices.map((d) => `${d.mode}:${d.vendor}:${d.product}:${d.name}`).sort().join() : "";  // a paired dongle has the controller's ID
 const WATCH_MS = 2500;
 setInterval(async () => {
   if (busy || reading || refreshing || document.hidden) return;

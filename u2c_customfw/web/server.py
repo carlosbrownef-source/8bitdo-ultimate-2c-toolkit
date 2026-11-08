@@ -121,6 +121,7 @@ def make_server(store: Path, port: int = 0):
                 try:
                     if app.open_session(ch) is None:
                         raise OpError(settings_ops.NO_ANSWER)
+                    probe.check_not_dongle(ch)
                     answer = work(ch)
                 finally:
                     ch.close()
@@ -153,6 +154,7 @@ def make_server(store: Path, port: int = 0):
                 try:
                     if app.open_session(ch) is None:
                         return answer(note=settings_ops.NO_ANSWER)
+                    probe.check_not_dongle(ch)
                     if not settings_ops.installed(ch):
                         return answer(note=SETTINGS_MISSING)
                     answer(available=True, **settings_ops.load(ch))

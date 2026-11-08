@@ -85,6 +85,18 @@ class WebTest(unittest.TestCase):
         self.assertEqual(status, 409)
         self.assertIn("Home ring", text)
 
+    def test_a_paired_dongle_is_refused_by_cable_calls(self):
+        dongle = bytearray(controller_flash(recipes.build(STOCK_A, ["ring_5", "settings"], **K)))
+        dongle[0x10000:0x10010] = b"\xff" * 16   # how probe tells the dongle, which shares the controller's USB ID when paired
+        status, text = self.ring_call({"level": 2}, flash=bytes(dongle), mode="cable")
+        self.assertEqual(status, 409)
+        self.assertIn("2.4 GHz dongle", text)
+        self.assertFalse(any(s.startswith(("81050052", "81050053")) for s in self.dev.sent))
+        self.settings_device(mode="cable").flash = bytes(dongle)
+        got = json.loads(self.call("GET", "/api/settings")[1])
+        self.assertFalse(got["available"])
+        self.assertIn("2.4 GHz dongle", got["note"])
+
     def test_api_ring_refuses_in_update_mode(self):
         self.assertEqual(self.ring_call({"level": 2}, mode="boot")[0], 409)
 
