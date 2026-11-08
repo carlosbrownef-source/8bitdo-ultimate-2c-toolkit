@@ -94,7 +94,7 @@ def list_devices():
     cf.CFSetGetValues(devs, arr)
     found = [DeviceInfo(vendor=_prop(d, "VendorID") or 0, product=_prop(d, "ProductID") or 0,
                         usage_page=_prop(d, "PrimaryUsagePage") or 0, transport=_prop(d, "Transport") or "",
-                        name=_prop(d, "Product") or "", handle=d) for d in arr]
+                        name=_prop(d, "Product") or "", handle=d, version=_prop(d, "VersionNumber") or 0) for d in arr]
     cf.CFRelease(devs)
     return found
 

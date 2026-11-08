@@ -223,7 +223,7 @@ def make_server(store: Path, port: int = 0):
                     note += " Over Bluetooth, you can test it in Diagnostics and change the Home ring in Settings."
                 return self.send(200, json.dumps({"note": note}))
             f = ours[0]
-            if f.mode == "dongle":
+            if f.mode.startswith("dongle"):
                 return self.dongle_report(f)
             try:
                 ch = cli.open_channel(f.info, 0 if f.mode == "boot" else 0x81)
@@ -259,7 +259,7 @@ def make_server(store: Path, port: int = 0):
                 return self.send(200, json.dumps({"error": str(e), "permission": True}))
             except (OpError, OSError, ProtocolError) as e:
                 return self.send(200, json.dumps({"error": str(e)}))
-            self.send(200, json.dumps({"device": "dongle", "known": fw.known, "version": fw.version,
+            self.send(200, json.dumps({"device": "dongle", "paired": f.mode == "dongle_paired", "known": fw.known, "version": fw.version,
                                        "tweaks": [{"key": "dongle_360", "title": "Xbox 360 controller over 2.4 GHz", "on": fw.xbox360}]}))
 
         def api_events(self):

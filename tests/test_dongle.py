@@ -44,3 +44,28 @@ class DongleFirmwareTest(unittest.TestCase):
 
     def test_the_real_hashes_are_set(self):
         self.assertEqual((len(dongle.STOCK_SHA256), len(dongle.XBOX360_SHA256)), (64, 64))
+
+
+class PairedDongleTest(unittest.TestCase):
+    def find(self, version):
+        from unittest import mock
+        from u2c_customfw import transport
+        from u2c_customfw.ops import devices
+        info = transport.DeviceInfo(0x045E, 0x028E, 0xFF7A, "USB", "8BitDo Ultimate 2C Wireless Controller", None, version)
+        with mock.patch.object(transport, "list_devices", lambda: [info]):
+            return [f.mode for f in devices.find()]
+
+    def test_the_patched_dongle_is_told_from_the_controller_by_its_usb_version(self):
+        self.assertEqual(self.find(0x0103), ["dongle_paired"])
+        self.assertEqual(self.find(0x0114), ["cable_360"])
+
+    def test_the_cli_refuses_the_paired_dongle(self):
+        from unittest import mock
+        from u2c_customfw import cli
+        from u2c_customfw.ops import devices
+        from u2c_customfw import transport
+        info = transport.DeviceInfo(0x045E, 0x028E, 0xFF7A, "USB", "x", None, 0x0103)
+        with mock.patch.object(cli, "find", lambda: [devices.Found(info, "dongle_paired")]):
+            with self.assertRaises(cli.Exit) as e:
+                cli.pick(("cable", "cable_360"))
+        self.assertIn("2.4 GHz dongle", e.exception.msg)

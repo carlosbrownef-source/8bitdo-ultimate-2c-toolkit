@@ -13,7 +13,7 @@ from . import protocol
 from .protocol import boot
 from .transport import PermissionDenied, open_channel
 
-CONTROLLER_MODES = ("cable", "cable_360", "boot", "dongle")
+CONTROLLER_MODES = ("cable", "cable_360", "boot", "dongle", "dongle_paired")
 BOOT_HELP = "Turn the controller fully off, then hold LB + RB while plugging in the cable. The light will blink white."
 INSTALLED = ("Installed. Unplug the controller and connect it again. If you changed a Bluetooth tweak, remove the controller in "
              "System Settings → Bluetooth and pair it again.")
@@ -50,7 +50,7 @@ def pick(modes=CONTROLLER_MODES):
     if len(present) > 1:
         raise Exit(2, "More than one device is connected. Unplug all but one controller.")
     if not present or present[0].mode not in modes:
-        if present and present[0].mode == "dongle":
+        if present and present[0].mode.startswith("dongle"):
             raise Exit(2, "That is the 2.4 GHz dongle, which this app does not support.")
         want = "in update mode. " + BOOT_HELP if modes == ("boot",) else "by cable"
         raise Exit(2, f"No controller found {want}")

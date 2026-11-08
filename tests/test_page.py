@@ -145,6 +145,13 @@ class TabsTest(PageCase):
         self.assertNotIn("controller", text.replace("Xbox 360 controller", ""))   # no step talks about the controller
         self.assertIn("hidden", dom.find("restore-why").attrs)
 
+    def test_the_paired_dongle_says_the_controller_is_connected_through_it(self):
+        dom, title, note = self.hero("&diagsim=donglepaired")
+        self.assertEqual(title, "Dongle firmware 1.03 with tweaks")
+        self.assertTrue(note.startswith("The controller is connected through it over 2.4 GHz."), note)
+        self.assertEqual(dom.find("badge-text").all_text(), "2.4 GHz dongle · Controller connected")
+        self.assertNotIn("hidden", dom.find("dongle-tweaks").attrs)
+
     def test_bluetooth_says_what_works_over_it(self):
         _, title, note = self.hero("&diagsim=bt")
         self.assertEqual(title, "Connected over Bluetooth")

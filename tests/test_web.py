@@ -431,7 +431,7 @@ class WebTest(unittest.TestCase):
                 mock.patch.object(cli, "open_channel", lambda i, rid: SimApp(flash(XBOX))), \
                 mock.patch.object(dongle, "STOCK_SHA256", DK["stock_sha256"]), mock.patch.object(dongle, "XBOX360_SHA256", DK["xbox360_sha256"]):
             data = json.loads(self.call("GET", "/api/firmware")[1])
-        self.assertEqual(data, {"device": "dongle", "known": True, "version": 1.03,
+        self.assertEqual(data, {"device": "dongle", "paired": False, "known": True, "version": 1.03,
                                 "tweaks": [{"key": "dongle_360", "title": "Xbox 360 controller over 2.4 GHz", "on": True}]})
 
     def test_the_hidden_tweak_is_never_shown(self):

@@ -16,6 +16,9 @@ MODES = (
 )
 
 
+DONGLE_BCD = 0x0103   # the patched dongle's bcdDevice; the controller by cable keeps 0x0114, so the same 045e:028e tells them apart
+
+
 @dataclass
 class Found:
     info: DeviceInfo
@@ -32,5 +35,5 @@ def find() -> list[Found]:
                 if mode.startswith("bluetooth"):
                     if "Bluetooth" not in d.transport or any(f.mode == mode for f in out):
                         continue
-                out.append(Found(d, mode))
+                out.append(Found(d, "dongle_paired" if mode == "cable_360" and d.version == DONGLE_BCD else mode))
     return out

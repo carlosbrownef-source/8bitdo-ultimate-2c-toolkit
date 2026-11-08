@@ -62,7 +62,7 @@ function lastBackup(names) {  // controller-YYYYMMDD-HHMMSS….bin, oldest first
 }
 
 function hero(devs, ctrl, boot) {
-  const dongle = devs.find((d) => d.mode === "dongle"), bt = devs.find((d) => d.mode.startsWith("bluetooth")), err = devs.find((d) => d.mode === "error");
+  const dongle = devs.find((d) => d.mode.startsWith("dongle")), bt = devs.find((d) => d.mode.startsWith("bluetooth")), err = devs.find((d) => d.mode === "error");
   let cls = "", title = "Firmware not read", note = "", chips = null;
   if (err) [cls, title, note] = ["bad", "Can't look for controllers", err.name];
   else if (!ctrl && !bt && !dongle) [cls, title, note] = ["none", "No controller found", "Connect it by cable, or put it in update mode."];
@@ -71,7 +71,7 @@ function hero(devs, ctrl, boot) {
   else if (fw && fw.device === "dongle") {  // read-only for now: what it holds, and the one tweak there is for it
     title = !fw.known ? (fw.version ? `Unrecognised dongle firmware ${fw.version.toFixed(2)}` : "Unknown dongle firmware")
       : fw.tweaks.some((t) => t.on) ? `Dongle firmware ${fw.version.toFixed(2)} with tweaks` : `Original dongle firmware ${fw.version.toFixed(2)}`;
-    note = "This version of the app reads the dongle but can't change it yet.";
+    note = (fw.paired ? "The controller is connected through it over 2.4 GHz. " : "") + "This version of the app reads the dongle but can't change it yet.";
     chips = fw.tweaks;
   }
   else if (fw && fw.note) [title, note] = [!ctrl && bt ? "Connected over Bluetooth" : title, fw.note];
@@ -85,7 +85,7 @@ function hero(devs, ctrl, boot) {
   else if (fw) [cls, title, note] = ["bad", "Unknown firmware", "It doesn't match the original firmware 1.09, with or without this app's tweaks. It may be another firmware version, which you can update with 8BitDo's own updater, or firmware modified outside this app, which restoring your backup replaces."];
 
   const badge = ctrl ? `${boot ? "Update mode" : "Connected by cable"} · 8BitDo Ultimate 2C Wireless`
-    : dongle ? "2.4 GHz dongle" : bt ? "Connected over Bluetooth · 8BitDo Ultimate 2C Wireless" : "Not connected";
+    : dongle ? (dongle.mode === "dongle_paired" ? "2.4 GHz dongle · Controller connected" : "2.4 GHz dongle") : bt ? "Connected over Bluetooth · 8BitDo Ultimate 2C Wireless" : "Not connected";
   $("hero").className = "hero compact " + cls;
   $("badge").className = "badge " + (cls === "bad" ? "bad" : boot ? "isboot" : ctrl || bt ? "ok" : "");
   $("badge-text").textContent = badge;
@@ -113,7 +113,7 @@ function showDetails(open) {
 function render() {
   const devs = st ? st.devices : [];
   const ctrl = devs.find((d) => CONTROLLER.includes(d.mode)), boot = !!ctrl && ctrl.mode === "boot";
-  const dongleOnly = !ctrl && devs.some((d) => d.mode === "dongle");
+  const dongleOnly = !ctrl && devs.some((d) => d.mode.startsWith("dongle"));
   const backed = !!st && st.backups.length > 0, off = busy || reading, on109 = !!fw && !!fw.version && fw.version.toFixed(2) === "1.09";
   const patchable = boot && backed && tweaks().length > 0 && !(fw && fw.known === false && !on109);
   hero(devs, ctrl, boot);
@@ -191,7 +191,7 @@ function details() {
   if (fw.note) return say(fw.note);
   const id = fw.boot_identity;
   const v = fw.version ? fw.version.toFixed(2) : "";
-  const rows = fw.device === "dongle" ? [["Device", "The 2.4 GHz dongle"],
+  const rows = fw.device === "dongle" ? [["Device", fw.paired ? "The 2.4 GHz dongle, with the controller connected through it" : "The 2.4 GHz dongle"],
     ["Firmware", !fw.known ? (v ? `Unrecognised ${v}` : "Unknown") : fw.tweaks[0].on ? [`${v} with 1 tweak`, fw.tweaks[0].title] : `Original ${v}`],
     ["Identified from", fw.known ? "The installed firmware" : v ? "The dongle's update record" : "Nothing it holds"]] : null;
   if (rows) return detailRows(box, rows);
@@ -311,7 +311,7 @@ function matchInstalled() {  // start from what's installed, so installing doesn
 
 let fwSeq = 0;
 async function readFirmware() {  // read-only; skipped while a job runs, and the job buttons wait for it
-  if (busy || !st.devices.some((d) => CONTROLLER.includes(d.mode) || d.mode === "dongle" || d.mode.startsWith("bluetooth"))) return;
+  if (busy || !st.devices.some((d) => CONTROLLER.includes(d.mode) || d.mode.startsWith("dongle") || d.mode.startsWith("bluetooth"))) return;
   const mine = ++fwSeq; reading = true; render();
   let f;
   try { f = await api("GET", "/api/firmware"); } catch (e) { f = { error: e.message }; }
