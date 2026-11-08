@@ -476,7 +476,7 @@ class ControllerTestCard(PageCase):
         dom = self.server.dom("&diagsim=bt")
         ids = [n.attrs["id"] for n in dom.walk() if n.tag == "lineargradient"]
         self.assertEqual(len(ids), len(set(ids)), ids)
-        self.assertEqual(len(ids), 2)
+        self.assertEqual(len(ids), 3)   # the hero, the controller test and the update-mode pop-up
 
     def test_states(self):
         for state_, sentence in (
@@ -723,18 +723,23 @@ class ConfirmTest(PageCase):
         dom = self.server.dom("&diagsim=boot&scenario=installask")
         rows = [n for n in dom.find("tab-firmware").walk() if "tw" in n.classes()]
         self.assertEqual(len(rows), 10)
-        for row in rows:
-            line = next((n for n in row.walk() if n.tag == "small"), None)
-            self.assertIsNotNone(line, row.all_text())
-            self.assertTrue(line.all_text().endswith("."), line.all_text())
-        self.assertNotIn("(", dom.find("tab-firmware").all_text().split("Take the original firmware")[0])
-        for row in rows:   # each explanation is behind its (i) button, closed
+        pops = {n.attrs["id"]: n for n in dom.walk() if "pop" in n.classes()}
+        for row in rows:   # each explanation is in a pop-up behind its (i) button, outside the row
             info = next(n for n in row.walk() if "info" in n.classes())
-            self.assertEqual((info.tag, info.attrs.get("aria-expanded")), ("button", "false"))
-            self.assertIn("hidden", next(n for n in row.walk() if n.tag == "small").attrs)
+            self.assertEqual(info.tag, "button")
+            line = pops[info.attrs["aria-controls"]].all_text()
+            self.assertTrue(line.endswith("."), line)
+            self.assertFalse(any(n.tag == "small" for n in row.walk()), row.all_text())
+        notes = {next(n for n in row.walk() if n.tag == "input").attrs["value"]: next((n.all_text() for n in row.walk() if "note" in n.classes()), None) for row in rows}
+        self.assertEqual(notes["bt_rumble"], "Needs Xbox Series X|S controller over Bluetooth.")
+        self.assertEqual(sum(1 for v in notes.values() if v), 3)   # Rumble, Finer stick movement, Faster button reading
         self.assertFalse(any("data-ring" in n.attrs for n in dom.find("tab-firmware").walk()))   # the ring is set in Settings only
         chips = [" ".join(n.text) for n in dom.find("confirm-chips").children]
         self.assertIn("Rumble over Bluetooth", chips)
+
+    def test_the_info_button_opens_its_pop_up_without_toggling_the_tweak(self):
+        dom = self.server.dom("&diagsim=boot&scenario=infopop")
+        self.assertEqual(dom.find("diag-snap").all_text(), "false true")
 
     def test_reset_is_not_styled_as_danger(self):
         dom = self.server.dom(SettingsTabTest.READY + "&scenario=resetopen")

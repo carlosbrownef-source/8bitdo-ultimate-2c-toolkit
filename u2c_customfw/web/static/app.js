@@ -112,7 +112,8 @@ function render() {
   $("boot-box").className = "boot" + (boot ? " ok" : "");
   $("boot-icon").innerHTML = boot ? ICON.ok.replace("<svg", '<svg width="20"') : ICON.plug;
   $("boot-title").textContent = boot ? "The controller is in update mode" : "Update mode";
-  $("boot-text").textContent = boot ? "You can check or install now." : "Turn the controller fully off, then hold LB + RB while plugging in the cable. The light will blink white.";
+  $("boot-info").hidden = boot;
+  $("boot-text").textContent = boot ? "You can check or install now." : "Turn the controller fully off, then hold LB + RB while plugging in the cable. The small light below the Home ring will blink white.";
 
   const xbox = tweakBoxes().find((x) => x.value === "bt_xbox"), rumble = tweakBoxes().find((x) => x.value === "bt_rumble");
   if (!xbox.checked) rumble.checked = false;
@@ -307,13 +308,32 @@ $("privacy-open").onclick = () => bridge().postMessage({ op: "privacy" });
 $("help-open").onclick = () => $("help").showModal();
 $("help-close").onclick = () => $("help").close();
 tweakBoxes().forEach((x) => (x.onchange = render));
-tweakBoxes().forEach((x) => {  // each explanation sits behind an (i) button next to the name
-  const name = x.parentElement.lastElementChild, line = name.querySelector("small"), b = document.createElement("button");
-  b.type = "button"; b.className = "info"; b.textContent = "i"; line.hidden = true;
-  b.setAttribute("aria-label", `About ${name.firstChild.textContent}`); b.setAttribute("aria-expanded", "false");
-  b.onclick = (e) => { e.preventDefault(); line.hidden = !line.hidden; b.setAttribute("aria-expanded", String(!line.hidden)); };
-  name.insertBefore(b, line);
+function popover(button, ...content) {  // a small pop-up under an (i) button, outside any label so clicks in it toggle nothing
+  const pop = document.createElement("div");
+  pop.id = `pop-${document.querySelectorAll(".pop").length}`; pop.className = "pop"; pop.popover = "auto"; pop.append(...content);
+  document.body.append(pop); button.popoverTargetElement = pop; button.setAttribute("aria-controls", pop.id);
+  pop.addEventListener("beforetoggle", (e) => {
+    if (e.newState !== "open") return;
+    const r = button.getBoundingClientRect(), up = r.bottom > innerHeight * 0.6;
+    pop.style.left = `${Math.max(12, Math.min(r.left - 14, innerWidth - 332))}px`;
+    pop.style.top = up ? "auto" : `${r.bottom + 8}px`; pop.style.bottom = up ? `${innerHeight - r.top + 8}px` : "auto";
+  });
+}
+document.addEventListener("scroll", () => document.querySelectorAll(".pop:popover-open").forEach((p) => p.hidePopover()), true);
+tweakBoxes().forEach((x) => {  // each explanation sits behind an (i) button next to the name; a caution stays in view
+  const name = x.parentElement.lastElementChild, b = document.createElement("button");
+  b.type = "button"; b.className = "info"; b.textContent = "i"; b.setAttribute("aria-label", `About ${name.firstChild.textContent}`);
+  name.insertBefore(b, name.querySelector("small"));
+  popover(b, name.querySelector("small"));
 });
+{  // the controller with LB and RB held and the update-mode light blinking
+  const fig = document.createElement("div"), cap = document.createElement("p");
+  fig.className = "pop-pad";
+  fig.innerHTML = pad(null, false, "gboot").replace(/(data-k="[LR]B" )/g, '$1class="hold" ')
+    .replace('<circle cx="150" cy="59" r="1.6" fill="#1c2026"/>', '<circle class="blink" cx="150" cy="59" r="6" fill="#fff" opacity=".25"/><circle class="blink" cx="150" cy="59" r="2.4" fill="#fff"/>');
+  cap.textContent = "Hold LB and RB, shown in colour, while plugging in the cable. The small light below the Home ring blinks white in update mode.";
+  popover($("boot-info"), fig, cap);
+}
 document.querySelectorAll("[data-base]").forEach((b) => (b.onclick = () => {
   base = b.dataset.base; document.querySelectorAll("[data-base]").forEach((x) => setOn(x, x === b));
 }));

@@ -43,19 +43,19 @@
       <h2><span class="no">2</span>Tweaks<span class="tag">Installs new firmware</span></h2>
       <div class="twgrid">
         <label class="tw"><input type="checkbox" class="tweak" value="bt_xbox" checked><span class="sw"></span><span>Xbox Series X|S controller over Bluetooth<small>macOS and its games recognise the controller over Bluetooth.</small></span></label>
-        <label class="tw"><input type="checkbox" class="tweak" value="bt_rumble" checked><span class="sw"></span><span>Rumble over Bluetooth<small>Games can make it vibrate over Bluetooth. Needs the tweak above.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="bt_rumble" checked><span class="sw"></span><span>Rumble over Bluetooth<small>Games can make it vibrate over Bluetooth.</small><em class="note">Needs Xbox Series X|S controller over Bluetooth.</em></span></label>
         <label class="tw"><input type="checkbox" class="tweak" value="cable_360" checked><span class="sw"></span><span>Xbox 360 controller over cable<small>macOS recognises the controller when it's connected by cable.</small></span></label>
         <label class="tw"><input type="checkbox" class="tweak" value="dim_leds" checked><span class="sw"></span><span>Dimmer LEDs<small>Makes the three lights slightly dimmer. The Home ring is set in the Settings tab.</small></span></label>
         <label class="tw"><input type="checkbox" class="tweak" value="battery_alerts" checked><span class="sw"></span><span>Battery alerts<small>The ring and motors tell you about charging and a low battery.</small></span></label>
         <label class="tw"><input type="checkbox" class="tweak" value="settings" checked><span class="sw"></span><span>Controller settings<small>Lets you change the sticks, triggers, vibration, power and button mapping in the Settings tab.</small></span></label>
         <label class="tw"><input type="checkbox" class="tweak" value="fixes" checked><span class="sw"></span><span>Fixes<small>Playing only with the sticks no longer turns it off, a lost connection gets its full minute to come back, unplugging reconnects at once, and firmware updates over Bluetooth are closed.</small></span></label>
         <label class="tw"><input type="checkbox" class="tweak" value="cpu_rest" checked><span class="sw"></span><span>Processor rest<small>The processor rests between radio events instead of running without a pause, with a watchdog in case it stops responding.</small></span></label>
-        <label class="tw"><input type="checkbox" class="tweak" value="stick_precision"><span class="sw"></span><span>Finer stick movement<small>Slow stick movements advance in smaller steps. A stick held still may move by one step now and then.</small></span></label>
-        <label class="tw"><input type="checkbox" class="tweak" value="fast_scan"><span class="sw"></span><span>Faster button reading<small>Presses arrive about 1.25 ms sooner. A worn button could register twice.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="stick_precision"><span class="sw"></span><span>Finer stick movement<small>Slow stick movements advance in smaller steps.</small><em class="note">A stick held still may move by one step now and then.</em></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="fast_scan"><span class="sw"></span><span>Faster button reading<small>Presses arrive about 1.25 ms sooner.</small><em class="note">A worn button could register twice.</em></span></label>
       </div>
       <div class="opts"><span>Take the original firmware 1.09 from:</span>
         <div><div class="seg"><button data-base="backup" class="on">Your Backup</button><button data-base="download">8BitDo's Server</button></div></div></div>
-      <div class="go"><div class="boot" id="boot-box"><span id="boot-icon"></span><div><b id="boot-title">Update mode</b><span id="boot-text">Turn the controller fully off, then hold LB + RB while plugging in the cable. The light will blink white.</span></div></div></div>
+      <div class="go"><div class="boot" id="boot-box"><span id="boot-icon"></span><div><b><span id="boot-title">Update mode</span><button type="button" class="info" id="boot-info" aria-label="Show where the light is">i</button></b><span id="boot-text">Turn the controller fully off, then hold LB + RB while plugging in the cable. The small light below the Home ring will blink white.</span></div></div></div>
       <div class="act" id="tweaks-act"><ul class="pre"><li id="pre-backup"></li><li id="pre-boot"></li></ul><div class="btns"><button id="patch-dry" class="sec job">Check First</button><button id="patch-write" class="job">Install Tweaks…</button></div>
         <p><span id="choose-one" hidden></span> Installing modified firmware probably voids the controller's warranty.</p></div>
     </section>
@@ -183,7 +183,7 @@
   <p>The Home ring's code is installed with any tweak that needs it. Installing keeps the ring's level as it is, and you change it in the Settings tab.</p>
   <p>The tweaks are always added to 8BitDo's original firmware 1.09, taken from your backup or downloaded from 8BitDo, so the result is always a known, checked firmware.</p>
   <h4 id="help-update">Update Mode</h4>
-  <p>The controller can only receive new firmware in update mode. Turn it fully off, then hold LB + RB while plugging in the cable. The light will blink white.</p>
+  <p>The controller can only receive new firmware in update mode. Turn it fully off, then hold LB + RB while plugging in the cable. The small light below the Home ring will blink white.</p>
   <h4>Check First</h4>
   <p>Runs every check without changing anything: that this is the same controller as in your backup, that its firmware is one the app knows, and that the new firmware is complete.</p>
   <h4 id="help-restore">3. Restore</h4>
