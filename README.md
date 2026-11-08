@@ -14,12 +14,13 @@ U2C Firmware Toolkit is a toolkit for the **8BitDo Ultimate 2C Wireless** on a M
 - **Adjustable light.** Choose how bright the ring around the Home button is, or turn it off, and change it at any time from the app or with L4 + R4 on the controller. You can also dim the other lights.
 - **Battery alerts.** The ring and motors tell you when the battery is low, and when charging starts and completes.
 - **Settings that change at once.** Set the sticks' dead zone, range and response, the triggers' range and the vibration from games, map L4 and R4, remap the buttons, and choose when the controller turns itself off, without installing anything each time. A guide walks you through the controller's own stick calibration.
-- **Processor rest.** Over Bluetooth, the controller's processor rests between radio events instead of running without a pause, and a watchdog restarts the controller if it ever stops responding.
+- **Processor rest.** Over Bluetooth, the controller's processor rests between radio events instead of running without a pause, which may make the battery last longer, and a watchdog restarts the controller if it ever stops responding.
 - **Fewer interruptions.** Playing only with the sticks no longer turns the controller off, a lost connection gets its full minute to come back, and unplugging the cable reconnects it over Bluetooth at once. Slow stick movements can also advance in finer steps.
 - **Tests the controller.** See what macOS reports, including the battery, check every button, stick and trigger, and try the vibration.
 - **Backs up and restores.** Save a full copy of the controller's memory first, and go back to it or to 8BitDo's original firmware at any time.
+- **The 2.4 GHz dongle too.** It can present itself as a wired Xbox 360 controller, with the same backup and restore.
 
-It works with the Ultimate 2C Wireless on firmware 1.09, on Macs with Apple silicon. It doesn't work with the 2.4 GHz dongle or other models.
+It works with the Ultimate 2C Wireless on firmware 1.09 and its 2.4 GHz dongle on firmware 1.03, on Macs with Apple silicon. It doesn't work with other models.
 
 > **This is a vibe-coded project, written with an AI assistant (Opus 5.5). There's no warranty, and you use it at your own risk.** Installing modified firmware probably voids the controller's warranty. Please read the [full disclaimer](DISCLAIMER.md) before using it. Not affiliated with or endorsed by 8BitDo.
 
@@ -95,6 +96,16 @@ The controller test is only available in the Mac app for now, because it uses ma
 | Home ring | The code that drives the ring around the Home button, installed with any tweak that needs it. Its level is set in the Settings tab or with L4 + R4: normal, 25 %, 5 %, 1 %, 0.1 % or off (the percentage is PWM duty, not perceived brightness). It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. Installing keeps the ring's level as it is. |
 
 Each tweak is a hash-checked set of byte edits to the stock v1.09 image; nothing else in the firmware changes, and the controller's bootloader, MAC, calibration and pairings are never written.
+
+## The 2.4 GHz dongle
+
+With the controller off, plug the dongle in on its own: the Firmware tab shows its firmware (v1.03) and its one tweak.
+
+| Tweak | What it does |
+|---|---|
+| Xbox 360 controller over 2.4 GHz | With the controller connected through it, the dongle presents as a wired Xbox 360 pad (`045e:028e`, class `ff`), which Apple's own driver takes. Its bcdDevice becomes `0x0103` instead of `0x0114`, so the app can tell a paired dongle from the controller by cable without reading it; Apple's driver matches on vendor, product and interface class only. 9 bytes of its X-input device descriptor. |
+
+Back up the dongle first. The dongle has no buttons, so the app sends it the command that restarts it into its update mode, checks there that its update-mode code and calibration match the backup, erases and writes only its firmware (`0x6000`-`0x10000`, with the app header written last), reads it back and restarts it. If a write stops before the header is written, the dongle stays in update mode, where Restore still works. Its update record, second firmware copy, calibration and licence sector are never written. Restoring the original 1.03 rebuilds it from your backup and checks it against its known SHA-256, so nothing is downloaded. With the controller connected through the dongle, the app reads the dongle but changes nothing: turn the controller off first.
 
 ## Why this is public
 

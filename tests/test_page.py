@@ -132,23 +132,35 @@ class TabsTest(PageCase):
 
     def test_the_dongle_shows_its_firmware_and_its_one_tweak(self):
         dom, title, note = self.hero("&diagsim=dongle")
-        self.assertEqual((title, note), ("Dongle firmware 1.03 with tweaks", "This version of the app reads the dongle but can't change it yet."))
+        self.assertEqual((title, note), ("Dongle firmware 1.03 with tweaks", "Connected on its own."))
         self.assertEqual([" ".join(n.text) for n in dom.find("chips").children], ["Xbox 360 controller over 2.4 GHz"])
         self.assertIn("hidden", dom.find("ctrl-tweaks").attrs)
         self.assertNotIn("hidden", dom.find("dongle-tweaks").attrs)
-        self.assertEqual({k: k in dom.find("dongle-360").attrs for k in ("checked", "disabled")}, {"checked": True, "disabled": True})
-        self.assertEqual(dom.find("choose-one").all_text(), "This version of the app can't change the dongle yet.")
-        self.assertIn("disabled", dom.find("patch-write").attrs)
+        self.assertEqual({k: k in dom.find("dongle-360").attrs for k in ("checked", "disabled")}, {"checked": True, "disabled": False})
+        for id_ in ("backup", "patch-dry", "patch-write", "restore-backup", "restore-stock"):
+            self.assertNotIn("disabled", dom.find(id_).attrs, id_)
+        self.assertIn("hidden", dom.find("pre-boot").attrs)   # the app puts the dongle in update mode itself
+        none = self.server.dom("&diagsim=dongle&nodonglebackup=1")
+        for id_ in ("patch-write", "restore-backup", "restore-stock"):
+            self.assertIn("disabled", none.find(id_).attrs, id_)
+        self.assertEqual(none.find("restore-why").all_text(), "Back up the dongle first to restore it.")
         self.assertEqual(self.hero("&diagsim=dongle&stockdongle=1")[1], "Original dongle firmware 1.03")
         self.assertEqual(next(n for n in dom.find("pic").walk() if n.tag == "svg").attrs.get("aria-label"), "2.4 GHz dongle")
         text = dom.find("tab-firmware").shown_text()
         self.assertNotIn("controller", text.replace("Xbox 360 controller", ""))   # no step talks about the controller
         self.assertIn("hidden", dom.find("restore-why").attrs)
 
+    def test_checking_the_dongle_sends_only_its_own_tweak(self):
+        dom = self.server.dom("&diagsim=dongle&job=checked&scenario=donglecheck")
+        self.assertIn('"tweaks":[]', dom.find("diag-posted").all_text())   # unticked: the original 1.03
+
     def test_the_paired_dongle_says_the_controller_is_connected_through_it(self):
         dom, title, note = self.hero("&diagsim=donglepaired")
         self.assertEqual(title, "Dongle firmware 1.03 with tweaks")
         self.assertTrue(note.startswith("The controller is connected through it over 2.4 GHz."), note)
+        for id_ in ("patch-write", "restore-backup", "restore-stock"):
+            self.assertIn("disabled", dom.find(id_).attrs, id_)   # the dongle has to be on its own to change
+        self.assertNotIn("hidden", dom.find("dongle-note").attrs)
         self.assertEqual(dom.find("badge-text").all_text(), "2.4 GHz dongle · Controller connected")
         self.assertNotIn("hidden", dom.find("dongle-tweaks").attrs)
 
@@ -888,7 +900,7 @@ class HelpTest(PageCase):
         dom = self.server.dom("&diagsim=boot&scenario=helpopen")
         self.assertEqual(dom.find("diag-snap").all_text(), "help-top 0 diagnostics")   # update mode opens on Diagnostics
         side = [n for n in dom.find("help").walk() if "data-help" in n.attrs]
-        self.assertEqual([" ".join(n.text) for n in side], ["Getting Started", "Tweaks", "Settings", "Diagnostics"])
+        self.assertEqual([" ".join(n.text) for n in side], ["Getting Started", "Tweaks", "Settings", "Diagnostics", "2.4 GHz Dongle"])
         parts = {n.attrs["data-hsec"]: n for n in dom.find("help").walk() if "data-hsec" in n.attrs}
         self.assertEqual(sorted(parts), sorted(n.attrs["data-help"] for n in side))
         self.assertEqual([n.attrs["data-hsec"] for n in parts.values() if "hidden" not in n.attrs], ["diagnostics"])

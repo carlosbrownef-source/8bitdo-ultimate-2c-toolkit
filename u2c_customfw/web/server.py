@@ -223,8 +223,13 @@ def make_server(store: Path, port: int = 0):
                     note += " Over Bluetooth, you can test it in Diagnostics and change the Home ring in Settings."
                 return self.send(200, json.dumps({"note": note}))
             f = ours[0]
-            if f.mode.startswith("dongle"):
-                return self.dongle_report(f)
+            try:
+                if f.mode.startswith("dongle") or cli._dongle_in_boot(f):
+                    return self.dongle_report(f, in_boot=f.mode == "boot")
+            except PermissionDenied as e:
+                return self.send(200, json.dumps({"error": str(e), "permission": True}))
+            except (OpError, OSError, ProtocolError) as e:
+                return self.send(200, json.dumps({"error": str(e)}))
             try:
                 ch = cli.open_channel(f.info, 0 if f.mode == "boot" else 0x81)
                 try:
@@ -247,19 +252,26 @@ def make_server(store: Path, port: int = 0):
                                                   for k in shown(k for k, r in recipes.RECIPES.items() if not r.group)]
                                                  + [{"key": "ring", "title": ring[0] if ring else "Home ring: normal", "on": bool(ring)}]}))
 
-        def dongle_report(self, f):
-            """The idle dongle, read-only: its firmware and whether it has the one tweak there is for it."""
+        def dongle_report(self, f, in_boot=False):
+            """The dongle, read-only: its firmware, the one tweak there is for it, and its backups here."""
             try:
-                ch = cli.open_channel(f.info, 0x81)
+                ch = cli.open_channel(f.info, 0 if in_boot else 0x81)
                 try:
-                    fw = dongle.read_firmware(ch)
+                    fw = dongle.read_firmware(ch, in_boot=in_boot)
+                    found = dongle.unit_backups(store, dongle.read_unit(ch, in_boot))
                 finally:
                     ch.close()
             except PermissionDenied as e:
                 return self.send(200, json.dumps({"error": str(e), "permission": True}))
             except (OpError, OSError, ProtocolError) as e:
                 return self.send(200, json.dumps({"error": str(e)}))
-            self.send(200, json.dumps({"device": "dongle", "paired": f.mode == "dongle_paired", "known": fw.known, "version": fw.version,
+            usable = [(p, dongle.state(d[dongle.BASE:dongle.END])) for p, d in found]
+            pick = next(((p, xbox) for p, (known, xbox) in usable if known), None)
+            self.send(200, json.dumps({"device": "dongle", "paired": f.mode == "dongle_paired", "boot": in_boot, "backed": bool(found),
+                                       "restore_backup": pick and {"name": pick[0].name, "taken": bkp.taken(pick[0]),
+                                                                   "firmware": f"firmware 1.03 with {dongle.TITLE}" if pick[1] else "the original firmware 1.03"},
+                                       "stock_ok": fw.known or pick is not None,
+                                       "known": fw.known, "version": fw.version,
                                        "tweaks": [{"key": "dongle_360", "title": "Xbox 360 controller over 2.4 GHz", "on": fw.xbox360}]}))
 
         def api_events(self):

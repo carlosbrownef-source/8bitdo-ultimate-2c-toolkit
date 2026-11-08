@@ -431,8 +431,22 @@ class WebTest(unittest.TestCase):
                 mock.patch.object(cli, "open_channel", lambda i, rid: SimApp(flash(XBOX))), \
                 mock.patch.object(dongle, "STOCK_SHA256", DK["stock_sha256"]), mock.patch.object(dongle, "XBOX360_SHA256", DK["xbox360_sha256"]):
             data = json.loads(self.call("GET", "/api/firmware")[1])
-        self.assertEqual(data, {"device": "dongle", "paired": False, "known": True, "version": 1.03,
+        self.assertEqual(data, {"device": "dongle", "paired": False, "boot": False, "backed": False, "restore_backup": None, "stock_ok": True,
+                                "known": True, "version": 1.03,
                                 "tweaks": [{"key": "dongle_360", "title": "Xbox 360 controller over 2.4 GHz", "on": True}]})
+
+    def test_a_dongle_left_in_update_mode_is_named_and_its_backup_offered(self):
+        from tests.test_dongle import STOCK, K as DK, flash, World
+        from u2c_customfw.ops import dongle
+        full = flash(STOCK)
+        (Path(self.store) / "dongle-20261108-120000.bin").write_bytes(full)
+        broken = bytearray(full); broken[dongle.BASE:dongle.END] = b"\xff" * dongle.SIZE
+        w = World(bytes(broken), start="boot")
+        with mock.patch.object(cli, "find", w.find), mock.patch.object(cli, "open_channel", w.open), \
+                mock.patch.object(dongle, "STOCK_SHA256", DK["stock_sha256"]), mock.patch.object(dongle, "XBOX360_SHA256", DK["xbox360_sha256"]):
+            data = json.loads(self.call("GET", "/api/firmware")[1])
+        self.assertEqual((data["device"], data["boot"], data["known"], data["backed"], data["stock_ok"]), ("dongle", True, False, True, True))
+        self.assertEqual(data["restore_backup"]["name"], "dongle-20261108-120000.bin")
 
     def test_the_hidden_tweak_is_never_shown(self):
         built = recipes.build(STOCK_A, ["bt_xbox", "ble_interval"], **K)

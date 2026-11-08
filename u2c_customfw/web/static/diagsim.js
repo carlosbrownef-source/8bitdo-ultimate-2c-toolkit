@@ -9,7 +9,7 @@
     const path = String(url);
     document.getElementById("diag-fetch").textContent += path + " ";
     const device = window.simReplugged ? "bluetooth_xbox" : { bt: "bluetooth_xbox", btstock: "bluetooth", cable: "cable", web: "cable", none: "bluetooth_xbox", background: "bluetooth_xbox", noext: "bluetooth_xbox", busy: "bluetooth_xbox", dongle: "dongle", donglepaired: "dongle_paired" }[mode];
-    if (path.startsWith("/api/restore")) document.getElementById("diag-posted").textContent += options.body + " ";
+    if (path.startsWith("/api/restore") || path.startsWith("/api/patch")) document.getElementById("diag-posted").textContent += options.body + " ";
     if (query.get("job") && /^\/api\/(backup|patch|restore)/.test(path)) return new Response('{"started": "job"}', { status: 202 });
     if (query.get("job") && path.startsWith("/api/events")) return new Response(JOB_EVENTS[query.get("job")].map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""), { status: 200 });
     if (path.startsWith("/api/settings") && options && options.method === "POST") {
@@ -24,7 +24,8 @@
     }
     if (path.startsWith("/api/ring")) return query.get("ringfail") ? new Response(JSON.stringify({ error: "The controller said no." }), { status: 409 }) : json({ ok: true });
     if (path.startsWith("/api/firmware") && device === "bluetooth_xbox") return json({ note: "Connect the controller by cable to see or change its firmware. Over Bluetooth, you can test it in Diagnostics and change the Home ring in Settings." });
-    if (path.startsWith("/api/firmware") && String(device).startsWith("dongle")) return json({ device: "dongle", paired: device === "dongle_paired", known: true, version: 1.03, tweaks: [{ key: "dongle_360", title: "Xbox 360 controller over 2.4 GHz", on: !query.has("stockdongle") }] });
+    if (path.startsWith("/api/firmware") && String(device).startsWith("dongle")) return json({ device: "dongle", paired: device === "dongle_paired", boot: false, backed: !query.has("nodonglebackup"), stock_ok: true,
+      restore_backup: query.has("nodonglebackup") ? null : { name: "dongle-20261108-120000.bin", taken: "8 Nov 2026 at 12:00", firmware: "the original firmware 1.03" }, known: true, version: 1.03, tweaks: [{ key: "dongle_360", title: "Xbox 360 controller over 2.4 GHz", on: !query.has("stockdongle") }] });
     if (path.startsWith("/api/firmware") && query.get("permission")) return json({ error: "macOS refused access to the controller. Allow Input Monitoring for this app in System Settings > Privacy & Security > Input Monitoring, then try again.", permission: true });
     const answer = await realFetch(url, options);
     if (path.startsWith("/api/firmware") && query.get("tweaks")) {  // &tweaks=all: the default tweaks with the ring at 5 %
@@ -82,6 +83,7 @@
     bootpop: () => { $("strip-firmware").click(); setTimeout(() => $("boot-info").click(), 300); },
     installhover: () => { $("strip-firmware").click(); setTimeout(() => { $("tweaks-act").querySelector(".btns").dispatchEvent(new MouseEvent("mouseenter")); document.getElementById("diag-snap").textContent = String(document.querySelector(".pop-pad").parentElement.matches(":popover-open")); }, 300); },
     helpsettings: () => { $("strip-settings").click(); $("help-open").click(); setTimeout(() => { document.getElementById("diag-snap").textContent = document.querySelector("[data-hsec]:not([hidden])").dataset.hsec; }, 100); },
+    donglecheck: () => { $("strip-firmware").click(); setTimeout(() => { $("dongle-360").click(); $("patch-dry").click(); }, 300); },
     keptchoice: () => { document.querySelector('.tweak[value="cable_360"]').click(); refresh(); setTimeout(() => { document.getElementById("diag-snap").textContent = tweaks().join(); }, 1000); },
     noalerts: () => { document.querySelector('.tweak[value="battery_alerts"]').click(); document.querySelector('.tweak[value="settings"]').click(); document.querySelector('.tweak[value="fixes"]').click(); document.querySelector('.tweak[value="cpu_rest"]').click(); document.getElementById("diag-snap").textContent = tweaks().join(); },
     setvibration: () => document.querySelector('[data-field="vibration"] [data-value="50"]').click(),

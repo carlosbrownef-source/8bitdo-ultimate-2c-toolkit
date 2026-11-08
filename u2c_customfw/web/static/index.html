@@ -34,7 +34,7 @@
 
   <section class="cd wide" id="backup-card">
     <h2><span class="no">1</span>Back Up<span class="tag" data-dongle="Nothing is written to the dongle">Nothing is written to the controller</span></h2>
-    <p><span data-dongle="Saving a copy of the dongle's memory comes in a later version of this app.">Saves a full copy of the controller's memory on this Mac, so you can always go back to it.</span><span id="backup-connect"> Connect the controller by cable to start.</span></p>
+    <p><span data-dongle="Saves a full copy of the dongle's memory on this Mac, so you can always go back to it.">Saves a full copy of the controller's memory on this Mac, so you can always go back to it.</span><span id="backup-connect"> Connect the controller by cable to start.</span></p>
     <div class="btns"><button id="backup" class="job">Back Up</button><span class="hint" id="last-backup"></span></div>
   </section>
 
@@ -55,7 +55,7 @@
         <label class="tw"><input type="checkbox" class="tweak" value="fast_scan"><span class="sw"></span><span>Faster button reading<small>Presses arrive about 1.25 ms sooner.</small><em class="note">A worn button could register twice.</em></span></label>
       </div>
       <div class="twgrid" id="dongle-tweaks" hidden>
-        <label class="tw off"><input type="checkbox" id="dongle-360" disabled><span class="sw"></span><span>Xbox 360 controller over 2.4 GHz<em class="note">The app can't install it yet. It comes in a later version.</em></span></label>
+        <label class="tw off"><input type="checkbox" id="dongle-360" disabled><span class="sw"></span><span>Xbox 360 controller over 2.4 GHz<small>The dongle presents itself to the Mac as a wired Xbox 360 controller, which macOS and its games recognise.</small><em class="note" id="dongle-note" hidden>Turn the controller off to change the dongle.</em></span></label>
       </div>
       <div class="opts" id="tweaks-opts"><span>The tweaks are added to 8BitDo's original firmware 1.09. Take it from:</span>
         <div><div class="seg"><button data-base="backup" class="on">Your Backup</button><button data-base="download">8BitDo's Server</button></div></div></div>
@@ -65,10 +65,10 @@
 
     <section class="cd">
       <h2><span class="no">3</span>Restore<span class="tag">Replaces the firmware</span></h2>
-      <p data-dongle="Restoring the dongle comes in a later version of this app.">Restores your backup or 8BitDo's original firmware 1.09. The controller needs to be in update mode.</p>
+      <p data-dongle="Restores your backup or 8BitDo's original firmware 1.03. The app puts the dongle in update mode by itself.">Restores your backup or 8BitDo's original firmware 1.09. The controller needs to be in update mode.</p>
       <div class="rest">
         <div><h3>Your Backup</h3><button id="restore-backup-dry" class="sec small job">Check First</button><button id="restore-backup" class="sec small job">Restore…</button><p class="why" id="restore-backup-why" hidden></p></div>
-        <div><h3>Original Firmware 1.09</h3><button id="restore-stock-dry" class="sec small job">Check First</button><button id="restore-stock" class="sec small job">Restore…</button><p class="why" id="restore-stock-why" hidden></p></div>
+        <div><h3 data-dongle="Original Firmware 1.03">Original Firmware 1.09</h3><button id="restore-stock-dry" class="sec small job">Check First</button><button id="restore-stock" class="sec small job">Restore…</button><p class="why" id="restore-stock-why" hidden></p></div>
       </div>
       <p class="why" id="restore-why" hidden></p>
     </section>
@@ -166,7 +166,7 @@
 
 <dialog id="help" aria-labelledby="help-top">
   <div class="hwrap">
-    <nav class="hside"><h3 id="help-top" tabindex="-1" autofocus>Help</h3><button type="button" data-help="start">Getting Started</button><button type="button" data-help="tweaks">Tweaks</button><button type="button" data-help="settings">Settings</button><button type="button" data-help="diagnostics">Diagnostics</button></nav>
+    <nav class="hside"><h3 id="help-top" tabindex="-1" autofocus>Help</h3><button type="button" data-help="start">Getting Started</button><button type="button" data-help="tweaks">Tweaks</button><button type="button" data-help="settings">Settings</button><button type="button" data-help="diagnostics">Diagnostics</button><button type="button" data-help="dongle">2.4 GHz Dongle</button></nav>
     <div class="hbody" id="help-body">
     <section data-hsec="start">
   <p>Out of the box, macOS and most Mac games don't recognise the 8BitDo Ultimate 2C Wireless as a standard controller. This app changes the controller's firmware (the software inside it) so that they do. It only works with firmware 1.09.</p>
@@ -213,6 +213,16 @@
   <p><b>Firmware Details</b> shows what the app read from the controller, including where the version came from and whether a firmware update is pending.</p>
   <p><b>Create Problem Report</b> collects the controller's state and the last task's log for a bug report. It never includes the controller's address, its Bluetooth pairings or your backup.</p>
   <p><b>Install Firmware 1.09 Anyway…</b> is only for a controller whose firmware can't be identified. It erases the firmware and installs 8BitDo's original 1.09 without being able to check beforehand that it's right for the controller, so use it only if Restore doesn't work.</p>
+    </section>
+    <section data-hsec="dongle">
+  <h4 id="help-dongle">2.4 GHz Dongle</h4>
+  <p>The app also works with the Ultimate 2C's 2.4 GHz dongle on firmware 1.03. Plug it in with the controller off, so it's on its own, and the Firmware tab shows its firmware and its one tweak.</p>
+  <ul>
+    <li><b>Xbox 360 controller over 2.4 GHz.</b> With the controller connected through it, the dongle presents itself to the Mac as a wired Xbox 360 controller, which macOS and its games recognise. It also reports a different version number from the controller by cable, so the app can tell the two apart.</li>
+  </ul>
+  <p><b>Back Up</b> saves the dongle's whole memory on this Mac. You need a backup of the dongle before installing or restoring. The dongle has no buttons, so the app puts it in update mode by itself when it writes, checks it there against your backup before anything is erased, writes only its firmware, and restarts it. <b>Check First</b> reads the dongle without changing it.</p>
+  <p><b>Restore</b> puts back your backup, or 8BitDo's original firmware 1.03, made from your backup and checked against its known checksum. If a write is interrupted, the dongle stays in update mode, the app says so, and Restore still works.</p>
+  <p>With the controller connected through the dongle, the app shows the dongle's firmware but doesn't change it. Turn the controller off first. The controller's own firmware can only be read by cable.</p>
     </section>
     </div>
   </div>
