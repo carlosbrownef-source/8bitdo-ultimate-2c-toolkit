@@ -9,6 +9,7 @@
     const path = String(url);
     document.getElementById("diag-fetch").textContent += path + " ";
     const device = window.simReplugged ? "bluetooth_xbox" : { bt: "bluetooth_xbox", btstock: "bluetooth", cable: "cable", web: "cable", none: "bluetooth_xbox", background: "bluetooth_xbox", noext: "bluetooth_xbox", busy: "bluetooth_xbox" }[mode];
+    if (path.startsWith("/api/restore")) document.getElementById("diag-posted").textContent += options.body + " ";
     if (path.startsWith("/api/settings") && options && options.method === "POST") {
       document.getElementById("diag-posted").textContent += options.body + " ";
       if (query.get("slow")) await new Promise((r) => setTimeout(r, 2000));
@@ -71,6 +72,9 @@
     remap: () => { const c = document.querySelector('[data-field="remap_13"]'); c.value = 12; c.dispatchEvent(new Event("change")); },
     remapreset: () => { const c = document.querySelector('[data-field="remap_13"]'); c.value = 12; c.dispatchEvent(new Event("change")); setTimeout(() => { $("settings-reset").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); }, 200); }, 200); },
     resetopen: () => $("settings-reset").click(),
+    restoreask: () => $("restore-backup").click(),
+    restorecheck: () => $("restore-backup-dry").click(),
+    installask: () => $("patch-write").click(),
     resetyes: () => { $("settings-reset").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); }, 200); },  // headless Chrome holds back the close event
     ringlevel: () => document.querySelector('[data-live="1"]').click(),
     ringreread: () => { document.querySelector('[data-live="1"]').click(); setTimeout(refresh, 300); },

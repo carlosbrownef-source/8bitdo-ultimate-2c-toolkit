@@ -106,7 +106,7 @@ function render() {
   $("choose-one").hidden = tweaks().length > 0;
 
   const can = { backup: !!ctrl, "patch-dry": patchable, "patch-write": patchable,
-    "restore-backup-dry": boot && backed, "restore-backup": boot && backed, "restore-stock-dry": boot && backed, "restore-stock": boot && backed,
+    "restore-backup-dry": boot && !!fw && !!fw.restore_backup, "restore-backup": boot && !!fw && !!fw.restore_backup, "restore-stock-dry": boot && backed, "restore-stock": boot && backed,
     "force-open": boot && backed, "report-open": true, refresh: true, "details-refresh": true };
   for (const [id, ok] of Object.entries(can)) $(id).disabled = off || !ok;
   const hot = !!fw && fw.known === false && !fw.version && !fw.error;
@@ -191,8 +191,10 @@ async function runJob(label, path, body) {
   busy = false; refresh();
 }
 
-function ask(title, text, chips, yes) {
+function ask(title, text, chips, yes, kind = "safe") {  // kind: "install" (the warranty line and danger styling), "danger" or "safe"
   $("confirm-title").textContent = title; $("confirm-text").textContent = text; $("confirm-yes").textContent = yes;
+  $("confirm-yes").className = kind === "safe" ? "" : "danger";
+  $("confirm-icon").hidden = kind === "safe"; $("confirm-warranty").hidden = kind !== "install";
   const box = $("confirm-chips"); box.textContent = "";
   for (const c of chips) { const s = document.createElement("span"); s.textContent = c; box.append(s); }
   const d = $("confirm");
@@ -273,17 +275,18 @@ $("log-toggle").onclick = () => { const l = $("log"); l.hidden = !l.hidden; $("l
 $("backup").onclick = () => runJob("Backing up", "/api/backup");
 $("patch-dry").onclick = () => runJob("Checking", "/api/patch", { tweaks: tweaks(), base, write: false });
 $("patch-write").onclick = async () => {
-  if (await ask("Install these tweaks?", "This changes the controller's firmware and voids its warranty.", tweakTitles(), "Install"))
+  if (await ask("Install these tweaks?", "This changes the controller's firmware and voids its warranty.", tweakTitles(), "Install", "install"))
     runJob("Installing", "/api/patch", { tweaks: tweaks(), base, write: true });
 };
-$("restore-backup-dry").onclick = () => runJob("Checking", "/api/restore", { source: "backup", write: false });
+$("restore-backup-dry").onclick = () => runJob("Checking", "/api/restore", { source: "backup", backup: fw.restore_backup.name, write: false });
 $("restore-stock-dry").onclick = () => runJob("Checking", "/api/restore", { source: "stock", write: false });
 $("restore-backup").onclick = async () => {
-  if (await ask("Restore your backup?", "This rewrites the controller's firmware with the one in your backup.", [], "Restore"))
-    runJob("Restoring", "/api/restore", { source: "backup", write: true });
+  const b = fw.restore_backup;
+  if (await ask("Restore your backup?", `This replaces the controller's firmware with your backup “${b.name}”, made on ${b.taken}, which has ${b.firmware}.`, [], "Restore"))
+    runJob("Restoring", "/api/restore", { source: "backup", backup: b.name, write: true });
 };
 $("restore-stock").onclick = async () => {
-  if (await ask("Restore the original firmware 1.09?", "This replaces the controller's firmware with 8BitDo's original 1.09, downloaded from 8BitDo.", [], "Restore"))
+  if (await ask("Restore the original firmware 1.09?", "This replaces the controller's firmware with 8BitDo's original 1.09, downloaded from 8BitDo. Your settings, pairings and calibration stay as they are.", [], "Restore", "danger"))
     runJob("Restoring", "/api/restore", { source: "stock", write: true });
 };
 $("force-open").onclick = () => {

@@ -3,6 +3,7 @@
 from .. import protocol
 from ..firmware import image, recipes
 from ..protocol import boot
+from .backup import describe, taken
 from .patch import check_unit, current_bank_a
 from .probe import detect_version
 from .plan import OpError, Plan, count
@@ -41,4 +42,7 @@ def plan_restore(ch, backup, source: str, stock, force_unknown: bool = False) ->
             if now[o:o + image.SECTOR] != bytes(target[a:a + image.SECTOR]):
                 others.append(a)
     diff = sum(x != y for x, y in zip(cur, want))
-    return Plan(bytes(target), cur != want, others, diff, f"This changes {count(diff, 'byte')} of the firmware and {count(len(others), 'other 4 KB block')}.")
+    what = (f"This restores the backup “{backup.path.name}”, made on {taken(backup.path)}, which has {describe(backup.state)}."
+            if source == "backup" else "This installs 8BitDo's original firmware 1.09.")
+    blocks = f" and {count(len(others), 'other block')} of the controller's memory" if others else ""
+    return Plan(bytes(target), cur != want, others, diff, f"{what} It changes {count(diff, 'byte')} of the firmware{blocks}.")

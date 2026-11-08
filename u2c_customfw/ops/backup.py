@@ -2,6 +2,7 @@
 """Full read-only backup of the controller's flash, over the cable (update channel) or in boot mode."""
 import datetime
 import hashlib
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -72,6 +73,28 @@ def find_backups(store: Path, bootloader: bytes, mac: bytes) -> list[Backup]:
     """Backups in the store taken from this unit (same bootloader and address), newest first."""
     return [b for b in _stored(store) if b.data[:image.BOOT_END] == bootloader
             and image.same_unit(b.data[image.MAC_SECTOR:image.MAC_SECTOR + image.SECTOR], mac)]
+
+
+def restorable(backups: list[Backup]) -> Backup | None:
+    """The one Restore your backup uses: the newest whose firmware the app recognises, never a damaged or foreign one."""
+    return next((b for b in backups if b.state.known), None)
+
+
+def taken(path: Path) -> str:
+    """When a backup was made, from its name (controller-YYYYMMDD-HHMMSS.bin), or else from the file."""
+    m = re.match(r"controller-(\d{8}-\d{6})", Path(path).name)
+    d = datetime.datetime.strptime(m.group(1), "%Y%m%d-%H%M%S") if m else datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)
+    return f"{d.day} {d:%b %Y} at {d:%H:%M}"
+
+
+def describe(state: recipes.State) -> str:
+    """The firmware in words: "the original firmware 1.09", "firmware 1.09 with A and B", or that it isn't recognised."""
+    if not state.known:
+        return "firmware this app doesn't recognise"
+    titles = [recipes.RECIPES[k].title for k in state.recipes]
+    if not titles:
+        return "the original firmware 1.09"
+    return "firmware 1.09 with " + (titles[0] if len(titles) == 1 else f"{', '.join(titles[:-1])} and {titles[-1]}")
 
 
 def find_original(backup: Backup, store: Path) -> bytes | None:

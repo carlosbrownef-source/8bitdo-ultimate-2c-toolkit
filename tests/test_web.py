@@ -14,7 +14,7 @@ from u2c_customfw.firmware import image, recipes
 from u2c_customfw.ops import devices, probe
 from u2c_customfw import transport
 from u2c_customfw.protocol import app
-from u2c_customfw.sim import SimApp
+from u2c_customfw.sim import SimApp, SimBoot
 from tests.test_ops import K, STOCK_A, controller_flash
 from u2c_customfw.web import jobs, server
 
@@ -141,16 +141,19 @@ class WebTest(unittest.TestCase):
 
         def fake(args, store):
             seen.update(tweaks=args.tweaks, write=args.write, download=args.download, source=args.source,
-                        force_unknown=args.force_unknown)
+                        force_unknown=args.force_unknown, expect=args.expect, file=getattr(args, "file", None))
         state.accept(self.store)
         jobs.ACTIONS["patch"] = fake
         jobs.ACTIONS["restore"] = fake
         self.assertEqual(self.call("POST", "/api/patch", {"tweaks": ["bt_xbox", "cable_360"], "base": "download", "write": True})[0], 202)
         self.events()
-        self.assertEqual(seen, dict(tweaks="bt_xbox,cable_360", write=True, download=True, source="backup", force_unknown=False))
+        self.assertEqual(seen, dict(tweaks="bt_xbox,cable_360", write=True, download=True, source="backup", force_unknown=False, expect=None, file=None))
         self.assertEqual(self.call("POST", "/api/restore", {"source": "stock", "write": False})[0], 202)
         self.events()
-        self.assertEqual((seen["source"], seen["download"], seen["write"], seen["force_unknown"]), ("stock", True, False, False))
+        self.assertEqual((seen["source"], seen["write"], seen["force_unknown"]), ("stock", False, False))
+        self.call("POST", "/api/restore", {"source": "backup", "backup": "controller-20260101-000000.bin", "file": "/etc/passwd"})
+        self.events()
+        self.assertEqual((seen["expect"], seen["file"]), ("controller-20260101-000000.bin", None))
         self.call("POST", "/api/restore", {"source": "stock", "write": True, "force_unknown": True})
         self.events()
         self.assertTrue(seen["force_unknown"])
@@ -318,6 +321,27 @@ class WebTest(unittest.TestCase):
         self.assertEqual((data["pending"], data["boot_identity"]), (False, None))
         self.assertEqual([(t["key"], t["on"]) for t in data["tweaks"]],
                          [("bt_xbox", True), ("bt_rumble", False), ("cable_360", True), ("dim_leds", False), ("battery_alerts", False), ("settings", False), ("fixes", False), ("stick_precision", False), ("cpu_rest", False), ("ble_interval", False), ("fast_scan", False), ("ring", False)])
+
+    def test_firmware_endpoint_in_update_mode_names_the_backup_restore_uses(self):
+        flash = controller_flash()
+        (self.store / "controller-20260101-000000.bin").write_bytes(flash)
+        damaged = bytearray(flash); damaged[image.BASE:image.BASE + 0x1000] = b"\xff" * 0x1000
+        (self.store / "controller-20260102-000000.bin").write_bytes(bytes(damaged))
+        info = transport.DeviceInfo(0x2DC8, 0x3208, 0x8C, "USB", "x", None)
+        with mock.patch.object(cli, "find", lambda: [devices.Found(info, "boot")]), \
+                mock.patch.object(cli, "open_channel", lambda i, rid: SimBoot(bytes(damaged))), \
+                mock.patch.object(recipes, "_constants", lambda a=None, b=None, c=None: (K["stock_sha256"], K["region_sha256"], K["remainder_sha256"])):
+            data = json.loads(self.call("GET", "/api/firmware")[1])
+        self.assertEqual(data["restore_backup"], {"name": "controller-20260101-000000.bin", "taken": "1 Jan 2026 at 00:00",
+                                                  "firmware": "the original firmware 1.09"})
+
+    def test_firmware_endpoint_by_cable_names_no_backup(self):
+        info = transport.DeviceInfo(0x2DC8, 0x310A, 0xFF7A, "USB", "x", None)
+        with mock.patch.object(cli, "find", lambda: [devices.Found(info, "cable")]), \
+                mock.patch.object(cli, "open_channel", lambda i, rid: SimApp(controller_flash())), \
+                mock.patch.object(recipes, "_constants", lambda a=None, b=None, c=None: (K["stock_sha256"], K["region_sha256"], K["remainder_sha256"])):
+            data = json.loads(self.call("GET", "/api/firmware")[1])
+        self.assertIsNone(data["restore_backup"])
 
     def test_firmware_endpoint_with_only_bluetooth_explains(self):
         info = transport.DeviceInfo(0x045E, 0x0B13, 1, "Bluetooth Low Energy", "x", None)

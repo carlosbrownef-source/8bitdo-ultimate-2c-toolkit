@@ -4,6 +4,7 @@ import io
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 from u2c_customfw import cli, state, transport
@@ -98,6 +99,42 @@ class CliTest(unittest.TestCase):
         code, text = run(["restore", "stock", "--force-unknown", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], dev)
         self.assertNotEqual(code, 2, text)   # 2 would be a usage error
         self.assertEqual([o for o in dev.ops if o[0] != "read"], [])
+
+    def unrecognised(self):  # the same unit, with bank A no longer recognised (an interrupted install, say)
+        f = bytearray(self.flash)
+        f[image.BASE:image.BASE + 0x1000] = b"\xff" * 0x1000
+        return bytes(f)
+
+    def test_restore_backup_skips_a_newer_backup_it_doesnt_recognise(self):
+        (self.tmp / "controller-20260102-000000.bin").write_bytes(self.unrecognised())
+        code, text = run(["restore", "backup", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], SimBoot(self.unrecognised()))
+        self.assertEqual(code, 0, text)
+        self.assertIn("controller-20260101-000000.bin", text)
+        self.assertIn("1 Jan 2026 at 00:00", text)
+        self.assertIn("the original firmware 1.09", text)
+        self.assertNotIn("controller-20260102-000000.bin", text)
+
+    def test_restore_backup_refuses_when_no_backup_is_recognised(self):
+        (self.tmp / "controller-20260101-000000.bin").write_bytes(self.unrecognised())
+        dev = SimBoot(self.unrecognised())
+        code, text = run(["restore", "backup", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], dev)
+        self.assertEqual(code, 2)
+        self.assertIn("None of this controller's backups has firmware this app recognises, so nothing was written.", text)
+        self.assertEqual([o for o in dev.ops if o[0] != "read"], [])
+
+    def test_restore_backup_refuses_another_backup_than_the_one_shown(self):
+        args = SimpleNamespace(source="backup", backup=None, expect="controller-20990101-000000.bin", force_unknown=False, write=False,
+                               say=lambda t: None, hint=lambda t: None, progress=None)
+        with mock.patch.object(cli, "find", lambda: [found("boot", 0x3208, 0x8C)]), mock.patch.object(cli, "open_channel", lambda i, rid: SimBoot(self.flash)), \
+                mock.patch.object(recipes, "_constants", lambda a=None, b=None, c=None: (K["stock_sha256"], K["region_sha256"], K["remainder_sha256"])):
+            with self.assertRaises(cli.Exit) as e:
+                cli.cmd_restore(args, self.tmp)
+        self.assertIn("isn't the one shown", e.exception.msg)
+
+    def test_restore_takes_no_file_or_download_argument(self):
+        for extra in (["controller-20260101-000000.bin"], ["--download"]):
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+                cli.main(["restore", "backup", *extra])
 
     def test_no_device(self):
         code, text = run(["backup", "--store", str(self.tmp)], [])

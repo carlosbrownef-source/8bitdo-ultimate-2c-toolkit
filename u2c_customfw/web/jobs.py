@@ -39,7 +39,7 @@ class Runner:
             if self.running:
                 return False
             self.running, self.events = True, []
-        args = SimpleNamespace(**{**dict(write=False, tweaks="", backup=None, download=False, source="backup", file=None,
+        args = SimpleNamespace(**{**dict(write=False, tweaks="", backup=None, download=False, source="backup", expect=None,
                                          accept_disclaimer=False, force_unknown=False), **params})
         args.say = lambda text: self.push({"type": "log", "text": str(text)})
         args.hint = lambda text: None  # command-line advice, meaningless in the app

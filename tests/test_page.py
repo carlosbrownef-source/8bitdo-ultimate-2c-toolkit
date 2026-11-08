@@ -575,6 +575,31 @@ class ControllerTestCard(PageCase):
         self.assertIn("macOS sees: 8BitDo Ultimate 2C (X/S) (Xbox One)", dom.find("report-text").all_text())
 
 
+class ConfirmTest(PageCase):
+    def test_restoring_the_backup_names_it_and_isnt_styled_as_danger(self):
+        dom = self.server.dom("&diagsim=boot&scenario=restoreask")
+        self.assertIn("open", dom.find("confirm").attrs)
+        self.assertIn("“controller-sim.bin”, made on", dom.find("confirm-text").all_text())
+        self.assertIn("the original firmware 1.09", dom.find("confirm-text").all_text())
+        self.assertNotIn("danger", dom.find("confirm-yes").classes())
+        self.assertIn("hidden", dom.find("confirm-icon").attrs)
+        self.assertIn("hidden", dom.find("confirm-warranty").attrs)
+
+    def test_the_restore_sends_the_backup_it_named(self):
+        self.assertIn('"backup":"controller-sim.bin"', self.server.dom("&diagsim=boot&scenario=restorecheck").find("diag-posted").all_text())
+
+    def test_installing_warns_about_the_warranty(self):
+        dom = self.server.dom("&diagsim=boot&scenario=installask")
+        self.assertIn("danger", dom.find("confirm-yes").classes())
+        self.assertNotIn("hidden", dom.find("confirm-icon").attrs)
+        self.assertNotIn("hidden", dom.find("confirm-warranty").attrs)
+
+    def test_reset_is_not_styled_as_danger(self):
+        dom = self.server.dom(SettingsTabTest.READY + "&scenario=resetopen")
+        self.assertNotIn("danger", dom.find("confirm-yes").classes())
+        self.assertIn("hidden", dom.find("confirm-warranty").attrs)
+
+
 class HelpTest(PageCase):
     def test_help_describes_diagnostics(self):
         text = self.server.dom().find("help").all_text()

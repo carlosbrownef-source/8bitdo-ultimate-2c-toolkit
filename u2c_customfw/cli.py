@@ -98,13 +98,26 @@ def cmd_identify(args, store):
     args.say(("original 1.09" + (f" with tweaks: {', '.join(s.recipes)}" if s.recipes else "")) if s.known else "unknown firmware")
 
 
-def _backup_for(args, ch, store):
+def unit_backups(ch, store):
+    """The backups of the controller in update mode on ch, newest first."""
+    return bkp.find_backups(store, boot.read(ch, 0, image.BOOT_END), boot.read(ch, image.MAC_SECTOR, image.SECTOR))
+
+
+def _backup_for(args, ch, store, recognised=False):
+    """The backup named with --backup, or the newest of this unit; recognised: the newest whose firmware the app
+    recognises, which is the one Restore puts back."""
     if args.backup:
         return bkp.load(Path(args.backup))
-    found = bkp.find_backups(store, boot.read(ch, 0, image.BOOT_END), boot.read(ch, image.MAC_SECTOR, image.SECTOR))
+    found = unit_backups(ch, store)
     if not found:
         raise Exit(2, "There's no backup of this controller. Back it up first, connected by cable.")
-    return found[0]
+    if not recognised:
+        return found[0]
+    b = bkp.restorable(found)
+    if b is None:
+        raise Exit(2, "None of this controller's backups has firmware this app recognises, so nothing was written. "
+                      "You can restore the original firmware 1.09 instead.")
+    return b
 
 
 def cmd_patch(args, store):
@@ -130,7 +143,9 @@ def cmd_restore(args, store):
     f = pick(("boot",))
     ch = open_channel(f.info, 0)
     try:
-        b = bkp.load(Path(args.file)) if args.file else _backup_for(args, ch, store)
+        b = _backup_for(args, ch, store, recognised=args.source == "backup")
+        if args.source == "backup" and getattr(args, "expect", None) and b.path.name != args.expect:  # the page names the backup it showed
+            raise Exit(2, "The backup to restore isn't the one shown, so nothing was written. Check again.")
         stock = fetch.fetch_stock() if args.source == "stock" else None
         plan = restore.plan_restore(ch, b, args.source, stock, args.force_unknown)
         args.say(plan.summary)
@@ -169,8 +184,8 @@ def main(argv=None) -> int:
     p.add_argument("--tweaks", default="", help="comma list of: " + ", ".join(k for k, r in recipes.RECIPES.items() if not r.earlier_form_of))
     p.add_argument("--backup"); p.add_argument("--download", action="store_true", help="use 8BitDo's v1.09 from its server")
     p = sub.add_parser("restore", parents=[common])
-    p.add_argument("source", choices=["backup", "stock"]); p.add_argument("file", nargs="?")
-    p.add_argument("--backup"); p.add_argument("--download", action="store_true")
+    p.add_argument("source", choices=["backup", "stock"])
+    p.add_argument("--backup", help="this backup file instead of the newest recognised one of the controller")
     p.add_argument("--force-unknown", action="store_true", help="restore 8BitDo's v1.09 even though the firmware version cannot be determined (risky)")
     for p in sub.choices.values():
         if p.prog.endswith(("patch", "restore")):

@@ -10,7 +10,7 @@ INTERRUPTED = "The task was interrupted, and the controller may not start until 
 
 
 def count(n: int, noun: str) -> str:
-    return f"{n} {noun}" + ("" if n == 1 else "s")
+    return f"{n:,} {noun}" + ("" if n == 1 else "s")
 
 
 class OpError(Exception):

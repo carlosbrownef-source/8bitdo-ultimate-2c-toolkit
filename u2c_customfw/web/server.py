@@ -10,10 +10,10 @@ from urllib.parse import parse_qs, urlparse
 from .. import __version__, disclaimer, settings, state
 from .. import cli
 from ..firmware import recipes
-from ..ops import probe, report as report_mod
+from ..ops import backup as bkp, probe, report as report_mod
 from ..ops import settings as settings_ops
 from ..ops.plan import OpError
-from ..protocol import app
+from ..protocol import ProtocolError, app
 from ..transport import PermissionDenied
 from . import jobs
 
@@ -219,14 +219,16 @@ def make_server(store: Path, port: int = 0):
                 ch = cli.open_channel(f.info, 0 if f.mode == "boot" else 0x81)
                 try:
                     fw = probe.read_firmware(ch, f.mode)
+                    pick = bkp.restorable(cli.unit_backups(ch, store)) if f.mode == "boot" else None   # what Restore your backup would use
                 finally:
                     ch.close()
                 st, version = fw.state, fw.version
-            except (OpError, PermissionDenied, OSError) as e:
+            except (OpError, PermissionDenied, OSError, ProtocolError) as e:
                 return self.send(200, json.dumps({"error": str(e)}))
             ring = [recipes.RECIPES[k].title for k in st.recipes if recipes.RECIPES[k].group == "ring"]
             self.send(200, json.dumps({"known": st.known, "recipes": list(st.recipes), "version": version, "version_from": fw.version_from,
                                        "pending": fw.pending, "boot_identity": fw.boot_identity, "outdated": st.outdated, "ring_level": fw.ring_level,
+                                       "restore_backup": pick and {"name": pick.path.name, "taken": bkp.taken(pick.path), "firmware": bkp.describe(pick.state)},
                                        "titles": [recipes.RECIPES[k].title for k in st.recipes],
                                        "tweaks": [{"key": k, "title": r.title, "on": k in st.recipes}
                                                   for k, r in recipes.RECIPES.items() if not r.group]
@@ -277,8 +279,8 @@ def make_server(store: Path, port: int = 0):
             params = {"/api/backup": ("backup", {}),
                       "/api/patch": ("patch", dict(tweaks=",".join(req.get("tweaks", [])), download=req.get("base") == "download",
                                                     write=bool(req.get("write")))),
-                      "/api/restore": ("restore", dict(source=req.get("source", "backup"), file=req.get("file"),
-                                                        download=req.get("source") == "stock", write=bool(req.get("write")),
+                      "/api/restore": ("restore", dict(source=req.get("source", "backup"), write=bool(req.get("write")),
+                                                        expect=req.get("backup") if isinstance(req.get("backup"), str) else None,
                                                         force_unknown=bool(req.get("force_unknown"))))}.get(route)
             if params is None:
                 return self.send(404, json.dumps({"error": "unknown call"}))
