@@ -281,8 +281,9 @@ class PatchTest(Base):
         with self.assertRaises(OpError):
             patch.plan_patch(SimBoot(self.flash), short, STOCK_A, ["cable_360"])
 
-    def test_unknown_bank_a_is_refused_for_patching(self):
+    def test_unknown_bank_a_is_refused_for_patching_when_the_version_is_unknown(self):
         odd = bytearray(self.flash); odd[0x9000] ^= 0xFF
+        odd[0x49000] ^= 0xFF; odd[0x3F00C] = 0xFF  # bank B isn't 1.09 and the update record has no version
         dev = SimBoot(bytes(odd))
         with self.assertRaises(OpError) as e:
             patch.plan_patch(dev, self.backup, STOCK_A, ["cable_360"])
@@ -380,6 +381,8 @@ class UnknownFirmwareMessageTest(Base):
     def test_patch_refusal_explains_the_two_likely_causes(self):
         f = bytearray(controller_flash())
         f[0x6000:0x6010] = bytes(16)
+        f[0x40000:0x40010] = bytes(16)  # bank B isn't 1.09 either
+        f[0x3F00C] = 0xFF               # and the update record has no version
         f = bytes(f)
         with self.assertRaises(OpError) as e:
             patch.plan_patch(SimBoot(f), self.backup_of(f), STOCK_A, ["dim_leds"])
@@ -530,6 +533,29 @@ class VersionTest(Base):
         with self.assertRaises(OpError) as e:
             restore.plan_restore(dev, self.backup, "stock", STOCK_A)
         self.assertIn("can't be identified", str(e.exception))
+
+    def test_patch_replaces_unrecognised_firmware_when_the_controller_has_1_09(self):
+        odd = bytes(random.Random(9).randbytes(0x12400))
+        for dev in (self.device(0x6D, bank_a=odd, boot_mode=True), self.device(0xFF, bank_a=odd, boot_mode=True)):
+            plan = patch.plan_patch(dev, self.backup, STOCK_A, ["dim_leds"])
+            self.assertIn("doesn't recognise", plan.summary)
+            patch.apply(dev, plan, noprogress)
+            self.assertEqual(recipes.identify(bytes(dev.f[image.BASE:image.APP_END])).recipes, ("dim_leds",))
+
+    def test_patch_refused_over_unrecognised_firmware_of_another_version(self):
+        dev = self.device(106, bank_a=bytes(random.Random(10).randbytes(0x12400)), boot_mode=True)
+        with self.assertRaises(OpError) as e:
+            patch.plan_patch(dev, self.backup, STOCK_A, ["dim_leds"])
+        self.assertIn("1.06", str(e.exception))
+        self.assertEqual([o for o in dev.ops if o[0] != "read"], [])
+
+    def test_patch_refused_when_unrecognised_and_the_version_cannot_be_determined(self):
+        odd = bytes(random.Random(11).randbytes(0x12400))
+        dev = self.device(0xFF, bank_a=odd, bank_b=odd, boot_mode=True)
+        with self.assertRaises(OpError) as e:
+            patch.plan_patch(dev, self.backup, STOCK_A, ["dim_leds"])
+        self.assertIn("nothing was written", str(e.exception))
+        self.assertEqual([o for o in dev.ops if o[0] != "read"], [])
 
     def test_force_install_only_overrides_an_unknown_version(self):
         odd = bytes(random.Random(8).randbytes(0x12400))

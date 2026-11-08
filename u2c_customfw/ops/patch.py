@@ -44,8 +44,13 @@ def plan_patch(ch, backup, stock: bytes, keys) -> Plan:
     check_unit(ch, backup)
     check_no_pending_update(ch)
     cur = current_bank_a(ch)
-    if not recipes.identify(cur).known:
-        raise OpError("This controller's firmware isn't the original 1.09, with or without this app's tweaks, so nothing was written. It may be another firmware version, which you can update with 8BitDo's own updater, or firmware modified outside this app, which you can replace with Restore.")
+    replacing = not recipes.identify(cur).known
+    if replacing:  # the whole bank A is written from stock either way, so 1.09 is all that matters, as for Restore
+        v, _ = probe.detect_version(ch, "boot", cur)
+        if v is None:
+            raise OpError("This controller's firmware isn't the original 1.09, with or without this app's tweaks, and its version can't be identified, so nothing was written. It may be another firmware version, which you can update with 8BitDo's own updater, or firmware modified outside this app, which you can replace with Restore.")
+        if abs(v - image.SUPPORTED_VERSION) > 1e-6:
+            raise OpError(f"This controller has firmware {v:.2f}, and this app only supports {image.SUPPORTED_VERSION:.2f}, so nothing was written. Update it with 8BitDo's own updater first.")
     try:
         new = recipes.build(stock, keys)
     except recipes.RecipeError as e:
@@ -53,4 +58,5 @@ def plan_patch(ch, backup, stock: bytes, keys) -> Plan:
     target = bytearray(image.FLASH_SIZE)
     target[image.BASE:image.APP_END] = new
     diff = sum(x != y for x, y in zip(cur, new))
-    return Plan(bytes(target), diff > 0, [], diff, f"{count(diff, 'byte')} of the firmware will change. Tweaks: {', '.join(recipes.RECIPES[k].title for k in keys) or 'none'}.")
+    note = "This replaces firmware 1.09 that this app doesn't recognise. " if replacing else ""
+    return Plan(bytes(target), diff > 0, [], diff, f"{note}{count(diff, 'byte')} of the firmware will change. Tweaks: {', '.join(recipes.RECIPES[k].title for k in keys) or 'none'}.")
