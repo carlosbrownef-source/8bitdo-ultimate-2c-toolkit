@@ -333,6 +333,26 @@ class RestoreTest(Base):
         patch.apply(dev, plan, noprogress)
         self.assertEqual(bytes(dev.f[:image.CONFIG_START]), self.flash[:image.CONFIG_START])
 
+    def test_other_blocks_are_erased_and_written_run_by_run_with_the_run_length(self):
+        # Never run on hardware yet (only bank A's stream is proven): this pins what a restore of other blocks sends.
+        dev = self.damaged()
+        dev.f[0x46010] ^= 0xFF   # with 0x45000, a run of two sectors
+        plan = restore.plan_restore(dev, self.backup, "backup", None)
+        self.assertEqual(plan.other_sectors, [0x3F000, 0x45000, 0x46000])
+        patch.apply(dev, plan, noprogress)
+        self.assertEqual([o for o in dev.ops if o[0] == "erase"],
+                         [("erase", image.BASE, image.BANK_A_ERASE_END), ("erase", 0x3F000, 0x40000), ("erase", 0x45000, 0x47000)])
+        writes = list(zip((o for o in dev.ops if o[0] == "write"), dev.params))
+        self.assertEqual({p for (_, a, _), p in writes if a < image.BANK_A_ERASE_END}, {image.BANK_A_SIZE})
+        other = [(a, end, p) for (_, a, end), p in writes if a >= image.BANK_A_ERASE_END]
+        self.assertEqual({p for a, _, p in other if a < 0x40000}, {0x1000})   # the run's length, not BANK_A_SIZE
+        self.assertEqual({p for a, _, p in other if a >= 0x45000}, {0x2000})
+        for lo, hi in ((0x3F000, 0x40000), (0x45000, 0x47000)):
+            sent = sorted((a, end) for a, end, _ in other if lo <= a < hi)
+            self.assertEqual(sent[0][0], lo)
+            self.assertTrue(all(b[0] == a[1] or self.flash[a[1]:b[0]] == b"\xff" * (b[0] - a[1]) for a, b in zip(sent, sent[1:])))
+        self.assertEqual(bytes(dev.f[0x19000:image.CONFIG_START]), self.flash[0x19000:image.CONFIG_START])
+
     def test_restore_accepts_an_unknown_bank_a(self):
         dev = self.damaged()
         self.assertTrue(restore.plan_restore(dev, self.backup, "backup", None).bank_a)
