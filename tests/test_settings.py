@@ -13,6 +13,7 @@ DEFAULTS = {f.name: f.default for f in settings.FIELDS}
 
 def flash_with(installed=True, record=None):
     f = bytearray(b"\xff" * 0x80000)
+    f[0x10000:0x10010] = bytes(range(16))   # the controller's code, where a paired dongle reads blank
     if installed:
         addr = settings.INSTALLED_HOOK
         hook = next(e.new for e in recipes.RECIPES["settings"].edits if e.addr == addr)

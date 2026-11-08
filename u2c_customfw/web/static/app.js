@@ -2,6 +2,7 @@
 const token = new URLSearchParams(location.search).get("token") || "";
 if (new URLSearchParams(location.search).has("native")) document.body.classList.add("native");  // in the Mac app, whose title bar shows the name and Help
 const $ = (id) => document.getElementById(id);
+const setOn = (el, on) => { el.classList.toggle("on", on); el.setAttribute("aria-pressed", on); };  // a segmented choice or a chip
 const api = async (method, path, body) => {
   const r = await fetch(path, { method, headers: { "X-Token": token }, body: body ? JSON.stringify(body) : undefined });
   const text = await r.text();
@@ -15,8 +16,14 @@ const ICON = {
   no: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
   dash: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 8h8"/></svg>',
   warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></svg>',
-  plug: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v5M15 3v5M6 8h12v4a6 6 0 0 1-12 0zM12 18v3"/></svg>',
 };
+
+/* The 2.4 GHz dongle, drawn from scratch and lying on its side: a light brick body and its USB-A plug. */
+const dongleArt = (dim) => `<svg viewBox="0 0 300 172" fill="none" role="img" aria-label="2.4 GHz dongle"><defs><linearGradient id="gd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9dde2"/><stop offset="1" stop-color="#b4bac2"/></linearGradient><linearGradient id="gp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6e9ec"/><stop offset="1" stop-color="#9aa1ab"/></linearGradient></defs>
+<g opacity="${dim ? ".5" : "1"}"><rect x="230" y="62" width="58" height="48" rx="2" fill="url(#gp)" stroke="#8a919b" stroke-width="1.5"/><rect x="262" y="71" width="11" height="9" rx="1" fill="#2a2f36"/><rect x="262" y="92" width="11" height="9" rx="1" fill="#2a2f36"/>
+<rect x="222" y="56" width="14" height="60" rx="3" fill="#c9ced4" stroke="#9aa1ab" stroke-width="1.5"/>
+<rect x="52" y="44" width="176" height="84" rx="7" fill="url(#gd)" stroke="#9aa1ab" stroke-width="1.5" ${dim ? 'stroke-dasharray="5 4"' : ""}/>
+<path d="M54 72h172M54 100h172M110 44v28M180 44v28M80 72v28M150 72v28M200 72v28M120 100v28M170 100v28" stroke="#a3a9b1" stroke-width="1.5"/></g></svg>`;
 
 /* Ultimate 2C, drawn from scratch: offset sticks, d-pad lower left, ABXY upper right, home button with its LED ring. */
 const stick = (x, y, k) => `<circle cx="${x}" cy="${y}" r="19" fill="#1c2026"/><g data-k="${k}"><circle cx="${x}" cy="${y}" r="13.5" fill="#4b525c"/><circle cx="${x}" cy="${y}" r="9" fill="#424851"/></g>`;
@@ -34,18 +41,20 @@ ${face(215, 43, "Y")}${face(198, 60, "X")}${face(232, 60, "B")}${face(215, 77, "
 
 const CONTROLLER = ["cable", "cable_360", "boot"];
 let st = null, fw = null, reading = false, busy = false, base = "backup";
+const bootInfo = document.createElement("button");
+bootInfo.type = "button"; bootInfo.className = "info"; bootInfo.id = "boot-info"; bootInfo.textContent = "?"; bootInfo.setAttribute("aria-label", "How to enter update mode");
 
 const tweakBoxes = () => [...document.querySelectorAll(".tweak")];
-const ringButtons = () => [...document.querySelectorAll("#ring button")];
-const ringChoice = () => ringButtons().find((b) => b.classList.contains("on"));
-const RING_CODE_USERS = ["battery_alerts", "settings", "fixes", "stick_precision"];
+const RING_NAMES = { ring_normal: "normal", ring_25: "25 %", ring_5: "5 %", ring_1: "1 %", ring_0_1: "0.1 %", ring_off: "off" };
+let ringKept = "", dongleRead = null;  // the Home ring level installed, kept by the next install; the Settings tab changes it
+const RING_CODE_USERS = ["battery_alerts", "settings", "fixes", "stick_precision", "cpu_rest"];
 const needsRingCode = () => tweakBoxes().some((x) => RING_CODE_USERS.includes(x.value) && x.checked);
-const tweaks = () => [...tweakBoxes().filter((x) => x.checked).map((x) => x.value), ...(ringChoice().dataset.ring ? [ringChoice().dataset.ring] : needsRingCode() ? ["ring_normal"] : [])];
+const tweaks = () => { const t = [...tweakBoxes().filter((x) => x.checked).map((x) => x.value), ...(ringKept ? [ringKept] : needsRingCode() ? ["ring_normal"] : [])]; return t.length ? [...t, "ble_interval"] : t; };  // every install asks for 12.5 ms
 const tweakTitles = () => [...tweakBoxes().filter((x) => x.checked).map((x) => x.parentElement.lastElementChild.firstChild.textContent),
-  ...(ringChoice().dataset.ring || needsRingCode() ? [`Home ring: ${ringChoice().textContent.toLowerCase()}`] : [])];
+  ...(ringKept || needsRingCode() ? [`Home ring: ${RING_NAMES[ringKept || "ring_normal"]}`] : [])];
 
 function lastBackup(names) {  // controller-YYYYMMDD-HHMMSS….bin, oldest first
-  const m = names.length && names[names.length - 1].match(/controller-(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)/);
+  const m = names.length && names[names.length - 1].match(/(?:controller|dongle)-(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)/);
   if (!m) return "";
   const d = new Date(+m[1], m[2] - 1, +m[3]), time = `${m[4]}:${m[5]}`;
   const day = d.toDateString() === new Date().toDateString() ? "today" : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -53,62 +62,106 @@ function lastBackup(names) {  // controller-YYYYMMDD-HHMMSS….bin, oldest first
 }
 
 function hero(devs, ctrl, boot) {
-  const dongle = devs.find((d) => d.mode === "dongle"), bt = devs.find((d) => d.mode.startsWith("bluetooth")), err = devs.find((d) => d.mode === "error");
+  const dongle = devs.find((d) => d.mode.startsWith("dongle")), bt = devs.find((d) => d.mode.startsWith("bluetooth")), err = devs.find((d) => d.mode === "error");
   let cls = "", title = "Firmware not read", note = "", chips = null;
   if (err) [cls, title, note] = ["bad", "Can't look for controllers", err.name];
   else if (!ctrl && !bt && !dongle) [cls, title, note] = ["none", "No controller found", "Connect it by cable, or put it in update mode."];
   else if (reading) title = "Reading the firmware…";
   else if (fw && fw.error) [cls, title, note] = ["bad", "Can't read the firmware", fw.error];
-  else if (fw && fw.note) note = fw.note;
+  else if (fw && fw.device === "dongle" && fw.boot) [cls, title, note] = [fw.known ? "" : "bad", "The dongle is in update mode",
+    fw.known ? "Its firmware is complete. Unplug it and plug it back in to use it, or install or restore." : "Its firmware is missing or incomplete. Restore your backup or 8BitDo's original firmware 1.03."];
+  else if (fw && fw.device === "dongle") {  // what it holds, and the one tweak there is for it
+    title = !fw.known ? (fw.version ? `Unrecognised dongle firmware ${fw.version.toFixed(2)}` : "Unknown dongle firmware")
+      : fw.tweaks.some((t) => t.on) ? `Dongle firmware ${fw.version.toFixed(2)} with tweaks` : `Original dongle firmware ${fw.version.toFixed(2)}`;
+    note = fw.paired ? "The controller is connected through it over 2.4 GHz." : "Connected on its own.";
+    chips = fw.tweaks;
+  }
+  else if (fw && fw.note) [title, note] = [!ctrl && bt ? "Connected over Bluetooth" : title, fw.note];
   else if (fw && fw.known) {
     title = fw.recipes.length ? "Firmware 1.09 with tweaks" : "Original firmware 1.09";
-    note = fw.version_from && fw.version_from !== "unknown" ? "Version read from the controller" : "";
+    note = IDENTIFIED[fw.version_from] ? `Identified from ${IDENTIFIED[fw.version_from]}` : "";
     chips = fw.tweaks;
   } else if (fw && fw.version && fw.version.toFixed(2) !== "1.09")
-    [cls, title, note] = ["bad", `Firmware ${fw.version.toFixed(2)} isn't supported`, "This app only works with firmware 1.09. Update the controller with 8BitDo's own updater first, or restore your backup."];
-  else if (fw) [cls, title, note] = ["bad", "Unknown firmware", "It doesn't match the original firmware 1.09, with or without this app's tweaks. The controller may have another firmware version, which you can update with 8BitDo's own updater, or firmware modified outside this app, which you can replace with Restore."];
+    [cls, title, note] = ["bad", `Firmware ${fw.version.toFixed(2)} isn't supported`, "This app only works with firmware 1.09. Install 1.09 with 8BitDo's own updater, or restore your backup."];
+  else if (fw && fw.version) [cls, title, note] = ["", "Unrecognised firmware 1.09", "It doesn't match the original firmware 1.09 or this app's tweaks, perhaps a test build or firmware modified outside this app. Installing tweaks replaces it with the original 1.09 plus the tweaks you choose."];
+  else if (fw) [cls, title, note] = ["bad", "Unknown firmware", "It doesn't match the original firmware 1.09, with or without this app's tweaks. It may be another firmware version, which you can update with 8BitDo's own updater, or firmware modified outside this app, which restoring your backup replaces."];
 
-  const badge = ctrl ? `${boot ? "Update mode" : "Connected by cable"} · 8BitDo Ultimate 2C Wireless`
-    : dongle ? "2.4 GHz dongle" : bt ? "Connected over Bluetooth · 8BitDo Ultimate 2C Wireless" : "Not connected";
-  $("hero").className = "hero " + cls;
+  const dongleBoot = boot && !!fw && fw.device === "dongle";
+  const badge = dongleBoot ? "Update mode · 2.4 GHz dongle" : ctrl ? `${boot ? "Update mode" : "Connected by cable"} · 8BitDo Ultimate 2C Wireless`
+    : dongle ? (dongle.mode === "dongle_paired" ? "2.4 GHz dongle · Controller connected" : "2.4 GHz dongle") : bt ? "Connected over Bluetooth · 8BitDo Ultimate 2C Wireless" : "Not connected";
+  $("hero").className = "hero compact " + cls;
   $("badge").className = "badge " + (cls === "bad" ? "bad" : boot ? "isboot" : ctrl || bt ? "ok" : "");
   $("badge-text").textContent = badge;
   $("fw-title").textContent = title;
   $("fw-note").textContent = note;
+  $("privacy-open").hidden = !(fw && fw.permission && bridge());
   const led = cls === "none" ? null : cls === "bad" ? "#e8695b" : boot ? "#ffffff" : getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
-  $("pic").innerHTML = pad(led, cls === "none");
-  const box = $("chips"); box.textContent = ""; box.hidden = !chips;
-  for (const t of chips || []) {
+  $("pic").innerHTML = (dongle && !ctrl) || dongleBoot ? dongleArt(cls === "none") : pad(led, cls === "none");
+  const n = chips ? chips.filter((t) => t.on).length : 0;
+  $("sumrow").hidden = !chips;
+  $("sum").textContent = !n ? "No tweaks installed." : `${n} ${n === 1 ? "tweak" : "tweaks"} installed.`;
+  const box = $("chips"); box.textContent = ""; showDetails(detailsOpen && !!chips);
+  const order = [...tweakBoxes().map((x) => x.value), "ring"];   // installed first, each group as the toggles, the Home ring last
+  for (const t of (chips || []).slice().sort((a, b) => b.on - a.on || order.indexOf(a.key) - order.indexOf(b.key))) {
     const c = document.createElement("span"); c.className = "chip" + (t.on ? " on" : "");
     c.innerHTML = t.on ? ICON.ok : ICON.dash; c.append(t.title); box.append(c);
   }
 }
 
+let detailsOpen = false;
+function showDetails(open) {
+  $("chips").hidden = !open; $("details").textContent = open ? "Hide Details" : "Show Details"; $("details").setAttribute("aria-expanded", open);
+}
+
 function render() {
   const devs = st ? st.devices : [];
   const ctrl = devs.find((d) => CONTROLLER.includes(d.mode)), boot = !!ctrl && ctrl.mode === "boot";
-  const backed = !!st && st.backups.length > 0, off = busy || reading, patchable = boot && backed && tweaks().length > 0 && !(fw && fw.known === false);
+  const isDongleFw = !!fw && fw.device === "dongle", paired = devs.some((d) => d.mode === "dongle_paired");
+  const dongleOnly = (!ctrl && devs.some((d) => d.mode.startsWith("dongle"))) || (boot && isDongleFw);   // also a dongle left in update mode
+  const dongleReady = dongleOnly && isDongleFw && !paired, dBacked = isDongleFw && fw.backed;
+  const backed = !!st && st.backups.length > 0, off = busy || reading, on109 = !!fw && !!fw.version && fw.version.toFixed(2) === "1.09";
+  const patchable = boot && backed && tweaks().length > 0 && !(fw && fw.known === false && !on109);
   hero(devs, ctrl, boot);
 
-  $("last-backup").textContent = st ? lastBackup(st.backups) : "";
+  $("last-backup").textContent = dongleOnly ? (isDongleFw && fw.restore_backup ? lastBackup([fw.restore_backup.name]) : "") : st ? lastBackup(st.backups) : "";
+  $("backup-connect").hidden = !!ctrl || dongleOnly;
+  document.querySelectorAll("[data-dongle]").forEach((e) => {  // the dongle's own wording where the controller's would be wrong
+    if (!("ctrl" in e.dataset)) e.dataset.ctrl = e.textContent;
+    e.textContent = dongleOnly ? e.dataset.dongle : e.dataset.ctrl;
+  });
+  $("pre-boot").hidden = dongleOnly;   // the app puts the dongle in update mode itself
   const pre = (el, ok, yes, no) => { el.className = ok ? "ok" : ""; el.innerHTML = ok ? ICON.ok : ICON.no; el.append(ok ? yes : no); };
-  pre($("pre-backup"), backed, "Backup saved", "No backup yet");
+  pre($("pre-backup"), dongleOnly ? dBacked : backed, "Backup saved", "No backup yet");
   pre($("pre-boot"), boot, "In update mode", "Not in update mode");
-  $("boot-box").className = "boot" + (boot ? " ok" : "");
-  $("boot-icon").innerHTML = boot ? ICON.ok.replace("<svg", '<svg width="20"') : ICON.plug;
-  $("boot-title").textContent = boot ? "The controller is in update mode" : "Update mode";
+  if (!boot) $("pre-boot").append(bootInfo);  // its ? shows how to get there
 
   const xbox = tweakBoxes().find((x) => x.value === "bt_xbox"), rumble = tweakBoxes().find((x) => x.value === "bt_rumble");
   if (!xbox.checked) rumble.checked = false;
   tweakBoxes().forEach((x) => { x.disabled = busy || (x === rumble && !xbox.checked); x.parentElement.classList.toggle("off", x.disabled); });
-  ringButtons().forEach((b) => (b.disabled = busy));
-  $("choose-one").hidden = tweaks().length > 0;
+  $("ctrl-tweaks").hidden = $("tweaks-opts").hidden = dongleOnly; $("dongle-tweaks").hidden = !dongleOnly;
+  if (isDongleFw && fw !== dongleRead) { dongleRead = fw; $("dongle-360").checked = $("dongle-360").defaultChecked = fw.tweaks[0].on; }   // each read starts from what's installed
+  $("dongle-360").disabled = busy || !dongleReady; $("dongle-360").closest(".tw").classList.toggle("off", $("dongle-360").disabled);
+  $("dongle-note").hidden = !paired;
+  const installWhy = dongleOnly ? (paired ? "Turn the controller off so the dongle is connected on its own." : "") : !tweaks().length ? "Choose at least one tweak." : !fw || fw.known !== false || on109 ? ""
+    : fw.version ? "This app only installs tweaks over firmware 1.09." : "This firmware can't be identified. Restore your backup first.";
+  $("choose-one").textContent = installWhy; $("choose-one").hidden = !installWhy;
 
-  const can = { backup: !!ctrl, "patch-dry": patchable, "patch-write": patchable,
-    "restore-backup-dry": boot && backed, "restore-backup": boot && backed, "restore-stock-dry": boot && backed, "restore-stock": boot && backed,
-    "force-open": boot && backed, "report-open": true, refresh: true, "details-refresh": true };
+  const dRestore = dongleReady && !!fw.restore_backup, dStock = dongleReady && dBacked && fw.stock_ok;
+  const can = dongleOnly ? { backup: !boot, "patch-dry": dongleReady && dBacked, "patch-write": dongleReady && dBacked,
+    "restore-backup-dry": dRestore, "restore-backup": dRestore, "restore-stock-dry": dStock, "restore-stock": dStock, "force-open": false, "report-open": true, refresh: true }
+    : { backup: !!ctrl, "patch-dry": patchable, "patch-write": patchable,
+    "restore-backup-dry": boot && !!fw && !!fw.restore_backup, "restore-backup": boot && !!fw && !!fw.restore_backup, "restore-stock-dry": boot && backed && on109, "restore-stock": boot && backed && on109,
+    "force-open": boot && backed, "report-open": true, refresh: true };
   for (const [id, ok] of Object.entries(can)) $(id).disabled = off || !ok;
-  const hot = !!fw && fw.known === false && !fw.version && !fw.error;
+  $("backup").classList.toggle("sec", dongleOnly ? dBacked : backed);   // once there's a backup, installing is the main step
+  const stockWhy = dongleOnly || !boot || !backed || !fw || fw.error || on109 ? "" : fw.version ? `Not available, because this controller has firmware ${fw.version.toFixed(2)}.`
+    : "Not available, because the firmware version can't be identified.";
+  $("restore-stock-why").textContent = stockWhy; $("restore-stock-why").hidden = !stockWhy;
+  const restoreWhy = dongleOnly ? (paired ? "Turn the controller off so the dongle is connected on its own." : !dBacked ? "Back up the dongle first to restore it." : "") : !boot ? "Put the controller in update mode to restore." : !backed ? "Back up the controller first to restore your backup." : "";
+  $("restore-why").textContent = restoreWhy; $("restore-why").hidden = !restoreWhy;
+  const backupWhy = dongleOnly ? (dBacked && !fw.restore_backup ? "Not available, because no backup of this dongle has firmware this app recognises." : "") : boot && backed && !!fw && "restore_backup" in fw && !fw.restore_backup ? "Not available, because no backup of this controller has firmware this app recognises." : "";
+  $("restore-backup-why").textContent = backupWhy; $("restore-backup-why").hidden = !backupWhy;
+  const hot = !dongleOnly && !!fw && fw.known === false && !fw.version && !fw.error;
   $("force-zone").classList.toggle("hot", hot);
   $("force-hint").hidden = !hot;
   $("strip-alert").hidden = !(hot && tab === "firmware");
@@ -129,13 +182,15 @@ function showTab(name) {
   tab = name;
   for (const t of TABS) {
     $(`tab-${t}`).hidden = name !== t;
-    $(`strip-${t}`).classList.toggle("on", name === t);
+    $(`strip-${t}`).classList.toggle("on", name === t); $(`strip-${t}`).setAttribute("aria-selected", name === t);
   }
   render();
 }
 
-const VERSION_FROM = { "update record": "The controller's update record", "bank A hash": "The installed firmware", "bank B hash": "The second copy of the firmware", unknown: "It couldn't be determined" };
-const WHO = { 0x301b: "controller", 0x301c: "2.4 GHz dongle" };
+const IDENTIFIED = { "update record": "the controller's update record", "bank A hash": "the installed firmware", "bank B hash": "the second copy of the firmware" };
+const VERSION_FROM = { "update record": "The update record", "bank A hash": "The installed firmware", "bank B hash": "The second copy of the firmware", unknown: "Couldn't be identified" };
+const WHO = { 0x301b: "The controller", 0x301c: "The 2.4 GHz dongle" };  // the problem report keeps the number
+const tweakOrder = (key) => key.startsWith("ring") ? Infinity : tweakBoxes().findIndex((x) => x.value === key);  // as the toggles, the Home ring last
 const firmwareName = () => !fw.known ? "Unknown" : fw.recipes.length ? `1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}${fw.titles && fw.titles.length ? `: ${fw.titles.join(", ")}` : ""}` : "Original 1.09";
 function details() {
   const box = $("details-body"), inUpdateMode = !!st && st.devices.some((d) => d.mode === "boot");
@@ -145,30 +200,47 @@ function details() {
   if (fw.error) return say(fw.error);
   if (fw.note) return say(fw.note);
   const id = fw.boot_identity;
-  const rows = [["Firmware", firmwareName()], ["Version read from", VERSION_FROM[fw.version_from] || fw.version_from],
+  const v = fw.version ? fw.version.toFixed(2) : "";
+  const rows = fw.device === "dongle" ? [["Device", fw.paired ? "The 2.4 GHz dongle, with the controller connected through it" : "The 2.4 GHz dongle"],
+    ["Firmware", !fw.known ? (v ? `Unrecognised ${v}` : "Unknown") : fw.tweaks[0].on ? [`${v} with 1 tweak`, fw.tweaks[0].title] : `Original ${v}`],
+    ["Identified from", fw.known ? "The installed firmware" : v ? "The dongle's update record" : "Nothing it holds"]] : null;
+  if (rows) return detailRows(box, rows);
+  const titles = (fw.titles || []).map((t, i) => [tweakOrder(fw.recipes[i] || ""), t]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+  return detailRows(box, [["Firmware", !fw.known ? "Unknown" : fw.recipes.length ? [`1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}`, ...titles] : "Original 1.09"],
+    ["Identified from", VERSION_FROM[fw.version_from] || fw.version_from],
     ["Pending update", fw.pending ? "Yes. It could replace the tweaks the next time the controller starts." : "None"],
-    ["Update-mode identity", !inUpdateMode ? "Only available in update mode" : id == null ? "No answer" : `0x${id.toString(16)} · ${WHO[id] || "unknown device"}`]];
+    ["Device in update mode", !inUpdateMode ? "Only available in update mode" : id == null ? "No answer" : WHO[id] || "An unknown device"]]);
+}
+
+function detailRows(box, rows) {
   const dl = document.createElement("dl"); dl.className = "rows";
-  for (const [k, v] of rows) { const t = document.createElement("dt"), d = document.createElement("dd"); t.textContent = k; d.textContent = v; dl.append(t, d); }
+  for (const [k, v] of rows) {  // a list is one line each
+    const t = document.createElement("dt"), d = document.createElement("dd"); t.textContent = k;
+    for (const line of [].concat(v)) { const l = document.createElement("div"); l.textContent = line; d.append(l); }
+    dl.append(t, d);
+  }
   box.innerHTML = ""; box.append(dl);
 }
 
 const STEPS = { "pass 1": [0, 50], "pass 2": [50, 50], write: [0, 100] };  // progress labels from the core
-const setPct = (p) => { $("prog-bar").style.width = p + "%"; $("pc").textContent = p + " %"; };
+const setPct = (p) => { $("prog-bar").style.width = p + "%"; $("pc").textContent = p + " %"; $("prog").setAttribute("aria-valuenow", p); };
+const LOST = "The app lost track of the task, which may still be running. Do not disconnect the controller until it has had time to finish, then read the firmware again.";
 function line(text, bad) {
   const el = $("log"), s = document.createElement("span");
   if (bad) s.className = "e";
   s.textContent = text + "\n"; el.append(s); el.scrollTop = el.scrollHeight;
 }
 
-async function runJob(label, path, body) {
+async function runJob(label, path, body, doneText) {  // doneText: the status when it worked, such as "Backup saved"
   busy = true; render();
-  $("log").textContent = ""; $("log").hidden = false; $("log-toggle").hidden = false; $("log-toggle").textContent = "Hide log ▾";
-  $("dock").className = "dock run"; $("dock-status").textContent = label;
-  $("idle").hidden = true; $("prog").hidden = $("pc").hidden = false; setPct(0);
-  let ok = false;
+  $("log").textContent = ""; $("log").hidden = true; $("log-toggle").hidden = false; $("log-toggle").textContent = "Show Log ▴";
+  $("dock").className = "dock run"; $("dock-status").textContent = label; $("dock-message").hidden = true;
+  $("idle").textContent = `Do not ${onDongle() ? "unplug the dongle" : "disconnect the controller"} or quit the app until this finishes.`; $("idle").hidden = !(body && body.write);
+  $("prog").hidden = $("pc").hidden = false; setPct(0);
+  let end = null, started = false;
   try {
     await api("POST", path, body);
+    started = true;
     const r = await fetch("/api/events?token=" + encodeURIComponent(token));
     const reader = r.body.getReader(), dec = new TextDecoder(); let buf = "";
     for (;;) {
@@ -180,18 +252,23 @@ async function runJob(label, path, body) {
         const e = JSON.parse(chunk.slice(6));
         if (e.type === "log") line(e.text);
         else if (e.type === "progress") { const [from, span] = STEPS[e.label] || [0, 100]; setPct(Math.floor(from + (span * e.done) / Math.max(e.total, 1))); }
-        else if (e.type === "done") ok = true;
-        else if (e.type === "error") line("Stopped: " + e.message, true);
+        else if (e.type === "done") end = e;
+        else if (e.type === "error") { end = e; line(e.message, true); }
       }
     }
-  } catch (e) { line("Stopped: " + e.message, true); }
-  $("dock").className = "dock " + (ok ? "done" : "err"); $("dock-status").textContent = ok ? "Done" : "Stopped";
+  } catch (e) { line(e.message, true); end = { type: "error", message: started ? LOST : e.message }; }
+  end = end || { type: "error", message: LOST };   // the stream ended without saying how the task did
+  const ok = end.type === "done";
+  $("dock").className = "dock " + (ok ? "done" : "err"); $("dock-status").textContent = !ok ? "Not completed" : end.unchanged ? "No changes needed" : doneText;
+  $("dock-message").textContent = end.message || ""; $("dock-message").hidden = !end.message; $("idle").hidden = true;
   if (ok) setPct(100);
   busy = false; refresh();
 }
 
-function ask(title, text, chips, yes) {
+function ask(title, text, chips, yes, kind = "safe") {  // kind: "install" (the warranty line and danger styling), "danger" or "safe"
   $("confirm-title").textContent = title; $("confirm-text").textContent = text; $("confirm-yes").textContent = yes;
+  $("confirm-yes").className = kind === "safe" ? "" : "danger";
+  $("confirm-icon").hidden = kind === "safe"; $("confirm-warranty").hidden = kind !== "install";
   const box = $("confirm-chips"); box.textContent = "";
   for (const c of chips) { const s = document.createElement("span"); s.textContent = c; box.append(s); }
   const d = $("confirm");
@@ -239,13 +316,12 @@ function matchInstalled() {  // start from what's installed, so installing doesn
   if (!key || key === matched) return;
   matched = key;
   tweakBoxes().forEach((x) => (x.checked = fw.recipes.includes(x.value)));
-  const level = ringButtons().find((b) => fw.recipes.includes(b.dataset.ring)) || ringButtons()[0];
-  ringButtons().forEach((b) => b.classList.toggle("on", b === level));
+  ringKept = fw.recipes.find((k) => k in RING_NAMES) || "";
 }
 
 let fwSeq = 0;
 async function readFirmware() {  // read-only; skipped while a job runs, and the job buttons wait for it
-  if (busy || !st.devices.some((d) => CONTROLLER.includes(d.mode) || d.mode === "dongle" || d.mode.startsWith("bluetooth"))) return;
+  if (busy || !st.devices.some((d) => CONTROLLER.includes(d.mode) || d.mode.startsWith("dongle") || d.mode.startsWith("bluetooth"))) return;
   const mine = ++fwSeq; reading = true; render();
   let f;
   try { f = await api("GET", "/api/firmware"); } catch (e) { f = { error: e.message }; }
@@ -254,43 +330,99 @@ async function readFirmware() {  // read-only; skipped while a job runs, and the
 }
 
 document.querySelectorAll("[data-icon]").forEach((e) => (e.innerHTML = ICON[e.dataset.icon]));
+document.querySelectorAll(".seg button").forEach((b) => b.setAttribute("aria-pressed", b.classList.contains("on")));
 $("disclaimer").oncancel = (e) => e.preventDefault();
+$("disclaimer-quit").hidden = !bridge();   // declining: only the Mac app can quit itself
+$("disclaimer-quit").onclick = () => bridge().postMessage({ op: "quit" });
 $("accept").onclick = async () => { await api("POST", "/api/accept"); $("disclaimer").close(); refresh(); };
 $("refresh").onclick = refresh;
-$("details-refresh").onclick = refresh;
+$("details").onclick = () => { detailsOpen = !detailsOpen; showDetails(detailsOpen && !$("sumrow").hidden); };
 TABS.forEach((t) => ($(`strip-${t}`).onclick = () => showTab(t)));
 $("force-go").onclick = () => showTab("diagnostics");
-$("help-open").onclick = () => $("help").showModal();
+$("privacy-open").onclick = () => bridge().postMessage({ op: "privacy" });
+function showHelp(part) {  // one section at a time, from the top
+  document.querySelectorAll("[data-help]").forEach((b) => setOn(b, b.dataset.help === part));
+  document.querySelectorAll("[data-hsec]").forEach((x) => (x.hidden = x.dataset.hsec !== part));
+  $("help-body").scrollTop = 0;
+}
+document.querySelectorAll("[data-help]").forEach((b) => (b.onclick = () => showHelp(b.dataset.help)));
+$("help-open").onclick = () => { showHelp(tab === "firmware" ? (onDongle() ? "dongle" : "start") : tab); $("help").showModal(); };  // opens on the tab in view
 $("help-close").onclick = () => $("help").close();
 tweakBoxes().forEach((x) => (x.onchange = render));
-ringButtons().forEach((b) => (b.onclick = () => { ringButtons().forEach((o) => o.classList.toggle("on", o === b)); render(); }));
+function popover(button, ...content) {  // a small pop-up under an (i) button, outside any label so clicks in it toggle nothing
+  const pop = document.createElement("div");
+  pop.id = `pop-${document.querySelectorAll(".pop").length}`; pop.className = "pop"; pop.popover = "auto"; pop.append(...content);
+  document.body.append(pop); button.setAttribute("aria-controls", pop.id);
+  let timer = 0, anchor = button;  // opens on hover or click; leaving the button for the pop-up keeps it open
+  const show = (from) => { clearTimeout(timer); anchor = from; if (!pop.matches(":popover-open")) pop.showPopover(); };
+  const hide = () => { clearTimeout(timer); timer = setTimeout(() => pop.hidePopover(), 200); };
+  const hover = (el, when = () => true) => { el.addEventListener("mouseenter", () => when() && show(el)); el.addEventListener("mouseleave", hide); };
+  button.addEventListener("click", () => show(button)); hover(button);
+  pop.addEventListener("mouseenter", () => clearTimeout(timer)); pop.addEventListener("mouseleave", hide);
+  pop.addEventListener("beforetoggle", (e) => {
+    if (e.newState !== "open") return;
+    const r = anchor.getBoundingClientRect(), up = r.bottom > innerHeight * 0.6;
+    pop.style.left = `${Math.max(12, Math.min(r.left - 14, innerWidth - 332))}px`;
+    pop.style.top = up ? "auto" : `${r.bottom + 8}px`; pop.style.bottom = up ? `${innerHeight - r.top + 8}px` : "auto";
+  });
+  return hover;  // more places that open it on hover
+}
+document.addEventListener("scroll", () => document.querySelectorAll(".pop:popover-open").forEach((p) => p.hidePopover()), true);
+[...tweakBoxes(), $("dongle-360")].forEach((x) => {  // each explanation sits behind an (i) button next to the name; a caution stays in view
+  const name = x.parentElement.lastElementChild, b = document.createElement("button");
+  b.type = "button"; b.className = "info"; b.textContent = "i"; b.setAttribute("aria-label", `About ${name.firstChild.textContent}`);
+  name.insertBefore(b, name.querySelector("small"));
+  popover(b, name.querySelector("small"));
+});
+{  // the controller with LB and RB held and the update-mode light blinking
+  const fig = document.createElement("div"), cap = document.createElement("p");
+  fig.className = "pop-pad";
+  fig.innerHTML = pad(null, false, "gboot").replace(/(data-k="[LR]B" )/g, '$1class="hold" ')
+    .replace('<circle cx="150" cy="59" r="1.6" fill="#1c2026"/>', '<circle class="blink" cx="150" cy="59" r="6" fill="#fff" opacity=".25"/><circle class="blink" cx="150" cy="59" r="2.4" fill="#fff"/>');
+  cap.textContent = "Turn the controller fully off, then hold LB and RB, shown in colour, while plugging in the cable. The small light below the Home ring will blink white.";
+  popover(bootInfo, fig, cap)($("tweaks-act").querySelector(".btns"), () => bootInfo.isConnected);  // Check First and Install show it too, until it's in update mode
+}
 document.querySelectorAll("[data-base]").forEach((b) => (b.onclick = () => {
-  base = b.dataset.base; document.querySelectorAll("[data-base]").forEach((x) => x.classList.toggle("on", x === b));
+  base = b.dataset.base; document.querySelectorAll("[data-base]").forEach((x) => setOn(x, x === b));
 }));
-$("log-toggle").onclick = () => { const l = $("log"); l.hidden = !l.hidden; $("log-toggle").textContent = l.hidden ? "Show log ▴" : "Hide log ▾"; };
+$("log-toggle").onclick = () => { const l = $("log"); l.hidden = !l.hidden; $("log-toggle").textContent = l.hidden ? "Show Log ▴" : "Hide Log ▾"; };
 
-$("backup").onclick = () => runJob("Backing up", "/api/backup");
-$("patch-dry").onclick = () => runJob("Checking", "/api/patch", { tweaks: tweaks(), base, write: false });
+$("backup").onclick = () => runJob("Backing up…", "/api/backup", null, "Backup saved");
+const onDongle = () => !!fw && fw.device === "dongle";
+const dongleTweaks = () => ($("dongle-360").checked ? ["dongle_360"] : []);
+$("patch-dry").onclick = () => runJob("Checking…", "/api/patch", { tweaks: onDongle() ? dongleTweaks() : tweaks(), base, write: false }, "Check passed");
 $("patch-write").onclick = async () => {
-  if (await ask("Install these tweaks?", "This changes the controller's firmware and voids its warranty.", tweakTitles(), "Install"))
-    runJob("Installing", "/api/patch", { tweaks: tweaks(), base, write: true });
+  if (onDongle()) {
+    if (await ask("Install this on the dongle?", "This changes the dongle's firmware. The app restarts the dongle into update mode to write it, then restarts it again. Installing modified firmware probably voids the dongle's warranty.",
+      [$("dongle-360").checked ? "Xbox 360 controller over 2.4 GHz" : "No tweaks: the original firmware 1.03"], "Install", "install"))
+      runJob("Installing…", "/api/patch", { tweaks: dongleTweaks(), write: true }, "Installed on the dongle");
+    return;
+  }
+  if (await ask("Install these tweaks?", "This changes the controller's firmware. Installing modified firmware probably voids the controller\'s warranty.", tweakTitles(), "Install", "install"))
+    runJob("Installing…", "/api/patch", { tweaks: tweaks(), base, write: true }, "Tweaks installed");
 };
-$("restore-backup-dry").onclick = () => runJob("Checking", "/api/restore", { source: "backup", write: false });
-$("restore-stock-dry").onclick = () => runJob("Checking", "/api/restore", { source: "stock", write: false });
+$("restore-backup-dry").onclick = () => runJob("Checking…", "/api/restore", { source: "backup", backup: fw.restore_backup.name, write: false }, "Check passed");
+$("restore-stock-dry").onclick = () => runJob("Checking…", "/api/restore", { source: "stock", write: false }, "Check passed");
 $("restore-backup").onclick = async () => {
-  if (await ask("Restore your backup?", "This rewrites the controller's firmware with the one in your backup.", [], "Restore"))
-    runJob("Restoring", "/api/restore", { source: "backup", write: true });
+  const b = fw.restore_backup;
+  if (await ask("Restore your backup?", `This replaces the ${onDongle() ? "dongle" : "controller"}'s firmware with your backup “${b.name}”, made on ${b.taken}, which has ${b.firmware}.`, [], "Restore"))
+    runJob("Restoring…", "/api/restore", { source: "backup", backup: b.name, write: true }, "Backup restored");
 };
 $("restore-stock").onclick = async () => {
-  if (await ask("Restore the original firmware 1.09?", "This replaces the controller's firmware with 8BitDo's original 1.09, downloaded from 8BitDo.", [], "Restore"))
-    runJob("Restoring", "/api/restore", { source: "stock", write: true });
+  if (onDongle()) {
+    if (await ask("Restore the original firmware 1.03?", "This replaces the dongle's firmware with 8BitDo's original 1.03, made from your backup and checked against its known checksum. The app restarts the dongle into update mode to write it.", [], "Restore", "danger"))
+      runJob("Restoring…", "/api/restore", { source: "stock", write: true }, "Original firmware restored");
+    return;
+  }
+  if (await ask("Restore the original firmware 1.09?", "This replaces the controller's firmware with 8BitDo's original 1.09, downloaded from 8BitDo. Your settings, pairings and calibration stay as they are.", [], "Restore", "danger"))
+    runJob("Restoring…", "/api/restore", { source: "stock", write: true }, "Original firmware restored");
 };
 $("force-open").onclick = () => {
   const d = $("force"), tick = $("force-understand"), yes = $("force-yes");
   tick.checked = false; yes.disabled = true;
   tick.onchange = () => { yes.disabled = !tick.checked; };
   $("force-no").onclick = () => d.close();
-  yes.onclick = () => { d.close(); runJob("Installing", "/api/restore", { source: "stock", write: true, force_unknown: true }); };
+  yes.onclick = () => { d.close(); runJob("Installing…", "/api/restore", { source: "stock", write: true, force_unknown: true }, "Original firmware installed"); };
   d.showModal();
 };
 $("report-open").onclick = async () => {
@@ -305,7 +437,7 @@ $("report-close").onclick = () => { $("report").close(); $("report-copy").textCo
 render(); refresh();
 
 // Notice a controller being connected, disconnected or put in update mode, without pressing Refresh.
-const deviceKey = (state) => state ? state.devices.map((d) => `${d.mode}:${d.vendor}:${d.product}`).sort().join() : "";
+const deviceKey = (state) => state ? state.devices.map((d) => `${d.mode}:${d.vendor}:${d.product}:${d.name}`).sort().join() : "";  // a paired dongle has the controller's ID
 const WATCH_MS = 2500;
 setInterval(async () => {
   if (busy || reading || refreshing || document.hidden) return;

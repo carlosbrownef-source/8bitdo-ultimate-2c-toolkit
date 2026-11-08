@@ -9,4 +9,4 @@ def text() -> str:
     for p in (_HERE.parent / "DISCLAIMER.md", _HERE / "DISCLAIMER.md"):
         if p.exists():
             return p.read_text()
-    return "No warranty. Using this app voids your controller's warranty. Ultimate 2C firmware 1.09 only."
+    return "No warranty. Installing modified firmware probably voids the controller's warranty. Ultimate 2C firmware 1.09 only."

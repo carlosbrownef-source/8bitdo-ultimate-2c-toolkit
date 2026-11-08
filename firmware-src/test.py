@@ -13,7 +13,10 @@ typedef unsigned char u8; typedef unsigned short u16; typedef unsigned int u32;
 u32 BTN, RAW_BTN; u16 LX, LY, RX, RY, LT, RT;
 u8 REGS[0x1000] __attribute__((aligned(4))); volatile u16 RING_LEVEL;
 u8 PCT, FULL, SAVED, ALERTS_FLAG; u32 TIMER, RING_CODE = 1;
+u8 REST_FLAG, MOTOR_L, MOTOR_R, MOTOR_HOLD;
 static int notifies, afters, stock_passes;
+void rest_poll(void);
+void stall_hook(void);
 int pack_xbox(void);
 int rumble_write(u8 *p);
 void ring_tick(u32 mode, u32 pin, u8 *counter);
@@ -46,7 +49,7 @@ void stock_chords(void) { stock_passes++; }
 void stock_vendor_a(u8 *p) { printf("VA\n"); }
 void stock_vendor_b(u8 *p) { printf("VB\n"); }
 void led_driver(u32 mode, u32 pin, u8 *counter) { printf("D %x %x %lx\n", mode, pin, (unsigned long)counter); }
-void motor_set(u32 s, u32 w, u32 h) { printf("M %u %u %u\n", s, w, h); }
+void motor_set(u32 s, u32 w, u32 h) { printf("M %u %u %u\n", s, w, h); if (h == 0 && MOTOR_HOLD) return; MOTOR_L = s; MOTOR_R = w; MOTOR_HOLD = h; } /* as 0xfa68: a running hold keeps the motors */
 int ble_notify(int conn, int handle, u8 *p, int len) {
     if (conn != 0x40 || handle != 0x1d || len != 16 || afters) { printf("bad call %x %x %d\n", conn, handle, len); exit(1); }
     for (int i = 0; i < len; i++) printf("%02x", p[i]);
@@ -102,6 +105,24 @@ int main(void) {
             u8 pk[8] = {0}; int n = 0; unsigned x;
             for (char *q = line + 2; n < 8 && sscanf(q, "%2x", &x) == 1; q += 2) pk[n++] = x;
             if (line[0] == 'A') vendor_a(pk); else vendor_b(pk);
+            continue;
+        }
+        if (line[0] == 'W' || line[0] == 'Q') { /* W <flag> <n>: n rest_poll calls on zeroed registers; Q <n>: n more. Then the timer word and status */
+            unsigned flag, n;
+            if (line[0] == 'W') { sscanf(line + 2, "%x %u", &flag, &n); for (int i = 0; i < 0x1000; i++) REGS[i] = 0; REST_FLAG = flag; }
+            else sscanf(line + 2, "%u", &n);
+            while (n--) rest_poll();
+            printf("WD %08x %02x\n", *(u32 *)(REGS + 0x620), REGS[0x623]);
+            continue;
+        }
+        if (line[0] == 'V') { unsigned off, v; sscanf(line + 2, "%x %x", &off, &v); REGS[off] = v; continue; } /* poke a register */
+        if (line[0] == 'S') { /* S <pd0> <l> <r> <hold>: one stall_hook call on zeroed registers; its motor_set calls, then the registers */
+            unsigned pd0, l, r, h;
+            sscanf(line + 2, "%u %u %u %u", &pd0, &l, &r, &h);
+            for (int i = 0; i < 0x1000; i++) REGS[i] = 0;
+            REGS[0x518] = pd0; MOTOR_L = l; MOTOR_R = r; MOTOR_HOLD = h;
+            stall_hook();
+            printf("ST %02x %08x %08x %x %02x %08x\n", REGS[0x6f], *(u32 *)(REGS + 0x78), *(u32 *)(REGS + 0x624), REGS[0x620] & 1, REGS[0x623], *(u32 *)(REGS + 0x640));
             continue;
         }
         if (line[0] == 'R') { /* R <ATT write packet hex>: one rumble_write call, then "-" */
@@ -207,11 +228,14 @@ def rumble_packet(value):
     return bytes([2, 7 + len(value)]) + (3 + len(value)).to_bytes(2, "little") + b"\x04\x00\x52\x21\x00" + value
 
 
-def _run_harness(stdin):
+SRC = [os.path.join(HERE, f) for f in ("packer.c", "settings.c", "rest.c")]
+
+
+def _run_harness(stdin, cflags=()):
     with tempfile.TemporaryDirectory() as d:
         open(os.path.join(d, "h.c"), "w").write(HARNESS)
         exe = os.path.join(d, "t")
-        subprocess.run(["cc", "-DHOST", "-O1", "-o", exe, os.path.join(HERE, "packer.c"), os.path.join(HERE, "settings.c"), os.path.join(d, "h.c")], check=True)
+        subprocess.run(["cc", "-DHOST", "-O1", *cflags, "-o", exe, *SRC, os.path.join(d, "h.c")], check=True)
         return subprocess.run([exe], input=stdin, capture_output=True, text=True).stdout
 
 
@@ -227,12 +251,7 @@ def rumble_check():
         s, w = (v[3] if v[0] & 2 else 0), (v[4] if v[0] & 1 else 0)
         lvl = lambda m: min(m * 5 // 2, RUMBLE_CAP)  # Xbox 0-100 -> the 360's 0-255 that f93c expects
         return f"M {lvl(s)} {lvl(w)} {v[5] or 1} -"  # hold = Xbox duration (10 ms), 1 for none
-    with tempfile.TemporaryDirectory() as d:
-        open(os.path.join(d, "h.c"), "w").write(HARNESS)
-        exe = os.path.join(d, "t")
-        subprocess.run(["cc", "-DHOST", "-O1", "-o", exe, os.path.join(HERE, "packer.c"), os.path.join(HERE, "settings.c"), os.path.join(d, "h.c")], check=True)
-        raw = subprocess.run([exe], input="".join("R " + rumble_packet(v).hex() + "\n" for v in cases),
-                             capture_output=True, text=True).stdout.splitlines()
+    raw = _run_harness("".join("R " + rumble_packet(v).hex() + "\n" for v in cases)).splitlines()
     got, cur = [], []
     for line in raw:  # each call prints its motor_set lines, then "-"
         cur.append(line)
@@ -573,6 +592,62 @@ def test_other_vendor_commands_only_reach_the_firmware():
         assert "W 250" not in out and "VA" in out and not any(x.startswith("SAVE") for x in out), cmd
 
 
+def watchdog(*lines, cflags=()):
+    """The timer word at 0x620 and the status byte at 0x623 after each W or Q line."""
+    out = _run_harness("".join(x + "\n" for x in lines), cflags).splitlines()
+    return [tuple(int(v, 16) for v in x.split()[1:]) for x in out if x.startswith("WD ")]
+
+
+def test_watchdog_arms_once_with_3_s():
+    w, feed = watchdog("W 1 1")[0]
+    assert (w >> 9 & 0x3FFF, bool(w & 1 << 6), bool(w & 1 << 23), feed) == (549, True, True, 8), hex(w)
+    w, feed = watchdog("W 1 1", "V 620 45", "V 621 00", "Q 1")[-1]  # armed: the word isn't written again, only fed
+    assert (w & 0xFF, w >> 9 & 0x3FFF != 549, feed) == (0x45, True, 8), hex(w)
+
+
+def test_watchdog_off_without_the_flag():
+    for flag in (0, 0xFF):
+        assert watchdog(f"W {flag:x} 3") == [(0, 0)], flag
+
+
+def test_watchdog_rearms_after_being_turned_off():
+    w, feed = watchdog("W 1 1", "V 622 00", "Q 1")[-1]
+    assert (w >> 9 & 0x3FFF, bool(w & 1 << 23), feed) == (549, True, 8), hex(w)
+
+
+def stall(pd0, l, r, hold, cflags=()):
+    """One stall_hook call: its lines, the last being the registers 0x6f, 0x78, 0x624, timer0 enable, 0x623, 0x640."""
+    out = _run_harness(f"S {pd0} {l} {r} {hold}\n", cflags).splitlines()
+    return out[:-1], tuple(int(v, 16) for v in out[-1].split()[1:])
+
+
+STALL_CASES = [(0, 0, 0, 0), (1, 0, 0, 0), (0, 200, 0, 0), (0, 0, 200, 0), (0, 0, 0, 5)]
+
+
+def test_stall_hook_still_stops_idle_motors():
+    for case in STALL_CASES:
+        assert stall(*case)[0] == ["M 0 0 0"], case
+
+
+def test_stalls_on_battery_with_motors_still():
+    assert stall(0, 0, 0, 0)[1] == (0x80, 0x102001, 48000, 0, 1, 0)  # wake: system timer (BLE events), RF, timer0
+
+
+def test_no_stall_on_cable():
+    assert stall(1, 0, 0, 0)[1][:3] == (0, 0, 0)
+
+
+def test_no_stall_while_rumbling():
+    for case in ((0, 0, 0, 5), (0, 200, 200, 5)):
+        assert stall(*case)[1][0] == 0, case
+    for case in STALL_CASES[2:4]:  # strengths left by a finished hold: the call at 0xa4ae has just cleared them
+        assert stall(*case)[1][0] == 0x80, case
+
+
+def test_stall_ms_zero_never_stalls():
+    assert stall(0, 0, 0, 0, cflags=("-DSTALL_MS=0",))[1][0] == 0
+
+
 RING_TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 
@@ -609,7 +684,7 @@ def main():
     with tempfile.TemporaryDirectory() as d:
         open(os.path.join(d, "h.c"), "w").write(HARNESS)
         exe = os.path.join(d, "t")
-        subprocess.run(["cc", "-DHOST", "-O1", "-o", exe, os.path.join(HERE, "packer.c"), os.path.join(HERE, "settings.c"), os.path.join(d, "h.c")], check=True)
+        subprocess.run(["cc", "-DHOST", "-O1", "-o", exe, *SRC, os.path.join(d, "h.c")], check=True)
         run = subprocess.run([exe], input="".join("%x %x %x %x %x %x %x\n" % v for v in vec), capture_output=True, text=True)
         out = run.stdout.split()
         if run.returncode:

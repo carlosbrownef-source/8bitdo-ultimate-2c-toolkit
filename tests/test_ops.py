@@ -281,12 +281,13 @@ class PatchTest(Base):
         with self.assertRaises(OpError):
             patch.plan_patch(SimBoot(self.flash), short, STOCK_A, ["cable_360"])
 
-    def test_unknown_bank_a_is_refused_for_patching(self):
+    def test_unknown_bank_a_is_refused_for_patching_when_the_version_is_unknown(self):
         odd = bytearray(self.flash); odd[0x9000] ^= 0xFF
+        odd[0x49000] ^= 0xFF; odd[0x3F00C] = 0xFF  # bank B isn't 1.09 and the update record has no version
         dev = SimBoot(bytes(odd))
         with self.assertRaises(OpError) as e:
             patch.plan_patch(dev, self.backup, STOCK_A, ["cable_360"])
-        self.assertIn("Restore", str(e.exception))
+        self.assertIn("restoring your backup", str(e.exception))
 
     def test_dongle_in_boot_mode_is_refused(self):
         dongle = bytearray(b"\xff" * 0x20000); dongle[:0x5000] = rnd.randbytes(0x5000)
@@ -332,6 +333,26 @@ class RestoreTest(Base):
         patch.apply(dev, plan, noprogress)
         self.assertEqual(bytes(dev.f[:image.CONFIG_START]), self.flash[:image.CONFIG_START])
 
+    def test_other_blocks_are_erased_and_written_run_by_run_with_the_run_length(self):
+        # Never run on hardware yet (only bank A's stream is proven): this pins what a restore of other blocks sends.
+        dev = self.damaged()
+        dev.f[0x46010] ^= 0xFF   # with 0x45000, a run of two sectors
+        plan = restore.plan_restore(dev, self.backup, "backup", None)
+        self.assertEqual(plan.other_sectors, [0x3F000, 0x45000, 0x46000])
+        patch.apply(dev, plan, noprogress)
+        self.assertEqual([o for o in dev.ops if o[0] == "erase"],
+                         [("erase", image.BASE, image.BANK_A_ERASE_END), ("erase", 0x3F000, 0x40000), ("erase", 0x45000, 0x47000)])
+        writes = list(zip((o for o in dev.ops if o[0] == "write"), dev.params))
+        self.assertEqual({p for (_, a, _), p in writes if a < image.BANK_A_ERASE_END}, {image.BANK_A_SIZE})
+        other = [(a, end, p) for (_, a, end), p in writes if a >= image.BANK_A_ERASE_END]
+        self.assertEqual({p for a, _, p in other if a < 0x40000}, {0x1000})   # the run's length, not BANK_A_SIZE
+        self.assertEqual({p for a, _, p in other if a >= 0x45000}, {0x2000})
+        for lo, hi in ((0x3F000, 0x40000), (0x45000, 0x47000)):
+            sent = sorted((a, end) for a, end, _ in other if lo <= a < hi)
+            self.assertEqual(sent[0][0], lo)
+            self.assertTrue(all(b[0] == a[1] or self.flash[a[1]:b[0]] == b"\xff" * (b[0] - a[1]) for a, b in zip(sent, sent[1:])))
+        self.assertEqual(bytes(dev.f[0x19000:image.CONFIG_START]), self.flash[0x19000:image.CONFIG_START])
+
     def test_restore_accepts_an_unknown_bank_a(self):
         dev = self.damaged()
         self.assertTrue(restore.plan_restore(dev, self.backup, "backup", None).bank_a)
@@ -343,6 +364,17 @@ class RestoreTest(Base):
         patch.apply(dev, plan, noprogress)
         self.assertEqual(bytes(dev.f[0x6000:0x18400]), STOCK_A)
         self.assertEqual(bytes(dev.f[0x19000:]), before[0x19000:])
+
+    def test_a_pending_update_refuses_restoring_the_original_but_not_the_backup(self):
+        f = bytearray(self.flash)
+        f[0x3F018:0x3F01C] = (0x1234).to_bytes(4, "little")
+        for force in (False, True):
+            dev = SimBoot(bytes(f))
+            with self.assertRaises(OpError) as e:
+                restore.plan_restore(dev, self.backup, "stock", STOCK_A, force)
+            self.assertIn("A firmware update is pending on this controller, and it could replace the restored firmware", str(e.exception))
+            self.assertIn("Nothing was written.", str(e.exception))
+        self.assertIn(0x3F000, restore.plan_restore(SimBoot(bytes(f)), self.backup, "backup", None).other_sectors)  # the record comes back too
 
     def test_restore_checks_the_unit(self):
         other = bytearray(self.flash); other[image.MAC_SECTOR + 9] ^= 1
@@ -380,10 +412,12 @@ class UnknownFirmwareMessageTest(Base):
     def test_patch_refusal_explains_the_two_likely_causes(self):
         f = bytearray(controller_flash())
         f[0x6000:0x6010] = bytes(16)
+        f[0x40000:0x40010] = bytes(16)  # bank B isn't 1.09 either
+        f[0x3F00C] = 0xFF               # and the update record has no version
         f = bytes(f)
         with self.assertRaises(OpError) as e:
             patch.plan_patch(SimBoot(f), self.backup_of(f), STOCK_A, ["dim_leds"])
-        for part in ("another firmware version", "8BitDo's own updater", "modified outside this app", "Restore", "nothing was written"):
+        for part in ("another firmware version", "8BitDo's own updater", "modified outside this app", "restoring your backup", "nothing was written"):
             self.assertIn(part, str(e.exception))
 
 
@@ -453,7 +487,7 @@ class DiagnosticsDataTest(Base):
         self.assertEqual(report.clean_extras({"firmware": 5}), {})
 
     def test_report_uses_the_apps_name(self):
-        self.assertTrue(report.report([], None, "").startswith("Firmware Toolkit "))
+        self.assertTrue(report.report([], None, "").startswith("U2C Firmware Toolkit "))
 
     def test_report_without_extras_is_unchanged(self):
         self.assertEqual(report.report([], None, "x"), report.report([], None, "x", {}))
@@ -476,19 +510,19 @@ class DiagnosticsDataTest(Base):
 
 class ProbeTest(Base):
     def test_cable_stock_and_patched(self):
-        self.assertEqual(probe.read_state(SimApp(controller_flash()), "cable"), recipes.State(True, ()))
+        self.assertEqual(probe.read_firmware(SimApp(controller_flash()), "cable").state, recipes.State(True, ()))
         built = recipes.build(STOCK_A, ["bt_xbox", "dim_leds"], **K)
-        st = probe.read_state(SimApp(controller_flash(built)), "cable_360")
+        st = probe.read_firmware(SimApp(controller_flash(built)), "cable_360").state
         self.assertEqual((st.known, st.recipes), (True, ("bt_xbox", "dim_leds")))
 
     def test_boot_mode_and_unknown(self):
         odd = bytearray(controller_flash()); odd[0x9000] ^= 0xFF
-        self.assertFalse(probe.read_state(SimBoot(bytes(odd)), "boot").known)
+        self.assertFalse(probe.read_firmware(SimBoot(bytes(odd)), "boot").state.known)
 
     def test_dongle_refused(self):
         f = bytearray(controller_flash()); f[0x10000:0x10010] = b"\xff" * 16
         with self.assertRaises(OpError):
-            probe.read_state(SimApp(bytes(f)), "cable")
+            probe.read_firmware(SimApp(bytes(f)), "cable")
 
 
 class VersionTest(Base):
@@ -530,6 +564,29 @@ class VersionTest(Base):
         with self.assertRaises(OpError) as e:
             restore.plan_restore(dev, self.backup, "stock", STOCK_A)
         self.assertIn("can't be identified", str(e.exception))
+
+    def test_patch_replaces_unrecognised_firmware_when_the_controller_has_1_09(self):
+        odd = bytes(random.Random(9).randbytes(0x12400))
+        for dev in (self.device(0x6D, bank_a=odd, boot_mode=True), self.device(0xFF, bank_a=odd, boot_mode=True)):
+            plan = patch.plan_patch(dev, self.backup, STOCK_A, ["dim_leds"])
+            self.assertIn("doesn't recognise", plan.summary)
+            patch.apply(dev, plan, noprogress)
+            self.assertEqual(recipes.identify(bytes(dev.f[image.BASE:image.APP_END])).recipes, ("dim_leds",))
+
+    def test_patch_refused_over_unrecognised_firmware_of_another_version(self):
+        dev = self.device(106, bank_a=bytes(random.Random(10).randbytes(0x12400)), boot_mode=True)
+        with self.assertRaises(OpError) as e:
+            patch.plan_patch(dev, self.backup, STOCK_A, ["dim_leds"])
+        self.assertIn("1.06", str(e.exception))
+        self.assertEqual([o for o in dev.ops if o[0] != "read"], [])
+
+    def test_patch_refused_when_unrecognised_and_the_version_cannot_be_determined(self):
+        odd = bytes(random.Random(11).randbytes(0x12400))
+        dev = self.device(0xFF, bank_a=odd, bank_b=odd, boot_mode=True)
+        with self.assertRaises(OpError) as e:
+            patch.plan_patch(dev, self.backup, STOCK_A, ["dim_leds"])
+        self.assertIn("nothing was written", str(e.exception))
+        self.assertEqual([o for o in dev.ops if o[0] != "read"], [])
 
     def test_force_install_only_overrides_an_unknown_version(self):
         odd = bytes(random.Random(8).randbytes(0x12400))

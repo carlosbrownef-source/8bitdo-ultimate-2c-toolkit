@@ -6,16 +6,25 @@ from pathlib import Path
 
 from . import fetch, state
 from .firmware import image, recipes
-from .ops import backup as bkp, devices, patch, report, restore
+from .ops import backup as bkp, devices, dongle as dng, patch, report, restore, shown
 from .ops.log import get_logger
 from .ops.plan import OpError
 from . import protocol
 from .protocol import boot
 from .transport import PermissionDenied, open_channel
 
-CONTROLLER_MODES = ("cable", "cable_360", "boot", "dongle")
-BOOT_HELP = "Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white."
-DISCLAIMER_HELP = ("Read DISCLAIMER.md first. There's no warranty, using this voids the controller's warranty, and it only works with the Ultimate 2C on firmware 1.09. "
+CONTROLLER_MODES = ("cable", "cable_360", "boot", "dongle", "dongle_paired")
+BOOT_HELP = "Turn the controller fully off, then hold LB + RB while plugging in the cable. The small light below the Home ring will blink white."
+INSTALLED = ("Installed. Unplug the controller and connect it again. If you changed a Bluetooth tweak, remove the controller in "
+             "System Settings → Bluetooth and pair it again.")
+RESTORED = ("Restored. Unplug the controller and connect it again. If its Bluetooth tweaks changed, remove the controller in "
+            "System Settings → Bluetooth and pair it again.")
+UNCHANGED = "The controller already has this firmware, so nothing was written."
+CHECKED = "The check passed and nothing was written."
+DONGLE_DONE = "Done. The dongle restarted with its new firmware. Turn the controller on to use it."
+DONGLE_REPLUG = "Done. Unplug the dongle and plug it back in, then turn the controller on to use it."
+DONGLE_ALONE = "Turn the controller off so the dongle is connected on its own, then try again. Nothing was written."
+DISCLAIMER_HELP = ("Read DISCLAIMER.md first. There's no warranty. Installing modified firmware probably voids the controller's warranty. It only works with the Ultimate 2C on firmware 1.09. "
                    "To write to the controller, add --accept-disclaimer once.")
 
 
@@ -44,9 +53,9 @@ def pick(modes=CONTROLLER_MODES):
     if len(present) > 1:
         raise Exit(2, "More than one device is connected. Unplug all but one controller.")
     if not present or present[0].mode not in modes:
-        if present and present[0].mode == "dongle":
-            raise Exit(2, "That is the 2.4 GHz dongle, which this app does not support.")
-        want = "in update mode. " + BOOT_HELP if modes == ("boot",) else "by cable"
+        if present and present[0].mode.startswith("dongle"):
+            raise Exit(2, "That is the 2.4 GHz dongle, and this only works with the controller.")
+        want = "by cable" if "cable" in modes else "in update mode. " + BOOT_HELP
         raise Exit(2, f"No controller found {want}")
     return present[0]
 
@@ -80,66 +89,163 @@ def cmd_devices(args, store):
             args.say(f"{'':15} identifies as {who:#06x}" if who is not None else f"{'':15} doesn't answer the identity query")
 
 
+def _dongle_in_boot(f) -> bool:
+    """A device in update mode is the dongle when its bootloader says so."""
+    if f.mode != "boot":
+        return False
+    ch = open_channel(f.info, 0)
+    try:
+        return boot.identify(ch) == boot.DONGLE_ID
+    finally:
+        ch.close()
+
+
+def _dongle_change(args, store, f, xbox: bool | None, source: str | None = None):
+    """Install (xbox: with the Xbox 360 change or not) or restore (source "backup" or "stock") the dongle's bank A."""
+    if f.mode == "dongle_paired":
+        raise Exit(2, DONGLE_ALONE)
+    in_boot = f.mode == "boot"
+    ch = open_channel(f.info, 0 if in_boot else 0x81)
+    try:
+        unit = dng.read_unit(ch, in_boot)
+        try:
+            cur = boot.read(ch, dng.BASE, dng.SIZE) if in_boot else dng._read(ch, dng.BASE, dng.SIZE)
+        except protocol.ProtocolError as e:
+            raise OpError(str(e)) from e
+    finally:
+        ch.close()
+    found = dng.unit_backups(store, unit)
+    if not found:
+        raise Exit(2, "There's no backup of this dongle. Back it up first, with the dongle connected on its own.")
+    if source == "backup":
+        pick_ = next(((p, d) for p, d in found if dng.state(d[dng.BASE:dng.END])[0]), None)
+        if pick_ is None:
+            raise Exit(2, "None of this dongle's backups has firmware this app recognises, so nothing was written. "
+                          "You can restore the original firmware 1.03 instead.")
+        if getattr(args, "expect", None) and pick_[0].name != args.expect:
+            raise Exit(2, "The backup to restore isn't the one shown, so nothing was written. Check again.")
+        new = pick_[1][dng.BASE:dng.END]
+        what = f"This restores the dongle's backup “{pick_[0].name}”, made on {bkp.taken(pick_[0])}."
+    else:
+        base = cur if dng.state(cur)[0] else next((d[dng.BASE:dng.END] for _, d in found if dng.state(d[dng.BASE:dng.END])[0]), None)
+        if base is None:
+            raise Exit(2, "Neither the dongle nor its backups hold firmware this app recognises, so nothing was written.")
+        new = dng.target(base, bool(xbox))
+        what = (f"This installs firmware 1.03 with {dng.TITLE} on the dongle." if xbox
+                else "This installs 8BitDo's original firmware 1.03 on the dongle.")
+    if cur == new:
+        args.unchanged = True
+        args.say("The dongle already has this firmware, so nothing was written.")
+        return
+    diff = sum(x != y for x, y in zip(cur, new))
+    summary = (f"{what} It changes {patch.count(diff, 'byte')} of its firmware. The app restarts the dongle into update mode to "
+               "write, and checks it there again before erasing anything.")
+    if not args.write:
+        args.say(f"{CHECKED} {summary}")
+        args.hint("Add --write to write it.")
+        return
+    args.say(summary)
+    came_back = dng.apply(find, open_channel, found[0][1], new, args.progress)
+    args.say(DONGLE_DONE if came_back else DONGLE_REPLUG)
+
+
 def cmd_backup(args, store):
-    f = pick(("cable", "cable_360", "boot"))
+    f = pick(("cable", "cable_360", "boot", "dongle", "dongle_paired"))
+    if f.mode.startswith("dongle"):
+        ch = open_channel(f.info, 0x81)
+        try:
+            path = dng.backup(ch, store, args.progress)
+        finally:
+            ch.close()
+        known, xbox = dng.state(path.read_bytes()[dng.BASE:dng.END])
+        get_logger(store).info("backup %s", path.name)
+        args.hint(str(path))
+        has = (f"firmware 1.03 with {dng.TITLE}" if xbox else "the original firmware 1.03") if known else "firmware this app doesn't recognise"
+        args.say(f"Backup saved as “{path.name}”. The dongle has {has}.")
+        return
     ch = open_channel(f.info, 0 if f.mode == "boot" else 0x81)
     try:
         b = bkp.backup(ch, f.mode, store, args.progress)
     finally:
         ch.close()
-    s = b.state
-    args.say(f"saved {b.path}\nsha256 {b.sha256}\nfirmware: " + (("original 1.09" + (f" with tweaks: {', '.join(s.recipes)}" if s.recipes else "")) if s.known else "unknown"))
+    get_logger(store).info("backup %s sha256 %s", b.path.name, b.sha256)   # the name only: the folder holds the user's name
+    args.hint(f"{b.path}\nsha256 {b.sha256}")
+    args.say(f"Backup saved as “{b.path.name}”. The controller has {bkp.describe(b.state)}.")
 
 
 def cmd_identify(args, store):
     data = Path(args.file).read_bytes()
     bank_a = data[image.BASE:image.APP_END] if len(data) == image.FLASH_SIZE else data
     s = recipes.identify(bank_a)
-    args.say(("original 1.09" + (f" with tweaks: {', '.join(s.recipes)}" if s.recipes else "")) if s.known else "unknown firmware")
+    args.say(("original 1.09" + (f" with tweaks: {', '.join(shown(s.recipes))}" if shown(s.recipes) else "")) if s.known else "unknown firmware")
 
 
-def _backup_for(args, ch, store):
+def unit_backups(ch, store):
+    """The backups of the controller in update mode on ch, newest first."""
+    return bkp.find_backups(store, boot.read(ch, 0, image.BOOT_END), boot.read(ch, image.MAC_SECTOR, image.SECTOR))
+
+
+def _backup_for(args, ch, store, recognised=False):
+    """The backup named with --backup, or the newest of this unit; recognised: the newest whose firmware the app
+    recognises, which is the one Restore puts back."""
     if args.backup:
         return bkp.load(Path(args.backup))
-    found = bkp.find_backups(store, boot.read(ch, 0, image.BOOT_END), boot.read(ch, image.MAC_SECTOR, image.SECTOR))
+    found = unit_backups(ch, store)
     if not found:
         raise Exit(2, "There's no backup of this controller. Back it up first, connected by cable.")
-    return found[0]
+    if not recognised:
+        return found[0]
+    b = bkp.restorable(found)
+    if b is None:
+        raise Exit(2, "None of this controller's backups has firmware this app recognises, so nothing was written. "
+                      "You can restore the original firmware 1.09 instead.")
+    return b
+
+
+def _write(args, ch, plan, done, hint):
+    """Write the plan unless it's a check or changes nothing, and end with the sentence the app shows as the result."""
+    if not plan.bank_a and not plan.other_sectors:
+        args.unchanged = True
+        args.say(UNCHANGED)
+        return
+    if not args.write:
+        args.say(f"{CHECKED} {plan.summary}")
+        args.hint(hint)
+        return
+    args.say(plan.summary)
+    patch.apply(ch, plan, args.progress)
+    args.say(done)
 
 
 def cmd_patch(args, store):
     need_accept(args, store)
-    f = pick(("boot",))
+    f = pick(("boot", "dongle", "dongle_paired"))
+    if f.mode.startswith("dongle") or _dongle_in_boot(f):
+        return _dongle_change(args, store, f, xbox="dongle_360" in args.tweaks.split(","))
     ch = open_channel(f.info, 0)
     try:
         b = _backup_for(args, ch, store)
-        plan = patch.plan_patch(ch, b, stock_for(args, b, store), [k for k in args.tweaks.split(",") if k])
-        args.say(plan.summary)
-        if not args.write:
-            args.say("The check passed. This was a dry run, so nothing was written.")
-            args.hint("Add --write to install.")
-            return
-        patch.apply(ch, plan, args.progress)
-        args.say("Done. Unplug the controller and plug it back in. If a Bluetooth tweak changed, remove the controller from Bluetooth settings and pair it again.")
+        keys = [k for k in args.tweaks.split(",") if k]
+        keys += ["ble_interval"] if keys and "ble_interval" not in keys else []   # as the app: every install asks for 12.5 ms
+        plan = patch.plan_patch(ch, b, stock_for(args, b, store), keys)
+        _write(args, ch, plan, INSTALLED, "Add --write to install.")
     finally:
         ch.close()
 
 
 def cmd_restore(args, store):
     need_accept(args, store)
-    f = pick(("boot",))
+    f = pick(("boot", "dongle", "dongle_paired"))
+    if f.mode.startswith("dongle") or _dongle_in_boot(f):
+        return _dongle_change(args, store, f, xbox=None, source=args.source)
     ch = open_channel(f.info, 0)
     try:
-        b = bkp.load(Path(args.file)) if args.file else _backup_for(args, ch, store)
+        b = _backup_for(args, ch, store, recognised=args.source == "backup")
+        if args.source == "backup" and getattr(args, "expect", None) and b.path.name != args.expect:  # the page names the backup it showed
+            raise Exit(2, "The backup to restore isn't the one shown, so nothing was written. Check again.")
         stock = fetch.fetch_stock() if args.source == "stock" else None
         plan = restore.plan_restore(ch, b, args.source, stock, args.force_unknown)
-        args.say(plan.summary)
-        if not args.write:
-            args.say("The check passed. This was a dry run, so nothing was written.")
-            args.hint("Add --write to restore.")
-            return
-        patch.apply(ch, plan, args.progress)
-        args.say("Done. Unplug the controller and plug it back in.")
+        _write(args, ch, plan, RESTORED, "Add --write to restore.")
     finally:
         ch.close()
 
@@ -166,11 +272,11 @@ def main(argv=None) -> int:
     sub.add_parser("report", parents=[common])
     p = sub.add_parser("identify", parents=[common]); p.add_argument("file")
     p = sub.add_parser("patch", parents=[common])
-    p.add_argument("--tweaks", default="", help="comma list of: " + ", ".join(k for k, r in recipes.RECIPES.items() if not r.earlier_form_of))
+    p.add_argument("--tweaks", default="", help="comma list of: " + ", ".join(shown(k for k, r in recipes.RECIPES.items() if not r.earlier_form_of)))
     p.add_argument("--backup"); p.add_argument("--download", action="store_true", help="use 8BitDo's v1.09 from its server")
     p = sub.add_parser("restore", parents=[common])
-    p.add_argument("source", choices=["backup", "stock"]); p.add_argument("file", nargs="?")
-    p.add_argument("--backup"); p.add_argument("--download", action="store_true")
+    p.add_argument("source", choices=["backup", "stock"])
+    p.add_argument("--backup", help="this backup file instead of the newest recognised one of the controller")
     p.add_argument("--force-unknown", action="store_true", help="restore 8BitDo's v1.09 even though the firmware version cannot be determined (risky)")
     for p in sub.choices.values():
         if p.prog.endswith(("patch", "restore")):
@@ -179,13 +285,21 @@ def main(argv=None) -> int:
     args.say, args.hint, args.progress = print, print, Bar()
     store = args.store or state.default_store()
     get_logger(store).info("command %s", args.cmd)
+    lock = None
     try:
+        if args.cmd in ("devices", "backup", "patch", "restore"):
+            lock = state.lock_device(store)
+            if lock is None:
+                raise Exit(2, "Another copy of the app, or the command line, is using the controller. Wait until it finishes, then try again.")
         {"devices": cmd_devices, "backup": cmd_backup, "identify": cmd_identify, "patch": cmd_patch,
          "restore": cmd_restore, "report": cmd_report}[args.cmd](args, store)
     except Exit as e:
         print(f"{e.msg} {e.hint}".strip(), file=sys.stderr)
         return e.code
-    except (OpError, fetch.FetchError, protocol.ProtocolError, PermissionDenied) as e:
+    except (OpError, fetch.FetchError, protocol.ProtocolError, PermissionDenied, OSError, NotImplementedError) as e:
         print(f"stopped: {e}", file=sys.stderr)
         return 1
+    finally:
+        if lock:
+            state.unlock_device(lock)
     return 0

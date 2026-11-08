@@ -26,29 +26,30 @@ const SETTINGS_CARDS = [
     { field: "idle_min", label: "Turn off after", kind: "seg", format: (v) => `${v} min` },
     { field: "buzz", label: "Vibrate when connecting", kind: "toggle" },
   ] },
-  { title: "Button remapping", wide: true, kind: "remap", text: "Choose what each button does, in every game. L4 and R4 keep pressing what you chose for them above. Home and the triggers can't be changed. If this leaves you stuck, Reset to defaults works without pressing any buttons on the controller." },
+  { title: "Button Remapping", wide: true, kind: "remap", text: "Choose what each button does, in every game. L4 and R4 keep pressing what you chose for them above. Home and the triggers can't be changed. If this leaves you stuck, Reset to Defaults… works without pressing any buttons on the controller." },
   { title: "Calibration", wide: true, kind: "calibration", text: "If a stick doesn't reach its full range or doesn't return to the centre, the controller can measure them again. This uses a function of its own, and the app doesn't send it anything." },
 ];
 const CALIBRATION_STEPS = [
   "Connect the controller and leave the sticks alone.",
-  "Hold Start + Select + L1 + R1 for 7 seconds, until a light blinks. Keep the sticks still for a moment longer.",
+  "Hold − (Select), + (Start), LB and RB for 7 seconds, until a light blinks. Keep the sticks still for a moment longer.",
   "Move both sticks all around their range, and press both triggers fully.",
-  "Press Start + Select + L1 + R1 once more to save. The light stops blinking.",
+  "Press − (Select), + (Start), LB and RB together once more to save. The light stops blinking.",
 ];
-const REMAP_NAMES = ["Menu", "LS", "RS", "View", "X", "Y", "Right", "Left", "Down", "Up", "LB", "RB", "B", "A"];
+const REMAP_NAMES = ["+ (Start)", "Left stick press", "Right stick press", "− (Select)", "X", "Y", "D-pad right", "D-pad left", "D-pad down", "D-pad up", "LB", "RB", "B", "A"];  // by bit, as printed on the controller
 const REMAP_ORDER = [13, 12, 4, 5, 10, 11, 1, 2, 3, 0, 9, 8, 7, 6];
-const MAP_BUTTONS = [["A", 13], ["B", 12], ["X", 4], ["Y", 5], ["LB", 10], ["RB", 11], ["LT", 14], ["RT", 15], ["LS", 1], ["RS", 2], ["View", 3], ["Menu", 0], ["Up", 9], ["Down", 8], ["Left", 7], ["Right", 6]];
+const MAP_BUTTONS = [["A", 13], ["B", 12], ["X", 4], ["Y", 5], ["LB", 10], ["RB", 11], ["LT", 14], ["RT", 15], ["Left stick press", 1], ["Right stick press", 2], ["− (Select)", 3], ["+ (Start)", 0], ["D-pad up", 9], ["D-pad down", 8], ["D-pad left", 7], ["D-pad right", 6]];
 
+const SETTINGS_MISSING = "Controller settings isn't installed. Install it in the Firmware tab to change the sticks, triggers, buttons and vibration.";
 let settingsData = null, settingsValues = {}, settingsDirty = false, settingsBusy = false, settingsMessage = "", settingsLoading = false, settingsRead = null;
 
 function settingsAccess() {  // the reason the settings can't be changed right now, or null if they can
   const modes = st ? st.devices.map((d) => d.mode) : [];
   if (busy) return "Please wait until the task finishes.";
   if (modes.includes("boot")) return "These settings can't be changed in update mode. Turn the controller off and connect it by cable as usual.";
-  if (!modes.some((m) => m === "cable" || m === "cable_360")) return "Connect the controller by cable to change these settings.";
+  if (!modes.some((m) => m === "cable" || m === "cable_360")) return modes.some((m) => m.startsWith("dongle")) ? "These are the controller's settings, and the dongle has none. Connect the controller by cable to change them." : "Connect the controller by cable to change these settings.";
   if (!fw) return "Reading the firmware…";
   if (fw.error) return fw.error;
-  if (!fw.recipes || !fw.recipes.includes("settings")) return "To change these settings, install Controller settings in the Firmware tab.";
+  if (!fw.recipes || !fw.recipes.includes("settings")) return SETTINGS_MISSING;
   return null;
 }
 
@@ -62,7 +63,7 @@ function settingsMount() {
     section.querySelector("h2").textContent = card.title;
     section.querySelector("p").textContent = card.text;
     if (card.title === "Sticks") section.append(deadZoneRow());
-    if (card.kind === "mapping") section.append(...[["R4", "r4"], ["L4", "l4"]].map(mappingRow));
+    if (card.kind === "mapping") section.append(...[["L4", "l4"], ["R4", "r4"]].map(mappingRow));
     if (card.kind === "remap") {
       const grid = document.createElement("div");
       grid.className = "set-remap";
@@ -95,7 +96,7 @@ function settingsMount() {
 function deadZoneRow() {
   const line = document.createElement("div"), label = document.createElement("span"), t = document.createElement("label"), input = document.createElement("input"), sw = document.createElement("span");
   line.className = "set-row";
-  label.textContent = "Turn off the dead zones. Holding Start + Select for about 4 seconds on the controller does the same.";
+  label.textContent = "Turn off the dead zones. Holding − (Select) and + (Start) together for about 4 seconds on the controller does the same.";
   t.className = "set-toggle"; sw.className = "sw";
   input.type = "checkbox"; input.id = "dead-zone-off";
   input.setAttribute("aria-label", "Turn off the dead zones");
@@ -185,7 +186,7 @@ function settingsPaint() {
   document.querySelectorAll("#settings-cards [data-field]").forEach((c) => {
     const v = settingsValues[c.dataset.field];
     if (c.classList.contains("seg")) {
-      c.querySelectorAll("button").forEach((b) => { b.classList.toggle("on", +b.dataset.value === v); b.disabled = settingsBusy; });
+      c.querySelectorAll("button").forEach((b) => { setOn(b, +b.dataset.value === v); b.disabled = settingsBusy; });
     } else if (c.type === "checkbox") {
       c.checked = c.dataset.bit === undefined ? !!v : !!(v >> +c.dataset.bit & 1); c.disabled = settingsBusy;
     } else if (c.tagName === "SELECT") {
@@ -197,7 +198,7 @@ function settingsPaint() {
   const off = $("dead-zone-off");
   off.checked = settingsData.dead_zone_off; off.disabled = settingsBusy;
   document.querySelectorAll("#settings-cards [data-slot]").forEach((b) => {
-    b.classList.toggle("on", !!(settingsData.mapping[b.dataset.slot] >> +b.dataset.bit & 1)); b.disabled = settingsBusy;
+    setOn(b, !!(settingsData.mapping[b.dataset.slot] >> +b.dataset.bit & 1)); b.disabled = settingsBusy;
   });
   $("settings-save").disabled = $("settings-reset").disabled = settingsBusy;
   $("settings-unsaved").hidden = !settingsDirty;
@@ -292,8 +293,9 @@ function settingsRender() {
   if (!reason && !settingsData && !settingsLoading && tab === "settings") settingsLoad();
   const ready = !reason && settingsData && settingsData.available;
   $("settings-note").textContent = reason || (settingsData && settingsData.note) || (ready ? "" : "Reading the settings…");
-  $("settings-note").hidden = !!ready;
+  $("settings-empty").hidden = !!ready;
   $("settings-retry").hidden = !(!reason && settingsData && !settingsData.available);
+  $("settings-goto").hidden = $("settings-note").textContent !== SETTINGS_MISSING;
   $("settings-cards").hidden = $("settings-actions").hidden = $("live-card").hidden = !ready;
   if (ready) settingsPaint();
 }
@@ -306,7 +308,7 @@ function ringAccess() {  // how the card can reach the controller, or why it can
   if (modes.some((m) => m === "cable" || m === "cable_360")) {
     if (!fw) return { note: "Reading the firmware…" };
     if (fw.outdated) return { note: "This firmware has the Home ring from an earlier version. Install the tweaks again to change it here." };
-    if (fw.ring_level === undefined || fw.ring_level === null) return { note: "To change the ring here, install a Home ring brightness in the Firmware tab." };
+    if (fw.ring_level === undefined || fw.ring_level === null) return { note: "Install the tweaks from the Firmware tab to change the ring here. Its code comes with Battery alerts, Controller settings, Fixes and Processor rest." };
     return { via: "cable" };
   }
   if (modes.includes("bluetooth_xbox")) return bridge() ? { via: "bluetooth" } : { note: "Over Bluetooth, this only works in the Mac app." };
@@ -316,7 +318,7 @@ function ringAccess() {  // how the card can reach the controller, or why it can
 function ringRender() {
   const access = ringAccess(), off = !access.via || ringBusy;
   if (fw && fw !== ringRead) { ringRead = fw; ringLevel = fw.ring_level === undefined ? null : fw.ring_level; }  // each read says what the ring starts at
-  document.querySelectorAll("[data-live]").forEach((b) => { b.disabled = off; b.classList.toggle("on", +b.dataset.live === ringLevel); });
+  document.querySelectorAll("[data-live]").forEach((b) => { b.disabled = off; setOn(b, +b.dataset.live === ringLevel); });
   $("ring-save").disabled = off;
   $("ring-note").textContent = access.note || ringMessage || (access.via === "bluetooth"
     ? "This needs the Home ring and Rumble over Bluetooth tweaks. A change lasts until you turn the controller off, unless you save it."
@@ -359,4 +361,5 @@ addEventListener("DOMContentLoaded", () => {
   $("settings-save").onclick = settingsSave;
   $("settings-reset").onclick = settingsReset;
   $("settings-retry").onclick = () => { settingsData = null; settingsRender(); };
+  $("settings-goto").onclick = () => showTab("firmware");
 });

@@ -41,6 +41,11 @@ def _check_device(ch, mode: str, identity: int | None) -> None:
         return
     if app.open_session(ch) is None:
         raise OpError("The controller isn't answering. Unplug it, plug it back in and try again.")
+    check_not_dongle(ch)
+
+
+def check_not_dongle(ch) -> None:
+    """On an open update channel: a paired dongle has the controller's USB ID, but its 0x10000 is blank."""
     if app.read(ch, 0x10000, 16) == b"\xff" * 16:
         raise OpError("This looks like the 2.4 GHz dongle, which this app doesn't support.")
 
@@ -96,7 +101,3 @@ def read_firmware(ch, mode: str) -> Firmware:
         raise OpError(str(e)) from e
     version, how = detect_version(ch, mode, bank_a)
     return Firmware(state, version, how, pending, identity, ring)
-
-
-def read_state(ch, mode: str) -> recipes.State:
-    return read_firmware(ch, mode).state

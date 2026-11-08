@@ -32,6 +32,10 @@ class Node:
     def classes(self):
         return self.attrs.get("class", "").split()
 
+    def shown_text(self):
+        """Like all_text, leaving out what the hidden attribute hides."""
+        return "" if "hidden" in self.attrs else " ".join([" ".join(self.text)] + [c.shown_text() for c in self.children])
+
 
 class Tree(HTMLParser):
     def __init__(self, dom):
@@ -104,14 +108,106 @@ class TabsTest(PageCase):
         self.assertIn("Erases the firmware on the controller and replaces it with 8BitDo's original firmware 1.09, without any tweaks.",
                       self.server.dom().find("force-zone").all_text())
 
+    def test_restoring_the_original_is_on_with_firmware_1_09(self):
+        dom = self.server.dom()
+        self.assertNotIn("disabled", dom.find("restore-stock").attrs)
+        self.assertIn("hidden", dom.find("restore-stock-why").attrs)
+
+    def why(self, query, id_="restore-why"):
+        el = self.server.dom(query).find(id_)
+        return "" if "hidden" in el.attrs else el.all_text()
+
+    def test_restore_says_why_it_is_off(self):
+        self.assertEqual(self.why(""), "")
+        self.assertEqual(self.why("&diagsim=cable"), "Put the controller in update mode to restore.")
+        self.assertEqual(self.why("&diagsim=boot&nobackup=1"), "Back up the controller first to restore your backup.")
+
+    def test_install_says_why_it_is_off(self):
+        self.assertEqual(self.why("", "choose-one"), "")
+        self.assertEqual(self.why("&diagsim=boot&scenario=notweaks", "choose-one"), "Choose at least one tweak.")
+
+    def hero(self, query):
+        dom = self.server.dom(query)
+        return dom, dom.find("fw-title").all_text(), dom.find("fw-note").all_text()
+
+    def test_the_dongle_shows_its_firmware_and_its_one_tweak(self):
+        dom, title, note = self.hero("&diagsim=dongle")
+        self.assertEqual((title, note), ("Dongle firmware 1.03 with tweaks", "Connected on its own."))
+        self.assertEqual([" ".join(n.text) for n in dom.find("chips").children], ["Xbox 360 controller over 2.4 GHz"])
+        self.assertIn("hidden", dom.find("ctrl-tweaks").attrs)
+        self.assertNotIn("hidden", dom.find("dongle-tweaks").attrs)
+        self.assertEqual({k: k in dom.find("dongle-360").attrs for k in ("checked", "disabled")}, {"checked": True, "disabled": False})
+        for id_ in ("backup", "patch-dry", "patch-write", "restore-backup", "restore-stock"):
+            self.assertNotIn("disabled", dom.find(id_).attrs, id_)
+        self.assertIn("hidden", dom.find("pre-boot").attrs)   # the app puts the dongle in update mode itself
+        none = self.server.dom("&diagsim=dongle&nodonglebackup=1")
+        for id_ in ("patch-write", "restore-backup", "restore-stock"):
+            self.assertIn("disabled", none.find(id_).attrs, id_)
+        self.assertEqual(none.find("restore-why").all_text(), "Back up the dongle first to restore it.")
+        self.assertEqual(self.hero("&diagsim=dongle&stockdongle=1")[1], "Original dongle firmware 1.03")
+        self.assertEqual(next(n for n in dom.find("pic").walk() if n.tag == "svg").attrs.get("aria-label"), "2.4 GHz dongle")
+        text = dom.find("tab-firmware").shown_text()
+        self.assertNotIn("controller", text.replace("Xbox 360 controller", ""))   # no step talks about the controller
+        self.assertIn("hidden", dom.find("restore-why").attrs)
+
+    def test_checking_the_dongle_sends_only_its_own_tweak(self):
+        dom = self.server.dom("&diagsim=dongle&job=checked&scenario=donglecheck")
+        self.assertIn('"tweaks":[]', dom.find("diag-posted").all_text())   # unticked: the original 1.03
+
+    def test_the_paired_dongle_says_the_controller_is_connected_through_it(self):
+        dom, title, note = self.hero("&diagsim=donglepaired")
+        self.assertEqual(title, "Dongle firmware 1.03 with tweaks")
+        self.assertTrue(note.startswith("The controller is connected through it over 2.4 GHz."), note)
+        for id_ in ("patch-write", "restore-backup", "restore-stock"):
+            self.assertIn("disabled", dom.find(id_).attrs, id_)   # the dongle has to be on its own to change
+        self.assertNotIn("hidden", dom.find("dongle-note").attrs)
+        self.assertEqual(dom.find("badge-text").all_text(), "2.4 GHz dongle · Controller connected")
+        self.assertNotIn("hidden", dom.find("dongle-tweaks").attrs)
+
+    def test_bluetooth_says_what_works_over_it(self):
+        _, title, note = self.hero("&diagsim=bt")
+        self.assertEqual(title, "Connected over Bluetooth")
+        self.assertEqual(note, "Connect the controller by cable to see or change its firmware. Over Bluetooth, you can test it in Diagnostics and change the Home ring in Settings.")
+
+    def test_input_monitoring_has_a_button_to_its_settings(self):
+        dom = self.server.dom("&diagsim=boot&permission=1&scenario=privacy")
+        self.assertNotIn("hidden", dom.find("privacy-open").attrs)
+        self.assertIn('{"op":"privacy"}', dom.find("diag-sent").all_text())
+        self.assertIn("hidden", self.server.dom("&diagsim=web&permission=1").find("privacy-open").attrs)   # only the Mac app can open it
+        self.assertIn("hidden", self.server.dom().find("privacy-open").attrs)
+
+    def test_hovering_check_first_or_install_shows_the_update_mode_help_until_ready(self):
+        self.assertEqual(self.server.dom("&diagsim=cable&scenario=installhover").find("diag-snap").all_text(), "true")
+        self.assertEqual(self.server.dom("&diagsim=boot&scenario=installhover").find("diag-snap").all_text(), "false")
+
+    def test_update_mode_help_is_behind_the_question_mark_until_ready(self):
+        dom = self.server.dom()
+        self.assertEqual(dom.find("pre-boot").all_text().strip(), "In update mode")
+        dom = self.server.dom("&diagsim=cable")
+        self.assertEqual(dom.find("pre-boot").all_text().split(), ["Not", "in", "update", "mode", "?"])
+        pop = dom.find(dom.find("boot-info").attrs["aria-controls"]).all_text()
+        self.assertIn("Turn the controller fully off, then hold LB and RB", pop)
+        self.assertIn("The small light below the Home ring will blink white.", pop)
+
+    def test_the_last_resort_is_one_calm_line_unless_it_applies(self):
+        dom = self.server.dom()
+        zone = dom.find("force-zone")
+        self.assertNotIn("hot", zone.classes())
+        self.assertIn("Last-resort install for firmware that can't be identified.", zone.all_text())
+        self.assertIn("Only for firmware that can't be identified", zone.all_text())
+        self.assertIn("Install firmware 1.09 over an unknown version?", dom.find("force").all_text())
+        self.assertNotIn("WARNING", dom.all_text())
+
     def test_no_hint_when_the_firmware_is_known(self):
         dom = self.server.dom()
         self.assertIn("hidden", dom.find("force-hint").attrs)
         self.assertIn("hidden", dom.find("strip-alert").attrs)
 
     def test_details_in_update_mode(self):
-        text = self.server.dom("&diagsim=boot").find("firmware-details").all_text()
-        self.assertIn("0x301b · controller", text)
+        text = " ".join(self.server.dom("&diagsim=boot").find("firmware-details").all_text().split())
+        self.assertIn("Device in update mode The controller", text)
+        self.assertNotIn("0x301b", text)   # the problem report keeps the number
+        self.assertIn("Identified from The installed firmware", text)   # the simulation has no update record
         self.assertIn("Pending update", text)
         self.assertIn("None", text)
 
@@ -120,15 +216,58 @@ class TabsTest(PageCase):
 
     def test_back_up_comes_first_across_the_whole_width(self):
         tab = self.server.dom().find("tab-firmware")
-        cols = next(n for n in tab.walk() if n.attrs.get("class") == "cols").all_text()
-        self.assertNotIn("Back up", cols)
+        cols = next(n for n in tab.walk() if n.attrs.get("class") == "stack").all_text()
+        self.assertNotIn("Back Up", cols)
         self.assertLess(cols.index("Tweaks"), cols.index("Restore"))
         text = tab.all_text()
-        self.assertLess(text.index("Back up"), text.index("Tweaks"))
+        self.assertLess(text.index("Back Up"), text.index("Tweaks"))
+
+    def test_the_tweak_list_is_collapsed_at_first(self):
+        dom = self.server.dom()
+        self.assertEqual(dom.find("sum").all_text(), "No tweaks installed.")
+        self.assertIn("hidden", dom.find("chips").attrs)
+        self.assertEqual(dom.find("details").all_text(), "Show Details")
+        self.assertEqual(dom.find("details").attrs.get("aria-expanded"), "false")
+        self.assertIn("hidden", self.server.dom("&diagsim=bt").find("sumrow").attrs)   # nothing read, nothing to list
+
+    def test_show_details_lists_the_installed_tweaks_first(self):
+        dom = self.server.dom("&diagsim=cable&tweaks=1&scenario=details")
+        self.assertEqual(dom.find("sum").all_text(), "2 tweaks installed.")
+        self.assertNotIn("hidden", dom.find("chips").attrs)
+        self.assertEqual((dom.find("details").all_text(), dom.find("details").attrs.get("aria-expanded")), ("Hide Details", "true"))
+        chips = dom.find("chips").children
+        self.assertEqual([" ".join(n.text) for n in chips[:3]], ["Xbox Series X|S controller over Bluetooth", "Home ring: 5 %", "Rumble over Bluetooth"])
+        self.assertEqual(["on" in n.classes() for n in chips[:3]], [True, True, False])
+
+    def test_the_install_row_is_pinned_at_the_end_of_the_tweaks_card(self):
+        dom = self.server.dom()
+        card = dom.find("tweaks-card")
+        row = card.children[-1]
+        self.assertEqual((row.attrs.get("id"), row.classes()), ("tweaks-act", ["act"]))
+        for id_ in ("pre-backup", "pre-boot", "patch-dry", "patch-write", "choose-one"):
+            self.assertIsNotNone(row.find(id_), id_)
+        self.assertIn("Installing modified firmware probably voids the controller's warranty.", row.all_text())
+        css = (Path(__file__).parent.parent / "u2c_customfw/web/static/style.css").read_text()
+        for rule in ("main{flex:1;overflow:auto;padding:14px 22px}", ".act{position:sticky;bottom:-14px", ".set-actions{position:sticky;bottom:-14px"):   # main's bottom padding
+            self.assertIn(rule, css)
+
+    def test_the_hero_says_where_the_version_came_from(self):
+        self.assertEqual(self.hero("")[2], "Identified from the installed firmware")
+
+    def test_buttons_are_title_case(self):
+        dom = self.server.dom()
+        labels = {id_: dom.find(id_).all_text() for id_ in ("backup", "patch-dry", "patch-write", "restore-backup-dry", "settings-save", "settings-reset", "report-open", "force-open", "force-yes")}
+        self.assertEqual(labels, {"backup": "Back Up", "patch-dry": "Check First", "patch-write": "Install Tweaks…", "restore-backup-dry": "Check First",
+                                  "settings-save": "Save to Controller", "settings-reset": "Reset to Defaults…", "report-open": "Create Problem Report",
+                                  "force-open": "Install Firmware 1.09 Anyway…", "force-yes": "Install Anyway"})
+
+    def test_the_back_up_step_asks_for_the_cable_only_without_a_controller(self):
+        self.assertIn("hidden", self.server.dom().find("backup-connect").attrs)
+        self.assertNotIn("hidden", self.server.dom("&diagsim=bt").find("backup-connect").attrs)
 
     def test_help_explains_the_stick_dead_zone(self):
         text = self.server.dom().find("help").all_text()
-        self.assertIn("Start + Select", text)
+        self.assertIn("− (Select) and + (Start)", text)
         self.assertIn("14 % dead zone", text)
 
     def test_tags_say_what_happens(self):
@@ -176,13 +315,21 @@ class SettingsTabTest(PageCase):
         self.explains("&diagsim=bt&open=settings", "by cable")
 
     def test_tab_explains_missing_tweak(self):
-        self.explains("&diagsim=cable&tweaks=1&open=settings", "install Controller settings")
+        self.explains("&diagsim=cable&tweaks=1&open=settings", "Controller settings isn't installed. Install it in the Firmware tab")
+
+    def test_a_missing_tweak_offers_the_way_to_the_firmware_tab(self):
+        dom = self.server.dom("&diagsim=cable&tweaks=1&open=settings")
+        self.assertNotIn("hidden", dom.find("settings-goto").attrs)
+        self.assertEqual(dom.find("settings-goto").all_text(), "Open Firmware Tab")
+        self.assertIn("hidden", self.server.dom("&diagsim=bt&open=settings").find("settings-goto").attrs)
+        dom = self.server.dom("&diagsim=cable&tweaks=1&open=settings&scenario=gotofirmware")
+        self.assertNotIn("hidden", dom.find("tab-firmware").attrs)
 
     def test_tab_explains_update_mode(self):
         self.explains("&diagsim=boot&open=settings", "update mode")
 
     def test_tab_explains_firmware_from_an_earlier_version(self):
-        self.explains("&diagsim=cable&tweaks=1&outdated=1&open=settings", "install Controller settings")
+        self.explains("&diagsim=cable&tweaks=1&outdated=1&open=settings", "Install it in the Firmware tab")
 
     def test_tab_says_nothing_is_sent_during_a_job(self):
         dom = self.server.dom("&diagsim=busy&open=settings", 7000)
@@ -221,7 +368,7 @@ class SettingsTabTest(PageCase):
 
     def test_installing_includes_settings_by_default_with_the_ring_code(self):
         dom = self.server.dom("&diagsim=boot&scenario=installed")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,fixes,ring_normal")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,fixes,cpu_rest,ring_normal,ble_interval")
 
     def test_sticks_and_triggers_have_their_controls(self):
         dom = self.server.dom(self.READY)
@@ -268,6 +415,23 @@ class SettingsTabTest(PageCase):
         self.assertNotIn("No answer", dom.find("ring-note").all_text())
         self.assertIn("Sent", dom.find("ring-note").all_text())
 
+    def test_the_save_row_is_pinned_at_the_bottom_and_says_how_saving_works(self):
+        dom = self.server.dom(self.READY)
+        tab = dom.find("tab-settings")
+        ids = [n.attrs["id"] for n in tab.walk() if n.attrs.get("id") in ("settings-actions", "ring-card", "live-card", "settings-cards")]
+        self.assertEqual(ids, ["ring-card", "live-card", "settings-cards", "settings-actions"])
+        row = tab.children[-1]
+        self.assertEqual(row.attrs.get("id"), "settings-actions")
+        self.assertNotIn("hidden", row.attrs)
+        for id_ in ("settings-save", "settings-reset", "settings-unsaved", "settings-message"):
+            self.assertIsNotNone(row.find(id_), id_)
+        self.assertIn("Changes apply at once. Save them to keep them after the controller turns off.", dom.find("settings-actions").all_text())
+        self.assertEqual(dom.find("ring-save").all_text(), "Save Ring Level")
+        self.assertNotIn("Changes at once", tab.all_text())
+        self.assertIn("Live View", dom.find("live-card").all_text())
+        slots = [n.attrs["data-slot"] for n in dom.find("settings-cards").walk() if n.attrs.get("data-slot") and n.attrs.get("data-bit") == "13"]
+        self.assertEqual(slots, ["l4", "r4"])
+
     def test_mapping_warning_text(self):
         text = " ".join(self.server.dom(self.READY).find("settings-cards").all_text().split())
         self.assertIn("Pressing L4 and R4 together changes the Home ring's brightness, and games also receive the buttons you mapped to them.", text)
@@ -279,7 +443,7 @@ class SettingsTabTest(PageCase):
         dom = self.server.dom(self.READY)
         for slot in ("r4", "l4"):
             names = [" ".join(n.text).strip() for n in self.mapping_buttons(dom, slot)]
-            self.assertEqual(sorted(names), sorted(["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "LS", "RS", "View", "Menu", "Up", "Down", "Left", "Right"]))
+            self.assertEqual(sorted(names), sorted(["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "Left stick press", "Right stick press", "− (Select)", "+ (Start)", "D-pad up", "D-pad down", "D-pad left", "D-pad right"]))
 
     def test_mapping_is_sent_as_bits(self):
         dom = self.server.dom(self.READY + "&scenario=mapa")
@@ -296,12 +460,12 @@ class SettingsTabTest(PageCase):
     def test_dead_zone_switch_has_a_control_and_shows_its_state(self):
         dom = self.server.dom(self.READY + "&scenario=dzoff")
         self.assertIn('{"dead_zone_off":true}', dom.find("diag-posted").all_text())
-        self.assertIn("Start + Select", dom.find("settings-cards").all_text())
+        self.assertIn("− (Select) and + (Start)", dom.find("settings-cards").all_text())
 
     def test_calibration_steps_send_nothing(self):
         dom = self.server.dom(self.READY)
         text = dom.find("settings-cards").all_text()
-        self.assertIn("Start + Select + L1 + R1", text)
+        self.assertIn("− (Select), + (Start), LB and RB", text)
         self.assertIn("7 seconds", text)
         self.assertEqual(dom.find("diag-posted").all_text().strip(), "")
 
@@ -353,7 +517,7 @@ class ControllerTestCard(PageCase):
         dom = self.server.dom("&diagsim=bt")
         ids = [n.attrs["id"] for n in dom.walk() if n.tag == "lineargradient"]
         self.assertEqual(len(ids), len(set(ids)), ids)
-        self.assertEqual(len(ids), 2)
+        self.assertEqual(len(ids), 3)   # the hero, the controller test and the update-mode pop-up
 
     def test_states(self):
         for state_, sentence in (
@@ -428,8 +592,8 @@ class ControllerTestCard(PageCase):
         self.assertIn("disabled", self.direct_button(body).attrs)
 
     def test_firmware_details_name_the_tweaks(self):
-        text = self.server.dom("&diagsim=boot&tweaks=1").find("firmware-details").all_text()
-        self.assertIn("1.09 with 2 tweaks: Dimmer LEDs, Home ring: 5 %", text)
+        text = " ".join(self.server.dom("&diagsim=boot&tweaks=1").find("firmware-details").all_text().split())
+        self.assertIn("Firmware 1.09 with 2 tweaks Dimmer LEDs Home ring: 5 %", text)   # one per line
 
     def test_a_replugged_controller_is_noticed_on_the_tab(self):
         _, _, text = self.body("boot&scenario=replugged", budget=7000)
@@ -438,19 +602,19 @@ class ControllerTestCard(PageCase):
 
     def test_tweak_controls_start_from_what_is_installed(self):
         dom, _, _ = self.body("boot&tweaks=1&scenario=installed")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ring_5")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ring_5,ble_interval")
 
-    def test_alerts_off_with_normal_installs_no_ring_code(self):
+    def test_alerts_off_with_normal_installs_no_ring_code(self):  # with the other tweaks that need it off too
         dom, _, _ = self.body("boot&scenario=noalerts")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,ble_interval")
 
     def test_reading_the_same_firmware_keeps_the_choice_made(self):
         dom, _, _ = self.body("boot&tweaks=1&scenario=keptchoice")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ring_1")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,cable_360,ring_5,ble_interval")
 
     def test_original_firmware_keeps_the_suggested_tweaks(self):
         dom, _, _ = self.body("boot&scenario=installed")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,fixes,ring_normal")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,fixes,cpu_rest,ring_normal,ble_interval")
 
     def ring_button(self, dom, index):
         return next(n for n in dom.find("ring-card").walk() if n.attrs.get("data-live") == str(index))
@@ -489,7 +653,7 @@ class ControllerTestCard(PageCase):
 
     def test_card_explains_when_the_tweak_is_missing(self):
         dom, _, _ = self.body("cable")
-        self.assertIn("Home ring brightness", dom.find("ring-note").all_text())
+        self.assertIn("Install the tweaks", dom.find("ring-note").all_text())
         self.assertIn("disabled", self.ring_button(dom, 1).attrs)
 
     def test_card_explains_firmware_from_an_earlier_version(self):
@@ -524,9 +688,10 @@ class ControllerTestCard(PageCase):
         _, body, _ = self.body("cable&scenario=latebt")
         self.assertNotIn("disabled", next(n for n in body.walk() if n.attrs.get("data-op") == "direct").attrs)
 
-    def test_details_have_their_own_refresh(self):
-        _, _, text = self.body("boot&scenario=refreshbutton")
-        self.assertNotIn("can't run in update mode", text)
+    def test_one_read_again_button(self):
+        dom = self.server.dom("&diagsim=boot")
+        self.assertEqual(dom.find("refresh").all_text(), "Read Again")
+        self.assertIsNone(dom.find("details-refresh"))
 
     def test_the_firmware_is_read_once_when_opening_the_tab(self):
         dom, _, _ = self.body("boot")
@@ -575,15 +740,182 @@ class ControllerTestCard(PageCase):
         self.assertIn("macOS sees: 8BitDo Ultimate 2C (X/S) (Xbox One)", dom.find("report-text").all_text())
 
 
+class ConfirmTest(PageCase):
+    def test_restoring_the_backup_names_it_and_isnt_styled_as_danger(self):
+        dom = self.server.dom("&diagsim=boot&scenario=restoreask")
+        self.assertIn("open", dom.find("confirm").attrs)
+        self.assertIn("“controller-sim.bin”, made on", dom.find("confirm-text").all_text())
+        self.assertIn("the original firmware 1.09", dom.find("confirm-text").all_text())
+        self.assertNotIn("danger", dom.find("confirm-yes").classes())
+        self.assertIn("hidden", dom.find("confirm-icon").attrs)
+        self.assertIn("hidden", dom.find("confirm-warranty").attrs)
+
+    def test_the_restore_sends_the_backup_it_named(self):
+        self.assertIn('"backup":"controller-sim.bin"', self.server.dom("&diagsim=boot&scenario=restorecheck").find("diag-posted").all_text())
+
+    def test_installing_warns_about_the_warranty(self):
+        dom = self.server.dom("&diagsim=boot&scenario=installask")
+        self.assertIn("danger", dom.find("confirm-yes").classes())
+        self.assertNotIn("hidden", dom.find("confirm-icon").attrs)
+        self.assertNotIn("hidden", dom.find("confirm-warranty").attrs)
+        self.assertIn("Installing modified firmware probably voids the controller's warranty.", dom.find("confirm-text").all_text())
+
+    def test_each_tweak_says_what_it_does_and_the_chips_keep_its_name(self):
+        dom = self.server.dom("&diagsim=boot&scenario=installask")
+        rows = [n for n in dom.find("ctrl-tweaks").walk() if "tw" in n.classes()]
+        self.assertEqual(len(rows), 10)
+        pops = {n.attrs["id"]: n for n in dom.walk() if "pop" in n.classes()}
+        for row in rows:   # each explanation is in a pop-up behind its (i) button, outside the row
+            info = next(n for n in row.walk() if "info" in n.classes())
+            self.assertEqual(info.tag, "button")
+            line = pops[info.attrs["aria-controls"]].all_text()
+            self.assertTrue(line.endswith("."), line)
+            self.assertFalse(any(n.tag == "small" for n in row.walk()), row.all_text())
+        notes = {next(n for n in row.walk() if n.tag == "input").attrs["value"]: next((n.all_text() for n in row.walk() if "note" in n.classes()), None) for row in rows}
+        self.assertEqual(notes["bt_rumble"], "Needs Xbox Series X|S controller over Bluetooth.")
+        self.assertEqual(sum(1 for v in notes.values() if v), 3)   # Rumble, Finer stick movement, Faster button reading
+        self.assertFalse(any("data-ring" in n.attrs for n in dom.find("tab-firmware").walk()))   # the ring is set in Settings only
+        chips = [" ".join(n.text) for n in dom.find("confirm-chips").children]
+        self.assertIn("Rumble over Bluetooth", chips)
+
+    def test_the_info_button_opens_its_pop_up_without_toggling_the_tweak(self):
+        dom = self.server.dom("&diagsim=boot&scenario=infopop")
+        self.assertEqual(dom.find("diag-snap").all_text(), "false true")
+
+    def test_reset_is_not_styled_as_danger(self):
+        dom = self.server.dom(SettingsTabTest.READY + "&scenario=resetopen")
+        self.assertNotIn("danger", dom.find("confirm-yes").classes())
+        self.assertIn("hidden", dom.find("confirm-warranty").attrs)
+
+
+class DockTest(PageCase):
+    def end(self, scenario, job):
+        dom = self.server.dom(f"&diagsim=boot&job={job}&scenario={scenario}")
+        return dom, dom.find("dock-status").all_text(), dom.find("dock-message")
+
+    def test_a_backup_says_what_it_saved(self):
+        dom, status, message = self.end("backupjob", "backup")
+        self.assertEqual(status, "Backup saved")
+        self.assertNotIn("hidden", message.attrs)
+        self.assertIn("Backup saved as “controller-", message.all_text())
+        self.assertIn("hidden", dom.find("log").attrs)   # the log starts collapsed
+        self.assertIn("Show Log", dom.find("log-toggle").all_text())
+
+    def test_a_check_says_it_passed_and_what_installing_changes(self):
+        _, status, message = self.end("checkjob", "check")
+        self.assertEqual(status, "Check passed")
+        self.assertIn("The check passed and nothing was written. Installing changes", message.all_text())
+
+    def test_a_write_says_not_to_disconnect_and_then_what_to_do(self):
+        dom, status, message = self.end("installjob", "install")
+        self.assertIn("Do not disconnect the controller or quit the app until this finishes.", dom.find("diag-snap").all_text())
+        self.assertEqual(status, "Tweaks installed")
+        self.assertTrue(message.all_text().startswith("Installed. Unplug the controller and connect it again."))
+        self.assertIn("hidden", dom.find("idle").attrs)
+
+    def test_a_refusal_is_not_completed_with_its_reason_in_plain_text(self):
+        dom, status, message = self.end("checkjob", "refused")
+        self.assertEqual(status, "Not completed")
+        self.assertIn("err", dom.find("dock").classes())
+        self.assertIn("nothing was written", message.all_text())
+
+    def test_nothing_to_write_isnt_called_installed(self):
+        self.assertEqual(self.end("checkjob", "unchanged")[1], "No changes needed")
+
+    def test_the_dock_is_announced(self):
+        dom, _, _ = self.end("checkjob", "check")
+        self.assertEqual(dom.find("dock-status").attrs.get("aria-live"), "polite")
+        self.assertEqual((dom.find("prog").attrs.get("role"), dom.find("prog").attrs.get("aria-valuenow")), ("progressbar", "100"))
+
+
+class AccessibilityTest(PageCase):
+    def pressed(self, dom, attr):
+        return {n.attrs[attr]: n.attrs.get("aria-pressed") for n in dom.walk() if attr in n.attrs and n.tag == "button"}
+
+    def test_segmented_controls_and_chips_say_which_is_chosen(self):
+        dom = self.server.dom()
+        self.assertEqual(self.pressed(dom, "data-base"), {"backup": "true", "download": "false"})
+        dom = self.server.dom(SettingsTabTest.READY + "&mapped=1")
+        vibration = next(n for n in dom.find("settings-cards").walk() if n.attrs.get("data-field") == "vibration")
+        self.assertEqual({b.attrs["data-value"]: b.attrs.get("aria-pressed") for b in vibration.walk() if b.tag == "button"}["100"], "true")
+        chips = {(b.attrs["data-slot"], b.attrs["data-bit"]): b.attrs.get("aria-pressed") for b in dom.walk() if "data-slot" in b.attrs}
+        self.assertEqual((chips[("l4", "14")], chips[("r4", "14")], chips[("l4", "13")]), ("true", "false", "false"))
+
+    def test_tabs_are_tabs(self):
+        dom = self.server.dom("&diagsim=boot&open=settings")
+        self.assertEqual(next(n for n in dom.walk() if n.attrs.get("role") == "tablist").tag, "div")
+        self.assertEqual([(dom.find(f"strip-{t}").attrs.get("role"), dom.find(f"strip-{t}").attrs.get("aria-selected")) for t in ("firmware", "settings", "diagnostics")],
+                         [("tab", "false"), ("tab", "true"), ("tab", "false")])
+        self.assertEqual(dom.find("tab-settings").attrs.get("role"), "tabpanel")
+
+    def test_the_vibration_buttons_name_the_motors(self):
+        text = self.server.dom("&diagsim=bt").find("test-body").all_text()
+        self.assertIn("Left Motor", text)
+        self.assertIn("Right Motor", text)
+
+
+class SmallerTest(PageCase):
+    def test_the_firmware_source_is_capitalised_like_the_other_choices(self):
+        dom = self.server.dom()
+        self.assertEqual([" ".join(n.text) for n in dom.walk() if "data-base" in n.attrs], ["Your Backup", "8BitDo's Server"])
+
+    def test_back_up_steps_back_once_there_is_a_backup(self):
+        self.assertIn("sec", self.server.dom().find("backup").classes())
+        self.assertNotIn("sec", self.server.dom("&diagsim=boot&nobackup=1").find("backup").classes())
+
+    def test_the_disclaimer_can_be_declined_in_the_mac_app(self):
+        dom = self.server.dom("&diagsim=boot&scenario=quit")
+        self.assertNotIn("hidden", dom.find("disclaimer-quit").attrs)
+        self.assertEqual(dom.find("disclaimer-quit").all_text(), "Quit")
+        self.assertIn('{"op":"quit"}', dom.find("diag-sent").all_text())
+        self.assertIn("hidden", self.server.dom("&diagsim=web").find("disclaimer-quit").attrs)
+
+
 class HelpTest(PageCase):
+    def test_help_states_the_same_facts_and_risks_as_the_readme(self):
+        text = self.server.dom().find("help").all_text()
+        for fact in ("about 1.25 ms sooner", "a worn button could occasionally register twice.",
+                     "In rare cases it could make the controller stop responding. This hasn't been observed.",
+                     "Installing keeps the ring's level as it is, and you change it in the Settings tab."):
+            self.assertIn(fact, text)
+        self.assertIn("which may make the battery last longer", text)   # a possibility, never a promise
+        for promise in ("saves battery", "battery life"):   # not claimed until it's measured
+            self.assertNotIn(promise, text.lower())
+            self.assertNotIn(promise, self.server.dom().find("tab-firmware").all_text().lower())
+            self.assertNotIn(promise, (Path(__file__).parent.parent / "README.md").read_text().lower())
+        self.assertNotIn("about 1 ms", text)
+        self.assertIn("Backups are kept on this Mac, in ~/Library/Application Support/u2c-customfw.", text)
+        self.assertEqual(text.count("It needs the Home ring's code."), 3)   # Battery alerts, Controller settings and Fixes
+        order = [text.rindex(t + ".") for t in ("Xbox Series X|S controller over Bluetooth", "Rumble over Bluetooth", "Xbox 360 controller over cable", "Dimmer LEDs",
+                                              "Battery alerts", "Controller settings", "Fixes", "Processor rest", "Finer stick movement", "Faster button reading")]
+        self.assertEqual(order, sorted(order))
+
+    def test_the_hero_lists_the_tweaks_in_the_toggles_order(self):
+        dom = self.server.dom()
+        chips = [" ".join(n.text) for n in dom.find("chips").children]
+        self.assertEqual(chips[:3], ["Xbox Series X|S controller over Bluetooth", "Rumble over Bluetooth", "Xbox 360 controller over cable"])
+        self.assertLess(chips.index("Processor rest between radio events"), chips.index("Finer stick movement"))
+        self.assertTrue(chips[-1].startswith("Home ring"))
+    def test_help_opens_at_the_top_with_its_contents(self):
+        dom = self.server.dom("&diagsim=boot&scenario=helpopen")
+        self.assertEqual(dom.find("diag-snap").all_text(), "help-top 0 diagnostics")   # update mode opens on Diagnostics
+        side = [n for n in dom.find("help").walk() if "data-help" in n.attrs]
+        self.assertEqual([" ".join(n.text) for n in side], ["Getting Started", "Tweaks", "Settings", "Diagnostics", "2.4 GHz Dongle"])
+        parts = {n.attrs["data-hsec"]: n for n in dom.find("help").walk() if "data-hsec" in n.attrs}
+        self.assertEqual(sorted(parts), sorted(n.attrs["data-help"] for n in side))
+        self.assertEqual([n.attrs["data-hsec"] for n in parts.values() if "hidden" not in n.attrs], ["diagnostics"])
+
+    def test_help_opens_on_the_section_of_the_tab_in_view(self):
+        self.assertEqual(self.server.dom("&diagsim=cable&scenario=helpsettings").find("diag-snap").all_text(), "settings")
+
     def test_help_describes_diagnostics(self):
         text = self.server.dom().find("help").all_text()
         self.assertIn("macOS may ask for your permission", text)
         self.assertIn("Diagnostics", text)
         after = text[text.index("Diagnostics"):]
-        for moved in ("Controller test", "Firmware details", "Create a problem report", "Install firmware 1.09 anyway"):
+        for moved in ("Controller Test", "Firmware Details", "Create Problem Report", "Install Firmware 1.09 Anyway"):
             self.assertIn(moved, after)
-        self.assertNotIn("Install firmware 1.09 anyway", text[:text.index("Diagnostics")])
+        self.assertNotIn("Install Firmware 1.09 Anyway", text[:text.index("Diagnostics")])
 
 
 class UnknownFirmwareTest(PageCase):
@@ -592,7 +924,20 @@ class UnknownFirmwareTest(PageCase):
     def test_unknown_firmware_explains_the_two_likely_causes(self):
         text = self.server.dom().find("fw-note").all_text()
         self.assertIn("another firmware version, which you can update with 8BitDo's own updater", text)
-        self.assertIn("firmware modified outside this app, which you can replace with Restore", text)
+        self.assertIn("firmware modified outside this app, which restoring your backup replaces", text)
+
+    def test_install_says_why_it_is_off(self):
+        el = self.server.dom().find("choose-one")
+        self.assertNotIn("hidden", el.attrs)
+        self.assertEqual(el.all_text(), "This firmware can't be identified. Restore your backup first.")
+
+    def test_restoring_the_original_is_off_with_its_reason(self):
+        dom = self.server.dom()
+        for id_ in ("restore-stock", "restore-stock-dry"):
+            self.assertIn("disabled", dom.find(id_).attrs, id_)
+        self.assertIn("Not available, because the firmware version can't be identified.", dom.find("restore-stock-why").all_text())
+        self.assertNotIn("hidden", dom.find("restore-stock-why").attrs)
+        self.assertIn("If restoring your backup doesn't repair it", dom.find("force-hint").all_text())
 
     def test_unknown_firmware_points_to_diagnostics(self):
         dom = self.server.dom()

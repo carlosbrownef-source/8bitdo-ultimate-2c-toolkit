@@ -8,7 +8,10 @@
   window.fetch = async (url, options) => {
     const path = String(url);
     document.getElementById("diag-fetch").textContent += path + " ";
-    const device = window.simReplugged ? "bluetooth_xbox" : { bt: "bluetooth_xbox", btstock: "bluetooth", cable: "cable", web: "cable", none: "bluetooth_xbox", background: "bluetooth_xbox", noext: "bluetooth_xbox", busy: "bluetooth_xbox" }[mode];
+    const device = window.simReplugged ? "bluetooth_xbox" : { bt: "bluetooth_xbox", btstock: "bluetooth", cable: "cable", web: "cable", none: "bluetooth_xbox", background: "bluetooth_xbox", noext: "bluetooth_xbox", busy: "bluetooth_xbox", dongle: "dongle", donglepaired: "dongle_paired" }[mode];
+    if (path.startsWith("/api/restore") || path.startsWith("/api/patch")) document.getElementById("diag-posted").textContent += options.body + " ";
+    if (query.get("job") && /^\/api\/(backup|patch|restore)/.test(path)) return new Response('{"started": "job"}', { status: 202 });
+    if (query.get("job") && path.startsWith("/api/events")) return new Response(JOB_EVENTS[query.get("job")].map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""), { status: 200 });
     if (path.startsWith("/api/settings") && options && options.method === "POST") {
       document.getElementById("diag-posted").textContent += options.body + " ";
       if (query.get("slow")) await new Promise((r) => setTimeout(r, 2000));
@@ -20,14 +23,33 @@
       return json({ ...answer, available: true, note: "", values: Object.fromEntries(answer.fields.map((f) => [f.name, f.default])), dead_zone_off: false, mapping: { r4: 0, l4: query.get("mapped") ? 1 << 14 : 0 } });
     }
     if (path.startsWith("/api/ring")) return query.get("ringfail") ? new Response(JSON.stringify({ error: "The controller said no." }), { status: 409 }) : json({ ok: true });
-    if (path.startsWith("/api/firmware") && device === "bluetooth_xbox") return json({ note: "The controller firmware cannot be read over Bluetooth. Connect the controller by cable for firmware diagnostics." });
+    if (path.startsWith("/api/firmware") && device === "bluetooth_xbox") return json({ note: "Connect the controller by cable to see or change its firmware. Over Bluetooth, you can test it in Diagnostics and change the Home ring in Settings." });
+    if (path.startsWith("/api/firmware") && String(device).startsWith("dongle")) return json({ device: "dongle", paired: device === "dongle_paired", boot: false, backed: !query.has("nodonglebackup"), stock_ok: true,
+      restore_backup: query.has("nodonglebackup") ? null : { name: "dongle-20261108-120000.bin", taken: "8 Nov 2026 at 12:00", firmware: "the original firmware 1.03" }, known: true, version: 1.03, tweaks: [{ key: "dongle_360", title: "Xbox 360 controller over 2.4 GHz", on: !query.has("stockdongle") }] });
+    if (path.startsWith("/api/firmware") && query.get("permission")) return json({ error: "macOS refused access to the controller. Allow Input Monitoring for this app in System Settings > Privacy & Security > Input Monitoring, then try again.", permission: true });
     const answer = await realFetch(url, options);
-    if (path.startsWith("/api/firmware") && query.get("tweaks")) return json({ ...(await answer.json()), recipes: ["bt_xbox", "ring_5", ...(query.get("settings") ? ["settings"] : [])], titles: ["Dimmer LEDs", "Home ring: 5 %"], ring_level: 2, outdated: !!query.get("outdated") });
+    if (path.startsWith("/api/firmware") && query.get("tweaks")) {  // &tweaks=all: the default tweaks with the ring at 5 %
+      const got = await answer.json(), all = query.get("tweaks") === "all";
+      if (!got.tweaks) return json(got);
+      const recipes = all ? ["bt_xbox", "bt_rumble", "cable_360", "dim_leds", "battery_alerts", "settings", "fixes", "cpu_rest", "ring_5"] : ["bt_xbox", "ring_5", ...(query.get("settings") ? ["settings"] : [])];
+      const tweaks = got.tweaks.map((t) => t.key === "ring" ? { ...t, title: "Home ring: 5 %", on: true } : { ...t, on: recipes.includes(t.key) });
+      return json({ ...got, recipes, titles: all ? tweaks.filter((t) => t.on).map((t) => t.title) : ["Dimmer LEDs", "Home ring: 5 %"], tweaks, ring_level: 2, outdated: !!query.get("outdated") });
+    }
     if (path.startsWith("/api/firmware") && query.get("identity") === "none") return json({ ...(await answer.json()), boot_identity: null });
-    if (path.startsWith("/api/state") && device) return json({ ...(await answer.json()), devices: [{ mode: device, name: "simulated" }] });
+    if (path.startsWith("/api/state") && (device || query.get("nobackup"))) {
+      const got = await answer.json();
+      return json({ ...got, ...(device ? { devices: [{ mode: device, name: "simulated" }] } : {}), ...(query.get("nobackup") ? { backups: [] } : {}) });
+    }
     return answer;
   };
 
+  const JOB_EVENTS = {  // &job=: what a task's event stream says, without running it
+    backup: [{ type: "log", text: "Backup saved as “controller-20261108-012334.bin”. The controller has the original firmware 1.09." }, { type: "done", message: "Backup saved as “controller-20261108-012334.bin”. The controller has the original firmware 1.09.", unchanged: false }],
+    check: [{ type: "done", message: "The check passed and nothing was written. Installing changes 4,452 bytes of the firmware, with Dimmer LEDs.", unchanged: false }],
+    install: [{ type: "progress", label: "write", done: 50, total: 100 }, { type: "done", message: "Installed. Unplug the controller and connect it again.", unchanged: false }],
+    unchanged: [{ type: "done", message: "The controller already has this firmware, so nothing was written.", unchanged: true }],
+    refused: [{ type: "error", message: "This controller has firmware 1.08, and this app only supports 1.09, so nothing was written." }],
+  };
   const PAD = { type: "state", connected: true, name: "8BitDo Ultimate 2C (X/S)", category: "Xbox One", extended: true, localities: ["default", "left", "right"], transport: "Bluetooth Low Energy", foreground: true };
   if (query.get("battery")) { const [level, state] = query.get("battery").split(","); PAD.battery = { level: +level, state }; }
   const STATES = { bt: PAD, btstock: PAD, busy: PAD, boot: PAD, cable: { ...PAD, name: "Xbox 360 Controller", category: "Xbox 360", transport: "USB" }, none: { type: "state", connected: false },
@@ -35,6 +57,7 @@
   const REST = { lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, pressed: [] };
   const input = (e) => window.u2cDiagnostics({ type: "input", ...REST, ...e });
   const snap = () => { document.getElementById("diag-snap").textContent += document.getElementById("test-body").innerHTML.includes("disabled") ? " disabled " : ""; document.getElementById("diag-snap").textContent += document.getElementById("test-body").textContent; };
+  const snapIdle = () => { document.getElementById("diag-snap").textContent += $("idle").hidden ? "" : $("idle").textContent; };
   const clickOp = (op) => document.querySelector(`[data-op="${op}"]`).click();
   const press = () => { input({ pressed: ["A"] }); input({ lx: 0.8, ly: 0.6 }); input({ lx: 0.8, ly: 0.6, lt: 0.5 }); };
   const UNANSWERED = ["vibrate", "vibrateleave", "vibratestate", "lateresult"];
@@ -56,8 +79,13 @@
     report: () => document.getElementById("report-open").click(),
     replugged: () => { window.simReplugged = true; },
     installed: () => { document.getElementById("diag-snap").textContent = tweaks().join(); },
-    keptchoice: () => { document.querySelector('[data-ring="ring_1"]').click(); refresh(); setTimeout(() => { document.getElementById("diag-snap").textContent = tweaks().join(); }, 1000); },
-    noalerts: () => { document.querySelector('.tweak[value="battery_alerts"]').click(); document.querySelector('.tweak[value="settings"]').click(); document.querySelector('.tweak[value="fixes"]').click(); document.getElementById("diag-snap").textContent = tweaks().join(); },
+    infopop: () => { $("strip-firmware").click(); const x = document.querySelector('.tweak[value="fast_scan"]'), b = x.parentElement.querySelector(".info"); b.click(); setTimeout(() => { document.getElementById("diag-snap").textContent = `${x.checked} ${document.getElementById(b.getAttribute("aria-controls")).matches(":popover-open")}`; }, 200); },
+    bootpop: () => { $("strip-firmware").click(); setTimeout(() => $("boot-info").click(), 300); },
+    installhover: () => { $("strip-firmware").click(); setTimeout(() => { $("tweaks-act").querySelector(".btns").dispatchEvent(new MouseEvent("mouseenter")); document.getElementById("diag-snap").textContent = String(document.querySelector(".pop-pad").parentElement.matches(":popover-open")); }, 300); },
+    helpsettings: () => { $("strip-settings").click(); $("help-open").click(); setTimeout(() => { document.getElementById("diag-snap").textContent = document.querySelector("[data-hsec]:not([hidden])").dataset.hsec; }, 100); },
+    donglecheck: () => { $("strip-firmware").click(); setTimeout(() => { $("dongle-360").click(); $("patch-dry").click(); }, 300); },
+    keptchoice: () => { document.querySelector('.tweak[value="cable_360"]').click(); refresh(); setTimeout(() => { document.getElementById("diag-snap").textContent = tweaks().join(); }, 1000); },
+    noalerts: () => { document.querySelector('.tweak[value="battery_alerts"]').click(); document.querySelector('.tweak[value="settings"]').click(); document.querySelector('.tweak[value="fixes"]').click(); document.querySelector('.tweak[value="cpu_rest"]').click(); document.getElementById("diag-snap").textContent = tweaks().join(); },
     setvibration: () => document.querySelector('[data-field="vibration"] [data-value="50"]').click(),
     setandsave: () => { document.querySelector('[data-field="vibration"] [data-value="50"]').click(); setTimeout(() => $("settings-save").click(), 200); },
     setandfailsave: () => { window.simFailSave = true; document.querySelector('[data-field="vibration"] [data-value="50"]').click(); setTimeout(() => $("settings-save").click(), 200); },
@@ -71,23 +99,34 @@
     remap: () => { const c = document.querySelector('[data-field="remap_13"]'); c.value = 12; c.dispatchEvent(new Event("change")); },
     remapreset: () => { const c = document.querySelector('[data-field="remap_13"]'); c.value = 12; c.dispatchEvent(new Event("change")); setTimeout(() => { $("settings-reset").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); }, 200); }, 200); },
     resetopen: () => $("settings-reset").click(),
+    restoreask: () => $("restore-backup").click(),
+    restorecheck: () => $("restore-backup-dry").click(),
+    installask: () => $("patch-write").click(),
+    backupjob: () => $("backup").click(),
+    quit: () => $("disclaimer-quit").click(),
+    gotofirmware: () => $("settings-goto").click(),
+    privacy: () => $("privacy-open").click(),
+    details: () => $("details").click(),
+    helpopen: () => { $("help-open").click(); setTimeout(() => { document.getElementById("diag-snap").textContent = `${document.activeElement.id} ${$("help-body").scrollTop} ${document.querySelector("[data-hsec]:not([hidden])").dataset.hsec}`; }, 100); },
+    notweaks: () => { tweakBoxes().forEach((x) => { x.checked = false; }); render(); },
+    checkjob: () => runJob("Checking…", "/api/patch", { tweaks: ["dim_leds"], base: "backup", write: false }, "Check passed"),
+    installjob: () => { $("patch-write").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); setTimeout(snapIdle, 0); }, 200); },
     resetyes: () => { $("settings-reset").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); }, 200); },  // headless Chrome holds back the close event
     ringlevel: () => document.querySelector('[data-live="1"]').click(),
     ringreread: () => { document.querySelector('[data-live="1"]').click(); setTimeout(refresh, 300); },
     ringsave: () => document.getElementById("ring-save").click(),
     reopen: () => { showTab("firmware"); showTab("diagnostics"); },
     latebt: () => { window.simReplugged = true; window.u2cDiagnostics({ type: "state", connected: false }); window.u2cDiagnostics(PAD); },
-    refreshbutton: () => { window.simReplugged = true; document.getElementById("details-refresh").click(); },
   };
 
   if (mode !== "web") {
-    window.webkit = { messageHandlers: { diagnostics: { postMessage(m) {
+    window.u2cSimBridge = { postMessage(m) {  // the Mac app's own window.webkit can't be replaced, so bridge() looks here first
       document.getElementById("diag-sent").textContent += JSON.stringify(m) + " ";
       if (m.op === "start") window.u2cDiagnostics(STATES[mode]);
       if (m.op === "ring") window.u2cDiagnostics(query.get("ringfail") ? { type: "result", op: "ring", id: m.id, ok: false, error: "The report failed" } : { type: "result", op: "ring", id: m.id, ok: true });
       if ((m.op === "vibrate" || m.op === "direct") && !UNANSWERED.includes(scenario))
         window.u2cDiagnostics(scenario === "vibrateerror" ? { type: "result", op: m.op, id: m.id, ok: false, error: "The engine failed" } : { type: "result", op: m.op, id: m.id, ok: true });
-    } } } };
+    } };
   }
   for (const id of ["diag-sent", "diag-snap", "diag-fetch", "diag-posted"]) { const p = document.createElement("pre"); p.id = id; p.hidden = true; document.body.append(p); }
   addEventListener("DOMContentLoaded", () => {

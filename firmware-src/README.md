@@ -23,6 +23,10 @@ Our own code for the controller (Telink TC32, firmware 1.09). The built binaries
 | `sram.bin` | image `0x7210`, run address `0x1210` | `scan_hook`, in dead RAM code (the unused suspend routine) |
 | `hidletask.bin`, `hunplug.bin`, `hota.bin` | `0xa480`, `0xea88`, `0x178cc` | Fixes: `idle_task`, `unplug_task`, and the Bluetooth update's write handler, now `no_write` |
 | `hsweep.bin` | `0xa2dc` | Finer stick movement: `two_sweeps` before each report |
+| `wdog.bin` | image `0x6020`, run address `0x20` (dead RAM code: the unused suspend routine's stall) | Processor rest (`rest.c`): `rest_main_poll`, the main loop's 100 ms call, which arms a 3 s watchdog (`0x800620`, capture 549 units of 2^18 ticks) when the flag at `0x18ff2` is 1, feeds it (`8` to `0x800623`) and then calls `main_poll` |
+| `resthook.bin` | `0xa484` | the main loop's call, redirected from `main_poll` to `rest_main_poll`; takes over the ring's `pollhook.bin` when installed |
+| `stall.bin` | image `0x848c`, run address `0x248c` (dead RAM code: an unused `memcmp`) | `stall_hook`: the Bluetooth branch's `motor_set(0, 0, 0)`, then, on battery with no hold running, the CPU stops for 1 ms or until the radio wakes it (`0x80` to `0x80006f`, wake mask `0x800078`, timer0) |
+| `hstall.bin` | `0xa4ae` | the Bluetooth branch's call, redirected from `0xfa68` to `stall_hook` |
 | `ring02.bin`, `ringhook02.bin`, `rumble02.bin` | not installed | 0.2.0's versions, kept to recognise firmware it installed |
 | `ringtail03.bin`, `ringhook03.bin`, `vhooka03.bin`, `vhookb03.bin`, `pollhook03.bin`, `rumble03.bin` | not installed | 0.3.0's versions, kept to recognise firmware it installed |
 

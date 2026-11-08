@@ -13,186 +13,219 @@
   <div class="barr"><span class="only">8BitDo Ultimate 2C Wireless · firmware 1.09 only</span><button id="help-open" class="sec small">Help</button></div>
 </header>
 
-<nav class="strip"><button class="t on" id="strip-firmware">Firmware</button><button class="t" id="strip-settings">Settings</button><button class="t" id="strip-diagnostics">Diagnostics<span class="alert" id="strip-alert" hidden></span></button>
+<nav class="strip"><div class="tabs" role="tablist"><button class="t on" id="strip-firmware" role="tab" aria-selected="true" aria-controls="tab-firmware">Firmware</button><button class="t" id="strip-settings" role="tab" aria-selected="false" aria-controls="tab-settings">Settings</button><button class="t" id="strip-diagnostics" role="tab" aria-selected="false" aria-controls="tab-diagnostics">Diagnostics<span class="alert" id="strip-alert" hidden></span></button></div>
   <span class="badge" id="badge"><i></i><span id="badge-text">Not connected</span></span></nav>
 
 <main><div class="wrap">
-  <div id="tab-firmware">
+  <div id="tab-firmware" role="tabpanel" aria-labelledby="strip-firmware">
   <section class="danger-zone hot hint" id="force-hint" hidden>
-    <div><h2>This firmware can't be identified</h2><p>If Restore can't repair it, there's a last-resort option in Diagnostics.</p></div>
+    <div><h2>This firmware can't be identified</h2><p>If restoring your backup doesn't repair it, there's a last-resort option in Diagnostics.</p></div>
     <button id="force-go" class="wtxt">Open Diagnostics</button>
   </section>
-  <section class="hero none" id="hero">
+  <section class="hero compact none" id="hero">
     <div class="pic" id="pic"></div>
     <div>
-      <h1 id="fw-title">No controller found</h1>
-      <p class="src" id="fw-note"></p>
-      <div class="chips" id="chips"></div>
-      <div class="herob"><button id="refresh" class="sec">Refresh</button></div>
+      <div class="hhead"><div><h1 id="fw-title">No controller found</h1><p class="src" id="fw-note"></p></div><button id="refresh" class="sec small">Read Again</button></div>
+      <button id="privacy-open" class="sec small" hidden>Open Input Monitoring Settings…</button>
+      <div class="sumrow" id="sumrow" hidden><p class="sum" id="sum"></p><button id="details" class="sec small" aria-expanded="false" aria-controls="chips">Show Details</button></div>
     </div>
+    <div class="chips" id="chips" hidden></div>
   </section>
 
-  <section class="cd wide">
-    <h2><span class="no">1</span>Back up<span class="tag">Nothing is written to the controller</span></h2>
-    <p>Saves a full copy of the controller's memory on this Mac, so you can always go back to it. You need a backup before installing anything. Connect the controller by cable to start.</p>
-    <div class="btns"><button id="backup" class="job">Back up</button><span class="hint" id="last-backup"></span></div>
+  <section class="cd wide" id="backup-card">
+    <h2><span class="no">1</span>Back Up<span class="tag" data-dongle="Nothing is written to the dongle">Nothing is written to the controller</span></h2>
+    <p><span data-dongle="Saves a full copy of the dongle's memory on this Mac, so you can always go back to it.">Saves a full copy of the controller's memory on this Mac, so you can always go back to it.</span><span id="backup-connect"> Connect the controller by cable to start.</span></p>
+    <div class="btns"><button id="backup" class="job">Back Up</button><span class="hint" id="last-backup"></span></div>
   </section>
 
-  <div class="cols">
-    <section class="cd">
+  <div class="stack">
+    <section class="cd" id="tweaks-card">
       <h2><span class="no">2</span>Tweaks<span class="tag">Installs new firmware</span></h2>
-      <ul class="pre"><li id="pre-backup"></li><li id="pre-boot"></li></ul>
-      <label class="tw"><input type="checkbox" class="tweak" value="bt_xbox" checked><span class="sw"></span><span>Xbox Series X|S controller over Bluetooth</span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="bt_rumble" checked><span class="sw"></span><span>Rumble over Bluetooth<em>(needs the Xbox tweak)</em></span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="cable_360" checked><span class="sw"></span><span>Xbox 360 controller over cable</span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="dim_leds" checked><span class="sw"></span><span>Dimmer LEDs</span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="battery_alerts" checked><span class="sw"></span><span>Battery alerts<em>(on the ring and motors)</em></span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="settings" checked><span class="sw"></span><span>Controller settings<em>(changed in the Settings tab)</em></span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="fixes" checked><span class="sw"></span><span>Fixes<em>(idle power-off, reconnecting, Bluetooth updates)</em></span></label>
-      <label class="tw"><input type="checkbox" class="tweak" value="stick_precision"><span class="sw"></span><span>Finer stick movement</span></label>
-      <div class="base"><span>Home ring brightness:</span>
-        <div class="seg" id="ring"><button data-ring="" class="on">Normal</button><button data-ring="ring_25">25 %</button><button data-ring="ring_5">5 %</button><button data-ring="ring_1">1 %</button><button data-ring="ring_0_1">0.1 %</button><button data-ring="ring_off">Off</button></div></div>
-      <div class="base"><span>Take the original firmware 1.09 from:</span>
-        <div class="seg"><button data-base="backup" class="on">your backup</button><button data-base="download">8BitDo's server</button></div></div>
-      <div class="boot" id="boot-box"><span id="boot-icon"></span><div><b id="boot-title">Update mode</b>Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white.</div></div>
-      <div class="btns"><button id="patch-dry" class="sec job">Check first</button><button id="patch-write" class="job">Install tweaks…</button></div>
-      <p style="margin:10px 0 0;font-size:13px"><span id="choose-one" hidden>Choose at least one tweak. </span>Changing the firmware voids the controller's warranty.</p>
+      <p data-dongle="This is the tweak for the dongle's firmware.">Choose the tweaks to add to the controller's firmware.</p>
+      <div class="twgrid" id="ctrl-tweaks">
+        <label class="tw"><input type="checkbox" class="tweak" value="bt_xbox" checked><span class="sw"></span><span>Xbox Series X|S controller over Bluetooth<small>macOS and its games recognise the controller over Bluetooth.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="bt_rumble" checked><span class="sw"></span><span>Rumble over Bluetooth<small>Games can make it vibrate over Bluetooth.</small><em class="note">Needs Xbox Series X|S controller over Bluetooth.</em></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="cable_360" checked><span class="sw"></span><span>Xbox 360 controller over cable<small>macOS recognises the controller when it's connected by cable.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="dim_leds" checked><span class="sw"></span><span>Dimmer LEDs<small>Makes the three lights slightly dimmer. The Home ring is set in the Settings tab.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="battery_alerts" checked><span class="sw"></span><span>Battery alerts<small>The ring and motors tell you about charging and a low battery.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="settings" checked><span class="sw"></span><span>Controller settings<small>Lets you change the sticks, triggers, vibration, power and button mapping in the Settings tab.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="fixes" checked><span class="sw"></span><span>Fixes<small>Playing only with the sticks no longer turns it off, a lost connection gets its full minute to come back, unplugging reconnects at once, and firmware updates over Bluetooth are closed.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="cpu_rest" checked><span class="sw"></span><span>Processor rest<small>The processor rests between radio events instead of running without a pause, which may make the battery last longer. A watchdog restarts it if it stops responding.</small></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="stick_precision"><span class="sw"></span><span>Finer stick movement<small>Slow stick movements advance in smaller steps.</small><em class="note">A stick held still may move by one step now and then.</em></span></label>
+        <label class="tw"><input type="checkbox" class="tweak" value="fast_scan"><span class="sw"></span><span>Faster button reading<small>Presses arrive about 1.25 ms sooner.</small><em class="note">A worn button could register twice.</em></span></label>
+      </div>
+      <div class="twgrid" id="dongle-tweaks" hidden>
+        <label class="tw off"><input type="checkbox" id="dongle-360" disabled><span class="sw"></span><span>Xbox 360 controller over 2.4 GHz<small>The dongle presents itself to the Mac as a wired Xbox 360 controller, which macOS and its games recognise.</small><em class="note" id="dongle-note" hidden>Turn the controller off to change the dongle.</em></span></label>
+      </div>
+      <div class="opts" id="tweaks-opts"><span>The tweaks are added to 8BitDo's original firmware 1.09. Take it from:</span>
+        <div><div class="seg"><button data-base="backup" class="on">Your Backup</button><button data-base="download">8BitDo's Server</button></div></div></div>
+      <div class="act" id="tweaks-act"><ul class="pre"><li id="pre-backup"></li><li id="pre-boot"></li></ul><div class="btns"><button id="patch-dry" class="sec job">Check First</button><button id="patch-write" class="job">Install Tweaks…</button></div>
+        <p><span id="choose-one" hidden></span> <span data-dongle="Installing modified firmware probably voids the dongle's warranty.">Installing modified firmware probably voids the controller's warranty.</span></p></div>
     </section>
 
     <section class="cd">
       <h2><span class="no">3</span>Restore<span class="tag">Replaces the firmware</span></h2>
-      <p>Restores your backup or 8BitDo's original firmware 1.09. The controller needs to be in update mode.</p>
+      <p data-dongle="Restores your backup or 8BitDo's original firmware 1.03. The app puts the dongle in update mode by itself.">Restores your backup or 8BitDo's original firmware 1.09. The controller needs to be in update mode.</p>
       <div class="rest">
-        <div><h3>Your backup</h3><button id="restore-backup-dry" class="sec small job">Check first</button><button id="restore-backup" class="sec small job">Restore…</button></div>
-        <div><h3>Original firmware 1.09</h3><button id="restore-stock-dry" class="sec small job">Check first</button><button id="restore-stock" class="sec small job">Restore…</button></div>
+        <div><h3>Your Backup</h3><button id="restore-backup-dry" class="sec small job">Check First</button><button id="restore-backup" class="sec small job">Restore…</button><p class="why" id="restore-backup-why" hidden></p></div>
+        <div><h3 data-dongle="Original Firmware 1.03">Original Firmware 1.09</h3><button id="restore-stock-dry" class="sec small job">Check First</button><button id="restore-stock" class="sec small job">Restore…</button><p class="why" id="restore-stock-why" hidden></p></div>
       </div>
+      <p class="why" id="restore-why" hidden></p>
     </section>
   </div>
 
   </div>
 
-  <div id="tab-settings" hidden>
+  <div id="tab-settings" role="tabpanel" aria-labelledby="strip-settings" hidden>
     <section class="cd" id="ring-card">
-      <h2>Home ring<span class="tag">Changes at once</span></h2>
+      <h2>Home Ring</h2>
       <div class="ring-row"><div class="seg" id="ring-live">
         <button data-live="0">Normal</button><button data-live="1">25 %</button><button data-live="2">5 %</button><button data-live="3">1 %</button><button data-live="4">0.1 %</button><button data-live="5">Off</button>
-      </div><button id="ring-save" class="sec small">Save</button></div>
+      </div><button id="ring-save" class="sec small">Save Ring Level</button></div>
       <p class="res" id="ring-note"></p>
     </section>
-    <p class="set-note" id="settings-note"></p>
-    <button id="settings-retry" class="sec small" hidden>Try again</button>
+    <section class="cd set-empty" id="settings-empty"><p id="settings-note"></p>
+      <button id="settings-retry" class="sec small" hidden>Try Again</button><button id="settings-goto" class="sec small" hidden>Open Firmware Tab</button></section>
     <section class="cd set-live" id="live-card" hidden>
+      <h2>Live View</h2>
       <div class="live-pad"><div><i id="live-left"></i></div><span>Left stick</span></div>
       <div class="live-pad"><div><i id="live-right"></i></div><span>Right stick</span></div>
       <div class="live-trig"><div>Left trigger<b><i id="live-lt"></i></b></div><div>Right trigger<b><i id="live-rt"></i></b></div><p class="res" id="live-note"></p></div>
     </section>
     <div class="set-cards" id="settings-cards" hidden></div>
     <div class="set-actions" id="settings-actions" hidden>
-      <button id="settings-save" class="small">Save to controller</button><button id="settings-reset" class="sec small">Reset to defaults</button>
-      <span class="hint" id="settings-unsaved" hidden>You have changes that aren't saved. They're lost when the controller turns off or restarts, which it does when you unplug it with Fixes installed.</span>
+      <p class="set-lead">Changes apply at once. Save them to keep them after the controller turns off.</p>
+      <div class="btns"><button id="settings-save" class="small">Save to Controller</button><button id="settings-reset" class="sec small">Reset to Defaults…</button></div>
+      <span class="hint" id="settings-unsaved" hidden>You have changes that aren't saved. They're lost when the controller turns off or restarts, which it does when you unplug it with Fixes installed, and when the app reads the controller again.</span>
       <span class="hint" id="settings-message"></span>
     </div>
   </div>
 
-  <div id="tab-diagnostics" hidden>
+  <div id="tab-diagnostics" role="tabpanel" aria-labelledby="strip-diagnostics" hidden>
     <section class="cd" id="test-card">
-      <h2>Controller test<span class="tag">Nothing is written to the controller</span></h2>
+      <h2>Controller Test<span class="tag">Nothing is written to the controller</span></h2>
       <div id="test-body"></div>
     </section>
     <div class="cols even">
-      <section class="cd" id="firmware-details"><h2>Firmware details</h2><div id="details-body"></div>
-        <button id="details-refresh" class="sec small" style="margin-top:12px">Refresh</button></section>
-      <section class="cd"><h2>Problem report</h2>
+      <section class="cd" id="firmware-details"><h2>Firmware Details</h2><div id="details-body"></div></section>
+      <section class="cd"><h2>Problem Report</h2>
         <p>Creates a text you can attach to a bug report, with the device IDs, the firmware's state and the latest log lines. It never includes your controller's address or its Bluetooth pairings.</p>
-        <button id="report-open" class="sec small job">Create a problem report</button></section>
+        <button id="report-open" class="sec small job">Create Problem Report</button></section>
     </div>
     <section class="danger-zone" id="force-zone">
-      <div><h2>WARNING: only for firmware that can't be identified</h2>
-        <p>Erases the firmware on the controller and replaces it with 8BitDo's original firmware 1.09, without any tweaks. Use it only if the firmware can't be identified and Restore doesn't work. There's no way to check beforehand that 1.09 is right for this controller, so it may not start afterwards. Your backup can always be restored.</p></div>
-      <button id="force-open" class="wtxt job">Install firmware 1.09 anyway…</button>
+      <div><p class="calm">Last-resort install for firmware that can't be identified.</p>
+        <h2>Only for firmware that can't be identified</h2>
+        <p class="full">Erases the firmware on the controller and replaces it with 8BitDo's original firmware 1.09, without any tweaks. Use it only if the firmware can't be identified and Restore doesn't work. There's no way to check beforehand that 1.09 is right for this controller, so it may not start afterwards. Your backup can always be restored.</p></div>
+      <button id="force-open" class="wtxt job">Install Firmware 1.09 Anyway…</button>
     </section>
   </div>
 </div></main>
 
 <footer class="dock" id="dock">
   <div class="row">
-    <span class="st"><i></i><span id="dock-status">Ready</span></span>
+    <span class="st"><i></i><span id="dock-status" aria-live="polite">Ready</span></span>
     <span class="idle" id="idle">No task running.</span>
-    <div class="prog" id="prog" hidden><i id="prog-bar"></i></div><span class="pc" id="pc" hidden></span>
-    <button class="tog" id="log-toggle" hidden>Hide log ▾</button>
+    <div class="prog" id="prog" role="progressbar" aria-label="Progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden><i id="prog-bar"></i></div><span class="pc" id="pc" hidden></span>
+    <button class="tog" id="log-toggle" hidden>Show Log ▴</button>
   </div>
+  <p class="msg" id="dock-message" aria-live="polite" hidden></p>
   <pre id="log" hidden></pre>
 </footer>
 
-<dialog id="disclaimer"><div id="disclaimer-text"></div><menu><button id="accept">I understand and accept</button></menu></dialog>
+<dialog id="disclaimer"><div id="disclaimer-text"></div><menu><button id="disclaimer-quit" class="sec" hidden>Quit</button><button id="accept">Agree</button></menu></dialog>
 
 <dialog id="confirm">
-  <div class="ic" data-icon="warn"></div>
+  <div class="ic" data-icon="warn" id="confirm-icon"></div>
   <h3 id="confirm-title"></h3>
   <p id="confirm-text"></p>
   <div class="mini" id="confirm-chips"></div>
-  <p>No warranty of any kind applies. You can return to the original firmware at any time with <em>Restore</em>.</p>
-  <menu><button id="confirm-no" class="sec">Cancel</button><button id="confirm-yes" class="danger"></button></menu>
+  <p id="confirm-warranty">No warranty of any kind applies. You can return to the original firmware at any time with <em>Restore</em>.</p>
+  <menu><button id="confirm-no" class="sec">Cancel</button><button id="confirm-yes"></button></menu>
 </dialog>
 
 <dialog id="force">
   <div class="ic" data-icon="warn"></div>
-  <h3>WARNING: install firmware 1.09 over an unknown version</h3>
+  <h3>Install firmware 1.09 over an unknown version?</h3>
   <ul>
     <li>The controller's firmware version can't be identified, so there is no way to check that 1.09 is right for it.</li>
     <li>Its firmware will be erased and replaced with 8BitDo's original 1.09. If it was made for a different version, the controller may <strong>not start</strong> afterwards, or buttons, Bluetooth, battery or rumble may misbehave.</li>
     <li>The part of the controller that runs update mode is never changed, so update mode keeps working. A backup is required first, so it can always be restored.</li>
     <li>Bluetooth pairings, the controller's address and its stick calibration are not changed.</li>
-    <li>It voids the warranty, and no warranty of any kind applies.</li>
+    <li>No warranty of any kind applies.</li>
   </ul>
   <label><input type="checkbox" id="force-understand"> I understand the risks and want to continue</label>
-  <menu><button id="force-no" class="sec">Cancel</button><button id="force-yes" class="danger" disabled>Install anyway</button></menu>
+  <menu><button id="force-no" class="sec">Cancel</button><button id="force-yes" class="danger" disabled>Install Anyway</button></menu>
 </dialog>
 
 <dialog id="report">
-  <h3>Problem report</h3>
+  <h3>Problem Report</h3>
   <p class="src">Paste it into a bug report. It never includes the controller's address, its Bluetooth pairings or your backup.</p>
   <pre id="report-text"></pre>
   <menu><button id="report-copy" class="sec">Copy</button><button id="report-close">Close</button></menu>
 </dialog>
 
-<dialog id="help">
-  <h3>How this app works</h3>
+<dialog id="help" aria-labelledby="help-top">
+  <div class="hwrap">
+    <nav class="hside"><h3 id="help-top" tabindex="-1" autofocus>Help</h3><button type="button" data-help="start">Getting Started</button><button type="button" data-help="tweaks">Tweaks</button><button type="button" data-help="settings">Settings</button><button type="button" data-help="diagnostics">Diagnostics</button><button type="button" data-help="dongle">2.4 GHz Dongle</button></nav>
+    <div class="hbody" id="help-body">
+    <section data-hsec="start">
   <p>Out of the box, macOS and most Mac games don't recognise the 8BitDo Ultimate 2C Wireless as a standard controller. This app changes the controller's firmware (the software inside it) so that they do. It only works with firmware 1.09.</p>
-  <h4>1. Back up</h4>
-  <p>Saves a full copy of the controller's memory on this Mac. It changes nothing on the controller. It is required before the first change, so you can always restore the controller exactly as it was.</p>
-  <h4>2. Tweaks</h4>
+  <h4 id="help-backup">1. Back Up</h4>
+  <p>Saves a full copy of the controller's memory on this Mac. It changes nothing on the controller. It is required before the first change, so you can always restore the controller exactly as it was. Backups are kept on this Mac, in ~/Library/Application Support/u2c-customfw.</p>
+  <h4 id="help-update">Update Mode</h4>
+  <p>The controller can only receive new firmware in update mode. Turn it fully off, then hold LB + RB while plugging in the cable. The small light below the Home ring will blink white.</p>
+  <h4>Check First</h4>
+  <p>Runs every check without changing anything: that this is the same controller as in your backup, that its firmware is one the app knows, and that the new firmware is complete.</p>
+  <h4 id="help-restore">3. Restore</h4>
+  <p>Restores your backup, or 8BitDo's original firmware 1.09. Use it if something doesn't work, or to use 8BitDo's own apps and updates again.</p>
+  <h4 id="help-after">After Installing</h4>
+  <p>Unplug the controller. If you changed a Bluetooth tweak, remove the controller from Bluetooth settings and pair it again, because macOS remembers how a device introduced itself the first time.</p>
+    </section>
+    <section data-hsec="tweaks">
+  <h4 id="help-tweaks">2. Tweaks</h4>
   <ul>
     <li><b>Xbox Series X|S controller over Bluetooth.</b> macOS recognises only a few controllers, such as Xbox and PlayStation ones. Over Bluetooth the 2C normally isn't one of them, so games don't see it. With this tweak it introduces itself as an Xbox Series X|S controller, which macOS and its games support.</li>
-    <li><b>Rumble over Bluetooth.</b> The original firmware doesn't vibrate over Bluetooth. This tweak makes the controller respond to the rumble commands games send. It needs the Xbox tweak, because it uses the Xbox rumble commands.</li>
+    <li><b>Rumble over Bluetooth.</b> The original firmware doesn't vibrate over Bluetooth. This tweak makes the controller respond to the rumble commands games send. It needs the Xbox tweak, because it uses the Xbox rumble commands. In rare cases it could make the controller stop responding. This hasn't been observed.</li>
     <li><b>Xbox 360 controller over cable.</b> Connected by cable, the controller introduces itself as a wired Xbox 360 controller, a type macOS recognises.</li>
-    <li><b>Dimmer LEDs.</b> Slightly lowers the brightness of the controller's three lights. It is subtle: to really change the ring around the Home button, use Home ring brightness.</li>
-    <li><b>Home ring brightness.</b> Sets how bright the ring around the Home button is while the controller is connected: Normal keeps its usual brightness, and the percentages are how much of the time the light is on, not how bright it looks. It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. Off keeps it dark while connected. You can change it at any time with L4 + R4 on the controller, or in the Settings tab, and the controller keeps the level you saved until you install a different one here. Choosing the level already installed changes nothing, so to go back to it, use the Settings tab.</li>
-    <li><b>Controller settings.</b> Adds what the Settings tab changes: sticks, triggers, L4 and R4, vibration, power and button remapping. With everything at its default, the controller runs its original code for these.</li>
-    <li><b>Fixes.</b> Moving a stick counts as using the controller, so playing only with sticks no longer turns it off after 15 minutes. A dropped connection gets its full search time. Unplugging the cable with the switch in the Bluetooth position restarts the controller, so it finds the Mac at once. It also closes the firmware update over Bluetooth, which needs no encryption.</li>
-    <li><b>Finer stick movement.</b> The firmware ignores small stick changes, which makes slow movement advance in small jumps. This lowers that limit to just above the noise measured on one controller. A stick held still away from the centre may still move by one step now and then.</li>
-    <li><b>Battery alerts.</b> The ring blinks slowly while charging and quickly when the battery is at 15 % or less, even if you turned it off. The motors give one short pulse when charging starts, one long pulse when it completes, and two short pulses at 5 % or less, again every 5 minutes. These only work with a Home ring level, so with this on and the brightness on Normal, the ring's code is installed at full brightness.</li>
+    <li><b>Dimmer LEDs.</b> Slightly lowers the brightness of the controller's three lights. It is subtle: to really change the ring around the Home button, use Home Ring in the Settings tab.</li>
+    <li><b>Battery alerts.</b> The ring blinks slowly while charging and quickly when the battery is at 15 % or less, even if you turned it off. The motors give one short pulse when charging starts, one long pulse when it completes, and two short pulses at 5 % or less, again every 5 minutes. It needs the Home ring's code.</li>
+    <li><b>Controller settings.</b> Adds what the Settings tab changes: sticks, triggers, L4 and R4, vibration, power and button remapping. With everything at its default, the controller runs its original code for these. It needs the Home ring's code.</li>
+    <li><b>Fixes.</b> Moving a stick counts as using the controller, so playing only with sticks no longer turns it off after 15 minutes. A dropped connection gets its full search time. Unplugging the cable with the switch in the Bluetooth position restarts the controller, so it finds the Mac at once. It also closes the firmware update over Bluetooth, which needs no encryption. It needs the Home ring's code.</li>
+    <li><b>Processor rest.</b> Over Bluetooth on battery, the controller's processor normally runs without a pause. With this tweak it stops for up to a millisecond at a time while it waits for the next exchange with the computer, which may make the battery last longer. A watchdog also restarts the controller if it ever stops responding.</li>
+    <li><b>Finer stick movement.</b> The firmware ignores small stick changes, which makes slow movement advance in small jumps. This lowers that limit to just above the noise measured on one controller. A stick held still away from the centre may still move by one step now and then, which is why it's off by default.</li>
+    <li><b>Faster button reading.</b> The controller reads its buttons and triggers every 5 ms. This reads them every 2.5 ms, so a press reaches the game about 1.25 ms sooner on average. Holding Home and turbo keep their usual timing. The firmware has no other debounce, so a worn button could occasionally register twice. That's why it's off by default.</li>
   </ul>
+  <p>Every install also asks the computer for a 12.5 ms Bluetooth connection interval, instead of the 7.5 ms the original firmware asks for. macOS keeps its own 15 ms, and other systems may follow the request.</p>
+  <p>The Home ring's code is installed with any tweak that needs it. Installing keeps the ring's level as it is, and you change it in the Settings tab.</p>
   <p>The tweaks are always added to 8BitDo's original firmware 1.09, taken from your backup or downloaded from 8BitDo, so the result is always a known, checked firmware.</p>
-  <h4>Update mode</h4>
-  <p>The controller can only receive new firmware in update mode. Turn it fully off, then hold L1 + R1 while plugging in the cable. The light will blink white.</p>
-  <h4>Check first</h4>
-  <p>Runs every check without changing anything: that this is the same controller as in your backup, that its firmware is one the app knows, and that the new firmware is complete.</p>
-  <h4>3. Restore</h4>
-  <p>Restores your backup, or 8BitDo's original firmware 1.09. Use it if something doesn't work, or to use 8BitDo's own apps and updates again.</p>
-  <h4>After installing</h4>
-  <p>Unplug the controller. If you changed a Bluetooth tweak, remove the controller from Bluetooth settings and pair it again, because macOS remembers how a device introduced itself the first time.</p>
-  <h4>Settings</h4>
-  <p>This tab changes the controller while it's connected by cable, once the Controller settings tweak is installed. A change applies at once and is lost when the controller turns off or restarts, unless you press <b>Save to controller</b>. Opening this tab again also goes back to what's saved. <b>Reset to defaults</b> puts these settings back, apart from the Home ring and the calibration, and works without pressing any buttons on the controller.</p>
-  <p>Restoring the firmware doesn't erase them. The original firmware ignores most of them, and they apply again if you install the tweak again, but it does keep using the L4 and R4 mappings and the dead zone switch, because those are its own. Use <b>Reset to defaults</b> first if you want those gone. While this tab is open, as with the controller test, Home doesn't open Apple Games.</p>
-  <p><b>Home ring</b> changes the ring at once, over Bluetooth or by cable, without installing anything. <b>Save</b> keeps it.</p>
-  <h4>Diagnostics</h4>
+    </section>
+    <section data-hsec="settings">
+  <h4 id="help-settings">Settings</h4>
+  <p>This tab changes the controller while it's connected by cable, once the Controller settings tweak is installed. A change applies at once and is lost when the controller turns off or restarts, unless you press <b>Save to Controller</b>. <b>Reset to Defaults…</b> puts these settings back, apart from the Home ring and the calibration, and works without pressing any buttons on the controller.</p>
+  <p>Restoring the firmware doesn't erase them. The original firmware ignores most of them, and they apply again if you install the tweak again, but it does keep using the L4 and R4 mappings and the dead zone switch, because those are its own. Use <b>Reset to Defaults…</b> first if you want those gone. While this tab is open, as with the controller test, Home doesn't open Apple Games.</p>
+  <p><b>Home Ring</b> sets how bright the ring around the Home button is while the controller is connected. Normal keeps its usual brightness, and the percentages are how much of the time the light is on, not how bright it looks. It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. Off keeps it dark while connected. A change applies at once, over Bluetooth or by cable, without installing anything, and <b>Save Ring Level</b> keeps it after the controller turns off. L4 + R4 on the controller also change it.</p>
+    </section>
+    <section data-hsec="diagnostics">
+  <h4 id="help-diagnostics">Diagnostics</h4>
   <p>This tab helps you check how macOS sees the controller, and gather information if something goes wrong.</p>
-  <p><b>Controller test</b> shows what macOS's GameController reports, which is what a game gets, including the battery when macOS provides it. Press each control to see it light up, and use the buttons to make the controller vibrate. "Vibrate like a game" uses the same path as native games, and "Direct report" goes straight to the controller, so if only the direct report vibrates, the firmware isn't the problem. The first time you press the Home button in this test, macOS may ask for your permission to let the app receive it. If you allow it, Home won't open Apple Games while this tab is open. This test is only available in the Mac app.</p>
-  <p>The controller also has its own option for the sticks: holding Start + Select for about 4 seconds switches a 14 % dead zone on the sticks on and off. The controller buzzes once when it turns on and twice when it turns off, and it remembers the setting. It's part of 8BitDo's firmware.</p>
-  <p><b>Firmware details</b> shows what the app read from the controller, including where the version came from and whether a firmware update is pending.</p>
-  <p><b>Create a problem report</b> collects the controller's state and the last task's log for a bug report. It never includes the controller's address, its Bluetooth pairings or your backup.</p>
-  <p><b>Install firmware 1.09 anyway</b> is only for a controller whose firmware can't be identified. It erases the firmware and installs 8BitDo's original 1.09 without being able to check beforehand that it's right for the controller, so use it only if Restore doesn't work.</p>
+  <p><b>Controller Test</b> shows what macOS's GameController reports, which is what a game gets, including the battery when macOS provides it. Press each control to see it light up, and use the buttons to make the controller vibrate. "Vibrate Like a Game" uses the same path as native games, and "Direct Report" goes straight to the controller, so if only the direct report vibrates, the firmware isn't the problem. The first time you press the Home button in this test, macOS may ask for your permission to let the app receive it. If you allow it, Home won't open Apple Games while this tab is open. This test is only available in the Mac app.</p>
+  <p>The controller also has its own option for the sticks: holding − (Select) and + (Start) together for about 4 seconds switches a 14 % dead zone on the sticks on and off. The controller buzzes once when it turns on and twice when it turns off, and it remembers the setting. It's part of 8BitDo's firmware.</p>
+  <p><b>Firmware Details</b> shows what the app read from the controller, including where the version came from and whether a firmware update is pending.</p>
+  <p><b>Create Problem Report</b> collects the controller's state and the last task's log for a bug report. It never includes the controller's address, its Bluetooth pairings or your backup.</p>
+  <p><b>Install Firmware 1.09 Anyway…</b> is only for a controller whose firmware can't be identified. It erases the firmware and installs 8BitDo's original 1.09 without being able to check beforehand that it's right for the controller, so use it only if Restore doesn't work.</p>
+    </section>
+    <section data-hsec="dongle">
+  <h4 id="help-dongle">2.4 GHz Dongle</h4>
+  <p>The app also works with the Ultimate 2C's 2.4 GHz dongle on firmware 1.03. Plug it in with the controller off, so it's on its own, and the Firmware tab shows its firmware and its one tweak.</p>
+  <ul>
+    <li><b>Xbox 360 controller over 2.4 GHz.</b> With the controller connected through it, the dongle presents itself to the Mac as a wired Xbox 360 controller, which macOS and its games recognise. It also reports a different version number from the controller by cable, so the app can tell the two apart.</li>
+  </ul>
+  <p><b>Back Up</b> saves the dongle's whole memory on this Mac. You need a backup of the dongle before installing or restoring. The dongle has no buttons, so the app puts it in update mode by itself when it writes, checks it there against your backup before anything is erased, writes only its firmware, and restarts it. <b>Check First</b> reads the dongle without changing it.</p>
+  <p><b>Restore</b> puts back your backup, or 8BitDo's original firmware 1.03, made from your backup and checked against its known checksum. If a write is interrupted, the dongle stays in update mode, the app says so, and Restore still works.</p>
+  <p>With the controller connected through the dongle, the app shows the dongle's firmware but doesn't change it. Turn the controller off first. The controller's own firmware can only be read by cable.</p>
+    </section>
+    </div>
+  </div>
   <menu><button id="help-close">Close</button></menu>
 </dialog>
 <script>if (new URLSearchParams(location.search).has("diagsim")) document.write('<script src="/static/diagsim.js"><\/script>');</script>

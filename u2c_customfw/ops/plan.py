@@ -10,7 +10,13 @@ INTERRUPTED = "The task was interrupted, and the controller may not start until 
 
 
 def count(n: int, noun: str) -> str:
-    return f"{n} {noun}" + ("" if n == 1 else "s")
+    return f"{n:,} {noun}" + ("" if n == 1 else "s")
+
+
+def listed(items) -> str:
+    """"a", "a and b", "a, b and c"."""
+    items = list(items)
+    return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"
 
 
 class OpError(Exception):

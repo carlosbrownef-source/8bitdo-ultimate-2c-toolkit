@@ -340,7 +340,7 @@ static u32 trigger(u32 v, u32 start, u32 end)
 	return v <= lo ? 0 : v >= hi ? 255 : (v - lo) * 255 / (hi - lo);
 }
 
-/* The button scan's call to stock_scan, every 5 ms, in dead RAM code at 0x1210: changes go in before it, so it still works out the digital triggers,
+/* The button scan's call to stock_scan, every scan (5 ms, or about 2.5 ms with fast_scan), in dead RAM code at 0x1210: changes go in before it, so it still works out the digital triggers,
  * mapping and turbo from them. */
 void scan_hook(u32 *word, u8 *lt, u8 *rt)
 {

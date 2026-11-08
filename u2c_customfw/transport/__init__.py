@@ -13,6 +13,7 @@ class DeviceInfo:
     transport: str
     name: str
     handle: object
+    version: int = 0   # bcdDevice
 
 
 class Channel(Protocol):

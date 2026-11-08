@@ -113,3 +113,46 @@ sent by cable as the app sends them. Each item is the plan as written before the
    Done on 2026-11-07: 128 bytes stayed unused after starting with the cable, and again after saving from the app, L4 + R4, play by cable, about 90 minutes over Bluetooth with rumble and plugging in again; nothing entered the dead code at `0x1210`. The deepest point comes when starting or when USB connects. Fixes, left out of the test build, add about 24 bytes. Opening the Settings tab repaints the test build's stack, so the app has to stay closed while measuring.
 10. With the same build, whether the CPU ever sleeps: main-loop passes per second over Bluetooth and by cable, against about 66 radio events per second at 15 ms. Also how long a full charge lasts idle and while playing, as a baseline. This only measures.
    Done on 2026-11-07 for the loop: it averaged 6,239 passes per second over 2.5 hours, mostly over Bluetooth, and 770 to 1,760 by cable, so the CPU never sleeps. How long a charge lasts wasn't measured.
+
+# Hardware validation of 1.0.0 (2026-11-07 to 2026-11-08)
+
+Run on the same controller, macOS 27.2 (Apple silicon), with test builds of Processor rest (a deliberate hang, a time meter, a
+battery log in an unused flash area), the command line of this repository and small read-only tools.
+
+1. **Watchdog.** A deliberate hang restarts the controller about 3 s later: by cable, USB went away and came back within 0.5 s;
+   over Bluetooth on battery it restarted and reconnected by itself. Turned off with Home on battery, it stayed off with the
+   watchdog armed. Charging while off from a power bank for about 10 minutes, it stayed off and charged normally. Then 35 minutes
+   of play over Bluetooth, with two Start + Select saves and a charger plugged in and out, all in one session with no restart.
+   With the processor held in a 30 s busy loop, holding Home for 10 s or more still cut the power, so a hang can always be ended by
+   hand.
+2. **Processor rest.** The first build broke the Bluetooth link a second after connecting, because the processor didn't wake for
+   the system timer; the shipped build wakes for it. With it: 25 minutes of play, nothing odd by feel; both sticks in circles for
+   68 s gave 104 reports per second, median gap 14.8 ms (the Mac's 15 ms interval), 99 % within 28.1 ms, longest 45.6 ms. Rumble
+   over Bluetooth at 30, 60 and 100 % and short pulses felt right, twice. A test build measured the share of time spent resting:
+   60 % with the controller still and 62-63 % while playing.
+3. **Battery.** A test build with Processor rest logged the battery once a minute in flash. On a Linux PC over Bluetooth: 296
+   minutes on battery, 293 connected, no rumble, from 4136 mV and 100 % to 3970 mV and 77 % (the firmware's own percentage).
+   There was no run without Processor rest to compare, so the app says it may make the battery last longer, not that it does.
+4. **Faster button reading.** By cable, about 10 fast taps each, soft and firm, on the d-pad, LB, RB, A, B, X and Y: 104
+   presses, none starting again within 20 ms of a release and none held under 15 ms.
+5. **Connection request.** macOS sets 15 ms with peripheral latency 22 at connect and refuses any request from a gamepad, both
+   the original 7.5 ms and one inside Apple's rules (seen in bluetoothd's log); the report rate didn't move. With the original
+   request, Linux ran the link at about 12.2 ms by the firmware's own reading. The 12.5 ms request that every install now
+   includes was installed on 2026-11-08 and hasn't been run on Linux or Windows yet.
+6. **Installing over firmware the app doesn't recognise.** On 2026-11-08, over the battery log build (firmware 1.09 by its update
+   record, not one of the app's builds): the check passed, the install wrote and read back, and the controller then read as the
+   original 1.09 with all twelve tweaks of the final build and the Home ring at 5 %.
+7. **Dongle, read only.** With the dongle alone, the app reads its firmware in about 7 s and identifies it by hash: v1.03 with
+   the Xbox 360 change on the tester's dongle. By cable the controller presents as "8BitDo Ultimate 2C Wireless Controller" with
+   bcdDevice `0x0114`, the same name and version as the dongle's X-input descriptor, so a paired dongle can't be told from the
+   controller by its USB identity alone.
+
+8. **Dongle over 2.4 GHz.** On 2026-11-08 the dongle's Xbox 360 change, with bcdDevice `0x0103`, was written by a separate
+   tool and read back. With the controller on 2.4 GHz it presents as `045e:028e` version `0x0103`, and the controller test saw
+   every control and rumble worked. With both sticks in circles for 63 s, 62,995 reports arrived: 1,000 per second, median gap
+   1.0 ms, 99 % within 1.2 ms, longest 11.3 ms (over Bluetooth: 104 per second, median 14.8 ms). The app reads the paired
+   dongle's firmware through it in about 4.5 s and shows it as the dongle with the controller connected. The app's own Back Up of the dongle ran on it the same day (about 45 s), and the app then read the dongle as 1.03 with the tweak, with its backup offered for Restore.
+
+Still to do: Restore when a 4 KB block outside the firmware area differs from the backup; quitting or closing the window during
+a real write; the 12.5 ms request on Linux or Windows; and, from 0.4, a sleeping Mac with the cable in and the closed Bluetooth
+update.

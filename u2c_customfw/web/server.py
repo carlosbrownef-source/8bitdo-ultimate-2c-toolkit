@@ -2,6 +2,7 @@
 """HTTP server bound to 127.0.0.1 on a random port. API calls need the session token in X-Token; the Host header must
 be this address (against DNS rebinding)."""
 import json
+import os
 import secrets
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -10,15 +11,16 @@ from urllib.parse import parse_qs, urlparse
 from .. import __version__, disclaimer, settings, state
 from .. import cli
 from ..firmware import recipes
-from ..ops import probe, report as report_mod
+from ..ops import backup as bkp, dongle, probe, report as report_mod, shown
 from ..ops import settings as settings_ops
 from ..ops.plan import OpError
-from ..protocol import app
+from ..protocol import ProtocolError, app
 from ..transport import PermissionDenied
 from . import jobs
 
 STATIC = Path(__file__).parent / "static"
-SETTINGS_MISSING = "To change these settings, install Controller settings in the Firmware tab."
+SETTINGS_MISSING = "Controller settings isn't installed. Install it in the Firmware tab to change the sticks, triggers, buttons and vibration."
+KEEPALIVE_S = 15
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css"}
 
 
@@ -58,7 +60,7 @@ def make_server(store: Path, port: int = 0):
                 return self.send(403, "forbidden", "text/plain")
             path = self.path.split("?")[0]
             route = {"/api/state": self.api_state, "/api/events": self.api_events, "/api/firmware": self.api_firmware,
-                     "/api/settings": self.api_settings_read}.get(path)
+                     "/api/settings": self.api_settings_read, "/api/busy": self.api_busy}.get(path)
             if route:
                 return route()
             name = "index.html" if path == "/" else path.lstrip("/").removeprefix("static/")
@@ -80,6 +82,11 @@ def make_server(store: Path, port: int = 0):
             self.send(200, json.dumps({"version": __version__, "accepted": state.accepted(store), "devices": found,
                                        "backups": backups,
                                        "disclaimer": disclaimer.text()}))
+
+        def api_busy(self):
+            """For the Mac app's quit and close guard: the server knows, even when the page has lost track."""
+            if self.auth():
+                self.send(200, json.dumps({"writing": runner.writing}))
 
         def api_firmware(self):
             """Read the connected controller's bank A (read-only) and name its firmware and tweaks."""
@@ -121,6 +128,7 @@ def make_server(store: Path, port: int = 0):
                 try:
                     if app.open_session(ch) is None:
                         raise OpError(settings_ops.NO_ANSWER)
+                    probe.check_not_dongle(ch)
                     answer = work(ch)
                 finally:
                     ch.close()
@@ -153,6 +161,7 @@ def make_server(store: Path, port: int = 0):
                 try:
                     if app.open_session(ch) is None:
                         return answer(note=settings_ops.NO_ANSWER)
+                    probe.check_not_dongle(ch)
                     if not settings_ops.installed(ch):
                         return answer(note=SETTINGS_MISSING)
                     answer(available=True, **settings_ops.load(ch))
@@ -210,27 +219,61 @@ def make_server(store: Path, port: int = 0):
             if not ours:
                 note = "Connect it by cable, or put it in update mode."
                 if any(f.mode.startswith("bluetooth") for f in found):
-                    note = "The controller firmware cannot be read over Bluetooth. Connect the controller by cable for firmware diagnostics."
+                    note = "Connect the controller by cable to see or change its firmware."
+                if any(f.mode == "bluetooth_xbox" for f in found):
+                    note += " Over Bluetooth, you can test it in Diagnostics and change the Home ring in Settings."
                 return self.send(200, json.dumps({"note": note}))
             f = ours[0]
-            if f.mode == "dongle":
-                return self.send(200, json.dumps({"error": "That is the 2.4 GHz dongle, which this app does not support."}))
+            try:
+                if f.mode.startswith("dongle") or cli._dongle_in_boot(f):
+                    return self.dongle_report(f, in_boot=f.mode == "boot")
+            except PermissionDenied as e:
+                return self.send(200, json.dumps({"error": str(e), "permission": True}))
+            except (OpError, OSError, ProtocolError) as e:
+                return self.send(200, json.dumps({"error": str(e)}))
             try:
                 ch = cli.open_channel(f.info, 0 if f.mode == "boot" else 0x81)
                 try:
                     fw = probe.read_firmware(ch, f.mode)
+                    pick = bkp.restorable(cli.unit_backups(ch, store)) if f.mode == "boot" else None   # what Restore your backup would use
                 finally:
                     ch.close()
                 st, version = fw.state, fw.version
-            except (OpError, PermissionDenied, OSError) as e:
+            except PermissionDenied as e:   # the page offers a button to Input Monitoring
+                return self.send(200, json.dumps({"error": str(e), "permission": True}))
+            except (OpError, OSError, ProtocolError) as e:
                 return self.send(200, json.dumps({"error": str(e)}))
-            ring = [recipes.RECIPES[k].title for k in st.recipes if recipes.RECIPES[k].group == "ring"]
-            self.send(200, json.dumps({"known": st.known, "recipes": list(st.recipes), "version": version, "version_from": fw.version_from,
+            keys = shown(st.recipes)
+            ring = [recipes.RECIPES[k].title for k in keys if recipes.RECIPES[k].group == "ring"]
+            self.send(200, json.dumps({"known": st.known, "recipes": keys, "version": version, "version_from": fw.version_from,
                                        "pending": fw.pending, "boot_identity": fw.boot_identity, "outdated": st.outdated, "ring_level": fw.ring_level,
-                                       "titles": [recipes.RECIPES[k].title for k in st.recipes],
-                                       "tweaks": [{"key": k, "title": r.title, "on": k in st.recipes}
-                                                  for k, r in recipes.RECIPES.items() if not r.group]
+                                       "restore_backup": pick and {"name": pick.path.name, "taken": bkp.taken(pick.path), "firmware": bkp.describe(pick.state)},
+                                       "titles": [recipes.RECIPES[k].title for k in keys],
+                                       "tweaks": [{"key": k, "title": recipes.RECIPES[k].title, "on": k in keys}
+                                                  for k in shown(k for k, r in recipes.RECIPES.items() if not r.group)]
                                                  + [{"key": "ring", "title": ring[0] if ring else "Home ring: normal", "on": bool(ring)}]}))
+
+        def dongle_report(self, f, in_boot=False):
+            """The dongle, read-only: its firmware, the one tweak there is for it, and its backups here."""
+            try:
+                ch = cli.open_channel(f.info, 0 if in_boot else 0x81)
+                try:
+                    fw = dongle.read_firmware(ch, in_boot=in_boot)
+                    found = dongle.unit_backups(store, dongle.read_unit(ch, in_boot))
+                finally:
+                    ch.close()
+            except PermissionDenied as e:
+                return self.send(200, json.dumps({"error": str(e), "permission": True}))
+            except (OpError, OSError, ProtocolError) as e:
+                return self.send(200, json.dumps({"error": str(e)}))
+            usable = [(p, dongle.state(d[dongle.BASE:dongle.END])) for p, d in found]
+            pick = next(((p, xbox) for p, (known, xbox) in usable if known), None)
+            self.send(200, json.dumps({"device": "dongle", "paired": f.mode == "dongle_paired", "boot": in_boot, "backed": bool(found),
+                                       "restore_backup": pick and {"name": pick[0].name, "taken": bkp.taken(pick[0]),
+                                                                   "firmware": f"firmware 1.03 with {dongle.TITLE}" if pick[1] else "the original firmware 1.03"},
+                                       "stock_ok": fw.known or pick is not None,
+                                       "known": fw.known, "version": fw.version,
+                                       "tweaks": [{"key": "dongle_360", "title": "Xbox 360 controller over 2.4 GHz", "on": fw.xbox360}]}))
 
         def api_events(self):
             if not self.auth():
@@ -242,10 +285,12 @@ def make_server(store: Path, port: int = 0):
             i = 0
             while True:
                 with runner.cond:
-                    while i >= len(runner.events):
-                        if not runner.cond.wait(timeout=15):
-                            self.wfile.write(b": keepalive\n\n"); self.wfile.flush()
+                    if i >= len(runner.events):
+                        runner.cond.wait(timeout=KEEPALIVE_S)
                     batch = runner.events[i:]
+                if not batch:   # written outside the lock, so a client that stops reading can't hold up the job
+                    self.wfile.write(b": keepalive\n\n"); self.wfile.flush()
+                    continue
                 i += len(batch)
                 for e in batch:
                     self.wfile.write(f"data: {json.dumps(e)}\n\n".encode())
@@ -277,8 +322,8 @@ def make_server(store: Path, port: int = 0):
             params = {"/api/backup": ("backup", {}),
                       "/api/patch": ("patch", dict(tweaks=",".join(req.get("tweaks", [])), download=req.get("base") == "download",
                                                     write=bool(req.get("write")))),
-                      "/api/restore": ("restore", dict(source=req.get("source", "backup"), file=req.get("file"),
-                                                        download=req.get("source") == "stock", write=bool(req.get("write")),
+                      "/api/restore": ("restore", dict(source=req.get("source", "backup"), write=bool(req.get("write")),
+                                                        expect=req.get("backup") if isinstance(req.get("backup"), str) else None,
                                                         force_unknown=bool(req.get("force_unknown"))))}.get(route)
             if params is None:
                 return self.send(404, json.dumps({"error": "unknown call"}))
@@ -291,5 +336,6 @@ def make_server(store: Path, port: int = 0):
 
 def serve(store: Path, port: int = 0) -> None:
     httpd, token = make_server(store, port)
-    print(f"U2C_URL http://127.0.0.1:{httpd.server_address[1]}/?token={token}", flush=True)
+    page = os.environ.get("U2C_PAGE_QUERY", "") if os.environ.get("U2C_SIM") else ""   # macos/preview.sh: the page simulator, never with real devices
+    print(f"U2C_URL http://127.0.0.1:{httpd.server_address[1]}/?token={token}{page}", flush=True)
     httpd.serve_forever()

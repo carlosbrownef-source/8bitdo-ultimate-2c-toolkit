@@ -5,6 +5,7 @@ import platform
 from pathlib import Path
 
 from .. import __version__
+from . import shown
 
 
 def log_tail(store, n: int = 30) -> str:
@@ -36,7 +37,7 @@ def clean_extras(raw) -> dict:
 
 
 def report(found, state, log_tail: str, extras: dict | None = None) -> str:
-    lines = [f"Firmware Toolkit {__version__}", f"python {platform.python_version()} on {platform.platform()}", "", "Devices:"]
+    lines = [f"U2C Firmware Toolkit {__version__}", f"python {platform.python_version()} on {platform.platform()}", "", "Devices:"]
     for f in found:
         i = f.info
         lines.append(f"  {f.mode}: {i.vendor:04x}:{i.product:04x} page {i.usage_page:#06x} via {i.transport}  {i.name!r}")
@@ -46,7 +47,8 @@ def report(found, state, log_tail: str, extras: dict | None = None) -> str:
     if state is None:
         lines.append(f"Firmware: {extras.get('firmware', 'not read')}")
     elif state.known:
-        lines.append("Firmware: original 1.09" + (f" with tweaks: {', '.join(state.recipes)}" if state.recipes else ""))
+        keys = shown(state.recipes)
+        lines.append("Firmware: original 1.09" + (f" with tweaks: {', '.join(keys)}" if keys else ""))
     else:
         lines.append("Firmware: unknown (not the original 1.09, with or without the tweaks)")
     if "macos" in extras:

@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The controller test: shows what macOS's GameController reports, through the Mac app's native bridge
 // (macos/Diagnostics.swift). It sends the bridge {op} messages and receives window.u2cDiagnostics(event).
-const CONTROLS = ["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "L3", "R3", "View", "Menu", "Home", "Up", "Down", "Left", "Right", "LS", "RS"];
+const CONTROLS = ["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "L3", "R3", "View", "Menu", "Home", "Up", "Down", "Left", "Right", "LS", "RS"];  // as Diagnostics.swift names them
+const CONTROL_LABELS = { L3: "Left stick press", R3: "Right stick press", View: "− (Select)", Menu: "+ (Start)", Up: "D-pad up", Down: "D-pad down", Left: "D-pad left", Right: "D-pad right", LS: "Left stick", RS: "Right stick" };  // as printed on the controller
 const STICK_SEEN = 0.5, TRIGGER_SEEN = 0.1, STICK_TRAVEL = 7, RESULT_TIMEOUT_MS = 3000, ACCENT = "#3fc8b4";
 const IDLE_LINE = "Vibrates for under a second. Nothing is written to the controller.";
 
 let testVisible = false, testConnected = null, testState = null, testSeen = new Set(), testName = null, testMounted = null, testPending = null, testTimer = null, testId = 0;
-const bridge = () => window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.diagnostics;
+const bridge = () => window.u2cSimBridge || (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.diagnostics);  // the simulator's, then the Mac app's
 
 function clearPending() {
   clearTimeout(testTimer);
@@ -94,10 +95,10 @@ function mountLive(body) {
   const button = (op, label, ok) => `<button class="sec small" data-op="${op}" data-was="${ok ? "" : "1"}"${ok && !testPending ? "" : " disabled"}>${label}</button>`;
   body.innerHTML = `<div class="test"><div class="test-pic" id="test-pic">${pad(ACCENT, false, "test-g")}</div><div>
     <dl class="rows"><dt>macOS sees</dt><dd id="test-name"></dd><dt>Category</dt><dd id="test-category"></dd><dt>Vibration</dt><dd id="test-vibration"></dd><dt>Battery</dt><dd id="test-battery"></dd></dl>
-    <div class="rum">${button("default", "Vibrate like a game", has("default"))}${button("left", "Left", has("left"))}${button("right", "Right", has("right"))}${button("direct", "Direct report", direct)}</div>
+    <div class="rum">${button("default", "Vibrate Like a Game", has("default"))}${button("left", "Left Motor", has("left"))}${button("right", "Right Motor", has("right"))}${button("direct", "Direct Report", direct)}</div>
     <p class="res" id="test-res"></p></div></div>
     <p class="count" id="test-count"></p>
-    <div class="seen" id="test-seen">${CONTROLS.map((c) => `<span data-c="${c}">${c}</span>`).join("")}</div>
+    <div class="seen" id="test-seen">${CONTROLS.map((c) => `<span data-c="${c}">${CONTROL_LABELS[c] || c}</span>`).join("")}</div>
     <div class="tg"><div>LT<i><i id="test-lt"></i></i></div><div>RT<i><i id="test-rt"></i></i></div></div>`;
   $("test-name").textContent = s.name;
   $("test-category").textContent = `${s.category}, with an extended gamepad`;

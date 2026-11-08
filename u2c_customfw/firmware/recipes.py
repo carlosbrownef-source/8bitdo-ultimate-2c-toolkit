@@ -25,6 +25,7 @@ RING_ORDER = ("ring_normal", "ring_25", "ring_5", "ring_1", "ring_0_1", "ring_of
 RING_CODE = (0x18400, 0x18FF0)                                # blank on stock
 ALERTS_FLAG = 0x18FF0
 SETTINGS_FLAG = 0x18FF1
+REST_FLAG = 0x18FF2
 STICK_THRESHOLD = 14  # stock's is 20; noise at rest spans about 25 counts, and 14 lets it through about once every 2 s
 
 
@@ -107,7 +108,7 @@ def _make() -> dict[str, Recipe]:
             Edit(0xD4F0, _blob(f"ringhook{form}.bin")),          # LED task calls ring_tick for the ring
             Edit(0xF83C, _blob(f"vhooka{form}.bin")),            # vendor commands reach ring_vendor
             Edit(0xF842, _blob(f"vhookb{form}.bin")),
-            Edit(0xA484, _blob(f"pollhook{form}.bin")),          # main loop samples the L4 + R4 chord
+            Edit(0xA484, _blob(f"pollhook{form}.bin"), superseded_by="cpu_rest"),  # main loop samples the L4 + R4 chord; cpu_rest takes the call over
             Edit(0x7640, bytes(0x90)),                           # dead RAM code, now the ring's and settings' state
             Edit(0x76D0, level.to_bytes(2, "little")),           # the level installed
             Edit(RING_CODE[0], _blob(f"ringtail{form}.bin").ljust(RING_CODE[1] - RING_CODE[0], b"\xff")),
@@ -143,6 +144,22 @@ def _make() -> dict[str, Recipe]:
             *(Edit(a, bytes([STICK_THRESHOLD])) for a in (0xB1F2, 0xB208, 0xB220, 0xB238)),  # the jitter filter's threshold
             Edit(0xA2DC, _blob("hsweep.bin")),                   # two ADC passes per report, so its average means something
         ), requires_group="ring"),
+        Recipe("cpu_rest", "Processor rest between radio events", (), (
+            Edit(0xA484, _blob("resthook.bin")),                 # the main loop's 100 ms call feeds the watchdog first; takes over the ring's pollhook
+            Edit(0x6020, _blob("wdog.bin").ljust(0x94, b"\0")),  # rest_main_poll, run from RAM at 0x20 (dead RAM code)
+            Edit(0x848C, _blob("stall.bin").ljust(0x74, b"\0")), # stall_hook, run from RAM at 0x248c (dead RAM code)
+            Edit(0xA4AE, _blob("hstall.bin")),                   # the Bluetooth branch's motor call, then the stall
+            Edit(REST_FLAG, b"\1"),
+        ), requires_group="ring"),
+        Recipe("ble_interval", "Bluetooth connection request of 12.5 ms", (), (
+            Edit(0xA0DE, bytes.fromhex("0aa00aa100a2c8a3")),     # min = max 12.5 ms, latency 0, timeout 2 s, instead of 7.5 ms and latency 59
+        )),
+        Recipe("fast_scan", "Faster button reading", (), (
+            Edit(0xD288, (40000).to_bytes(4, "little")),         # the scan period, in 16 MHz ticks: 2.5 ms instead of 5
+            Edit(0xC8E2, bytes.fromhex("13aa")),                 # Home still needs 50 ms held: 20 scans
+            Edit(0xC8E6, bytes.fromhex("14a2")),
+            Edit(0xC640, bytes.fromhex("0bae")),                 # turbo still switches every 30 ms: 12 scans
+        )),
     )}
 
 

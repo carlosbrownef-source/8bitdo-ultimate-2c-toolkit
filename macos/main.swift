@@ -4,12 +4,13 @@ import AppKit
 import IOKit.hid
 import WebKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKNavigationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKNavigationDelegate, NSWindowDelegate {
     var window: NSWindow!
     var web: WKWebView!
     let diagnostics = Diagnostics()
     var core: Process?
     var buffer = Data()
+    var coreURL: URL?   // the address the core printed, with its token
 
     func applicationDidFinishLaunching(_ note: Notification) {
         NSApp.appearance = NSAppearance(named: .darkAqua)
@@ -24,7 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKN
         diagnostics.web = web
         web.navigationDelegate = self
         web.underPageBackgroundColor = background
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 860),
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1144, height: 718),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         // The title bar replaces the page's own top bar (hidden with ?native=1): name, what it is for, and Help.
         window.title = "U2C Firmware Toolkit"
@@ -36,8 +37,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKN
         window.toolbar = toolbar
         window.toolbarStyle = .unified
         window.backgroundColor = background
-        window.contentMinSize = NSSize(width: 760, height: 640)
+        window.contentMinSize = NSSize(width: 760, height: 720)
         window.contentView = web
+        window.delegate = self
         window.center()
         window.makeKeyAndOrderFront(nil)
         installMenu()
@@ -86,31 +88,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKN
         p.executableURL = res.appendingPathComponent("python/bin/python3")
         p.arguments = ["-m", "u2c_customfw.web"]
         var env = ProcessInfo.processInfo.environment
-        env["PYTHONPATH"] = res.appendingPathComponent("app").path
+        env["PYTHONPATH"] = env["U2C_CORE_PATH"] ?? res.appendingPathComponent("app").path   // macos/preview.sh runs the repository's core
         env["PYTHONDONTWRITEBYTECODE"] = "1"
         p.environment = env
         let out = Pipe(), err = Pipe()
         p.standardOutput = out
         p.standardError = err
         out.fileHandleForReading.readabilityHandler = { [weak self] h in
-            guard let self = self else { return }
-            self.buffer.append(h.availableData)
+            let data = h.availableData
+            guard let self = self, !data.isEmpty else { h.readabilityHandler = nil; return }  // empty: the core has gone
+            self.buffer.append(data)
             guard let text = String(data: self.buffer, encoding: .utf8) else { return }
             for line in text.split(separator: "\n") where line.hasPrefix("U2C_URL ") {
                 h.readabilityHandler = nil
                 if let url = URL(string: String(line.dropFirst("U2C_URL ".count)) + "&native=1") {
-                    DispatchQueue.main.async { self.web.load(URLRequest(url: url)) }
+                    DispatchQueue.main.async { self.coreURL = url; self.web.load(URLRequest(url: url)) }
                 }
             }
         }
         var errTail = Data()
+        let errLock = NSLock()   // written on the pipe's queue, read on the termination handler's
         err.fileHandleForReading.readabilityHandler = { h in
-            errTail.append(h.availableData)
+            let data = h.availableData
+            guard !data.isEmpty else { h.readabilityHandler = nil; return }
+            errLock.lock()
+            errTail.append(data)
             if errTail.count > 8192 { errTail = errTail.suffix(8192) }
+            errLock.unlock()
         }
         p.terminationHandler = { [weak self] proc in
             if proc.terminationStatus != 0, let self = self {
+                errLock.lock()
                 let msg = String(data: errTail, encoding: .utf8) ?? ""
+                errLock.unlock()
                 DispatchQueue.main.async { self.fail("The Python core stopped (status \(proc.terminationStatus)).\n\n\(msg)") }
             }
         }
@@ -119,21 +129,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKN
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
-    // Never end the app silently while a job (a write above all) is running: ask first.
-    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        web.evaluateJavaScript("typeof busy !== 'undefined' && busy === true") { result, _ in
-            if (result as? Bool) == true {
-                let alert = NSAlert()
-                alert.messageText = "An operation is running"
-                alert.informativeText = "Quitting now can leave the controller half-written. If that happens, put it in update mode and use Restore. Quit anyway?"
-                alert.addButton(withTitle: "Keep running")
-                alert.addButton(withTitle: "Quit anyway")
-                NSApp.reply(toApplicationShouldTerminate: alert.runModal() == .alertSecondButtonReturn)
-            } else {
-                NSApp.reply(toApplicationShouldTerminate: true)
+    /// Whether the core is writing to the controller. It asks the core, which knows even when the page doesn't (a lost
+    /// event stream, a crashed web view). If the core can't be asked but is still running, it counts as writing.
+    func writing() -> Bool {
+        guard let page = coreURL, var parts = URLComponents(url: page, resolvingAgainstBaseURL: false),
+              let token = parts.queryItems?.first(where: { $0.name == "token" })?.value else { return core?.isRunning ?? false }
+        parts.path = "/api/busy"
+        parts.queryItems = nil
+        guard let url = parts.url else { return core?.isRunning ?? false }
+        var request = URLRequest(url: url, timeoutInterval: 2)
+        request.setValue(token, forHTTPHeaderField: "X-Token")
+        var answer: Bool?
+        let done = DispatchSemaphore(value: 0)
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                answer = json["writing"] as? Bool
             }
-        }
-        return .terminateLater
+            done.signal()
+        }.resume()
+        done.wait()
+        return answer ?? (core?.isRunning ?? false)
+    }
+
+    // Never end the app silently while the controller is being written: ask first.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard writing() else { return .terminateNow }
+        let alert = NSAlert()
+        alert.messageText = "Quit while the controller is being written?"
+        alert.informativeText = "Quitting now can leave the controller half-written. Do not disconnect the controller or quit the app until the task finishes. If it's interrupted, put the controller in update mode and use Restore."
+        alert.addButton(withTitle: "Don’t Quit")
+        alert.addButton(withTitle: "Quit Anyway")
+        return alert.runModal() == .alertSecondButtonReturn ? .terminateNow : .terminateCancel
+    }
+
+    // Closing the only window quits, so it asks the same way, and the window stays if the write goes on.
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        NSApp.terminate(nil)
+        return false
     }
     func applicationWillTerminate(_ note: Notification) {
         diagnostics.stop()

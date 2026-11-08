@@ -9,7 +9,7 @@ from . import ProtocolError
 
 CHUNK = 46
 CONTROLLER_ID = 0x301B
-DONGLE_ID = 0x301C             # by analogy with the app's USB ID: no dongle bootloader has been asked yet
+DONGLE_ID = 0x301C             # the literal the dongle's bootloader answers with (its identify handler, read in its image)
 
 
 def crc16(data: bytes) -> int:
@@ -65,8 +65,8 @@ def write_chunk(ch, addr: int, param: int, data: bytes) -> None:
 
 
 def identify(ch) -> int | None:
-    """The bootloader's identity (cmd 8), or None if it doesn't answer. On the controller it is a constant in the
-    bootloader itself (0x3988), so damaged firmware can't change it."""
+    """The bootloader's identity (cmd 8), or None if it doesn't answer. On the controller it is 0x301B, a constant the
+    bootloader reads from its own code (at 0x3988), so damaged firmware can't change it."""
     a = _call(ch, request(8, param=4, datalen=4), tries=1)
     if a is None or len(a) < 20 or a[6:8] != b"\x02\0":
         return None
@@ -78,9 +78,9 @@ def kind(ch) -> str | None:
 
 
 def kind_from(ch, who: int | None) -> str | None:
-    """Controller or dongle, given the identity already asked with identify(). The identity can only rule out the
-    controller, since the dongle's answer is not known yet.
-    The dongle's 128 KB flash reads back aliased above 0x20000; the controller's 0x20000 is erased."""
+    """Controller or dongle, given the identity already asked with identify(). Each bootloader answers with its own
+    identity; a missing answer falls back to the flash, since the dongle's 128 KB reads back aliased above 0x20000
+    while the controller's 0x20000 is erased."""
     if who == DONGLE_ID:
         return "dongle"
     if who not in (None, CONTROLLER_ID):

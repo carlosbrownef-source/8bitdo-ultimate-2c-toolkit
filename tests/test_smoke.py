@@ -7,7 +7,7 @@ from pathlib import Path
 class SmokeTest(unittest.TestCase):
     def test_version(self):
         import u2c_customfw
-        self.assertEqual(u2c_customfw.__version__, "0.4.0")
+        self.assertEqual(u2c_customfw.__version__, "1.0.0")
 
 
 ROOT = Path(__file__).parent.parent
@@ -48,6 +48,7 @@ class DisclaimerTest(unittest.TestCase):
         for phrase in ("tested on one controller, my own", "edge cases may exist", "I cannot know if it's possible for 8BitDo to tell",
                        "it won't let you continue", "the controller reports itself differently", "Not affiliated with or endorsed by 8BitDo"):
             self.assertIn(phrase, text)
+        self.assertTrue(text.startswith("# Before you start\n"))
 
     def test_readme_gives_credit_to_the_other_projects(self):
         text = (ROOT / "README.md").read_text()
@@ -57,7 +58,7 @@ class DisclaimerTest(unittest.TestCase):
 
     def test_readme_leads_with_the_app_and_a_short_warning(self):
         text = (ROOT / "README.md").read_text()
-        self.assertTrue(text.startswith("# 8BitDo Ultimate 2C Firmware Toolkit"))
+        self.assertTrue(text.startswith("# U2C Firmware Toolkit"))
         self.assertNotIn("READ THIS FIRST", text)
         self.assertIn("no warranty", text[:text.index("## Install")].lower())
         self.assertIn("written with an AI assistant (Opus 5.5)", text[:text.index("## Install")])
@@ -65,6 +66,16 @@ class DisclaimerTest(unittest.TestCase):
         self.assertIn("Not affiliated with or endorsed by 8BitDo", text)
         order = [text.index(h) for h in ("## What it does", "## Install", "## Use", "## Diagnostics", "## What the tweaks do", "## Credits", "## License")]
         self.assertEqual(order, sorted(order))
+
+    def test_one_warranty_sentence(self):
+        self.assertIn("Installing modified firmware probably voids the controller's warranty.", (ROOT / "README.md").read_text())
+        disclaimer = (ROOT / "DISCLAIMER.md").read_text()
+        self.assertIn("**Installing it probably voids your controller's warranty.**", disclaimer)
+        self.assertIn("makes a lot of assumptions", disclaimer)
+        for path in ("README.md", "DISCLAIMER.md", "u2c_customfw/cli.py", "u2c_customfw/disclaimer.py", "u2c_customfw/web/static/index.html", "u2c_customfw/web/static/app.js"):
+            text = (ROOT / path).read_text()
+            for old in ("lose your controller's warranty", "voids its warranty", "voids the warranty", "this voids", "Changing the firmware voids"):
+                self.assertNotIn(old, text, path)
 
 
 class MacBuildTest(unittest.TestCase):
