@@ -27,7 +27,10 @@
     const answer = await realFetch(url, options);
     if (path.startsWith("/api/firmware") && query.get("tweaks")) return json({ ...(await answer.json()), recipes: ["bt_xbox", "ring_5", ...(query.get("settings") ? ["settings"] : [])], titles: ["Dimmer LEDs", "Home ring: 5 %"], ring_level: 2, outdated: !!query.get("outdated") });
     if (path.startsWith("/api/firmware") && query.get("identity") === "none") return json({ ...(await answer.json()), boot_identity: null });
-    if (path.startsWith("/api/state") && device) return json({ ...(await answer.json()), devices: [{ mode: device, name: "simulated" }] });
+    if (path.startsWith("/api/state") && (device || query.get("nobackup"))) {
+      const got = await answer.json();
+      return json({ ...got, ...(device ? { devices: [{ mode: device, name: "simulated" }] } : {}), ...(query.get("nobackup") ? { backups: [] } : {}) });
+    }
     return answer;
   };
 
@@ -86,6 +89,7 @@
     restorecheck: () => $("restore-backup-dry").click(),
     installask: () => $("patch-write").click(),
     backupjob: () => $("backup").click(),
+    notweaks: () => { tweakBoxes().forEach((x) => { x.checked = false; }); render(); },
     checkjob: () => runJob("Checking…", "/api/patch", { tweaks: ["dim_leds"], base: "backup", write: false }, "Check passed"),
     installjob: () => { $("patch-write").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); setTimeout(snapIdle, 0); }, 200); },
     resetyes: () => { $("settings-reset").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); }, 200); },  // headless Chrome holds back the close event

@@ -104,7 +104,9 @@ function render() {
   if (!xbox.checked) rumble.checked = false;
   tweakBoxes().forEach((x) => { x.disabled = busy || (x === rumble && !xbox.checked); x.parentElement.classList.toggle("off", x.disabled); });
   ringButtons().forEach((b) => (b.disabled = busy));
-  $("choose-one").hidden = tweaks().length > 0;
+  const installWhy = !tweaks().length ? "Choose at least one tweak." : !fw || fw.known !== false || on109 ? ""
+    : fw.version ? "This app only installs tweaks over firmware 1.09." : "This firmware can't be identified. Restore your backup first.";
+  $("choose-one").textContent = installWhy; $("choose-one").hidden = !installWhy;
 
   const can = { backup: !!ctrl, "patch-dry": patchable, "patch-write": patchable,
     "restore-backup-dry": boot && !!fw && !!fw.restore_backup, "restore-backup": boot && !!fw && !!fw.restore_backup, "restore-stock-dry": boot && backed && on109, "restore-stock": boot && backed && on109,
@@ -113,6 +115,10 @@ function render() {
   const stockWhy = !boot || !backed || !fw || fw.error || on109 ? "" : fw.version ? `Not available, because this controller has firmware ${fw.version.toFixed(2)}.`
     : "Not available, because the firmware version can't be identified.";
   $("restore-stock-why").textContent = stockWhy; $("restore-stock-why").hidden = !stockWhy;
+  const restoreWhy = !boot ? "Put the controller in update mode to restore." : !backed ? "Back up the controller first to restore your backup." : "";
+  $("restore-why").textContent = restoreWhy; $("restore-why").hidden = !restoreWhy;
+  const backupWhy = boot && backed && !!fw && "restore_backup" in fw && !fw.restore_backup ? "Not available, because no backup of this controller has firmware this app recognises." : "";
+  $("restore-backup-why").textContent = backupWhy; $("restore-backup-why").hidden = !backupWhy;
   const hot = !!fw && fw.known === false && !fw.version && !fw.error;
   $("force-zone").classList.toggle("hot", hot);
   $("force-hint").hidden = !hot;

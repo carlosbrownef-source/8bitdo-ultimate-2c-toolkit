@@ -109,6 +109,19 @@ class TabsTest(PageCase):
         self.assertNotIn("disabled", dom.find("restore-stock").attrs)
         self.assertIn("hidden", dom.find("restore-stock-why").attrs)
 
+    def why(self, query, id_="restore-why"):
+        el = self.server.dom(query).find(id_)
+        return "" if "hidden" in el.attrs else el.all_text()
+
+    def test_restore_says_why_it_is_off(self):
+        self.assertEqual(self.why(""), "")
+        self.assertEqual(self.why("&diagsim=cable"), "Put the controller in update mode to restore.")
+        self.assertEqual(self.why("&diagsim=boot&nobackup=1"), "Back up the controller first to restore your backup.")
+
+    def test_install_says_why_it_is_off(self):
+        self.assertEqual(self.why("", "choose-one"), "")
+        self.assertEqual(self.why("&diagsim=boot&scenario=notweaks", "choose-one"), "Choose at least one tweak.")
+
     def test_no_hint_when_the_firmware_is_known(self):
         dom = self.server.dom()
         self.assertIn("hidden", dom.find("force-hint").attrs)
@@ -675,6 +688,11 @@ class UnknownFirmwareTest(PageCase):
         text = self.server.dom().find("fw-note").all_text()
         self.assertIn("another firmware version, which you can update with 8BitDo's own updater", text)
         self.assertIn("firmware modified outside this app, which restoring your backup replaces", text)
+
+    def test_install_says_why_it_is_off(self):
+        el = self.server.dom().find("choose-one")
+        self.assertNotIn("hidden", el.attrs)
+        self.assertEqual(el.all_text(), "This firmware can't be identified. Restore your backup first.")
 
     def test_restoring_the_original_is_off_with_its_reason(self):
         dom = self.server.dom()

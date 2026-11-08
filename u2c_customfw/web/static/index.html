@@ -58,16 +58,17 @@
         <div class="seg"><button data-base="backup" class="on">your backup</button><button data-base="download">8BitDo's server</button></div></div>
       <div class="boot" id="boot-box"><span id="boot-icon"></span><div><b id="boot-title">Update mode</b>Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white.</div></div>
       <div class="btns"><button id="patch-dry" class="sec job">Check first</button><button id="patch-write" class="job">Install tweaks…</button></div>
-      <p style="margin:10px 0 0;font-size:13px"><span id="choose-one" hidden>Choose at least one tweak. </span>Changing the firmware voids the controller's warranty.</p>
+      <p style="margin:10px 0 0;font-size:13px"><span id="choose-one" hidden></span> Changing the firmware voids the controller's warranty.</p>
     </section>
 
     <section class="cd">
       <h2><span class="no">3</span>Restore<span class="tag">Replaces the firmware</span></h2>
       <p>Restores your backup or 8BitDo's original firmware 1.09. The controller needs to be in update mode.</p>
       <div class="rest">
-        <div><h3>Your backup</h3><button id="restore-backup-dry" class="sec small job">Check first</button><button id="restore-backup" class="sec small job">Restore…</button></div>
+        <div><h3>Your backup</h3><button id="restore-backup-dry" class="sec small job">Check first</button><button id="restore-backup" class="sec small job">Restore…</button><p class="why" id="restore-backup-why" hidden></p></div>
         <div><h3>Original firmware 1.09</h3><button id="restore-stock-dry" class="sec small job">Check first</button><button id="restore-stock" class="sec small job">Restore…</button><p class="why" id="restore-stock-why" hidden></p></div>
       </div>
+      <p class="why" id="restore-why" hidden></p>
     </section>
   </div>
 
