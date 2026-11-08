@@ -59,6 +59,40 @@ class TransportTest(unittest.TestCase):
         for d in devices:  # the manager still holds them after the copy is released
             self.assertEqual(iokit._prop(d.handle, "VendorID") or 0, d.vendor)
 
+    def fake_channel(self, late):
+        """A channel on fake IOKit: the run loop first delivers the replies in late, then the answer to what was sent."""
+        from u2c_customfw.transport import iokit
+        ch = object.__new__(iokit.IOKitChannel)
+        ch.dev, ch.rid, ch.replies, ch.loop, ch.buf = "dev", 0, [], "loop", None
+        queue, calls = list(late), []
+
+        def run(mode, seconds, once):
+            if not queue:
+                return 3   # kCFRunLoopRunTimedOut
+            ch.replies.append(queue.pop(0))
+            return 4       # kCFRunLoopRunHandledSource
+        cf = mock.Mock(CFRunLoopRunInMode=run)
+        iok = mock.Mock(IOHIDDeviceSetReport=lambda *a: queue.append(b"answer") or 0,
+                        IOHIDDeviceRegisterInputReportCallback=lambda *a: calls.append(a))
+        for name, fake in (("cf", cf), ("iok", iok)):
+            p = mock.patch.object(iokit, name, fake)
+            p.start()
+            self.addCleanup(p.stop)
+        return ch, calls
+
+    @unittest.skipUnless(sys.platform == "darwin", "IOKit only on macOS")
+    def test_a_late_reply_isnt_taken_as_the_next_answer(self):
+        ch, _ = self.fake_channel([b"late 1", b"late 2"])
+        self.assertEqual(ch.xfer(b"request"), b"answer")
+
+    @unittest.skipUnless(sys.platform == "darwin", "IOKit only on macOS")
+    def test_close_unregisters_the_report_callback(self):
+        from u2c_customfw.transport import iokit
+        ch, calls = self.fake_channel([])
+        iokit._open_channels += 1
+        ch.close()
+        self.assertEqual(calls, [("dev", None, 64, None, None)])
+
     def test_device_info_fields(self):
         d = transport.DeviceInfo(vendor=0x2DC8, product=0x310A, usage_page=0xFF7A, transport="USB", name="x", handle=None)
         self.assertEqual((d.vendor, d.product, d.usage_page), (0x2DC8, 0x310A, 0xFF7A))

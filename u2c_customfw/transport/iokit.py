@@ -41,6 +41,7 @@ for f, res, args in [
 MODE = P.in_dll(cf, "kCFRunLoopDefaultMode")
 REPORT_CB = C.CFUNCTYPE(None, P, I32, P, C.c_int, C.c_uint32, C.POINTER(C.c_uint8), L)
 NOT_PERMITTED = 0xE00002E2
+HANDLED_SOURCE = 4   # kCFRunLoopRunHandledSource
 _managers = []  # devices stay valid while their manager is alive
 _open_channels = 0
 KEEP_MANAGERS = 4
@@ -122,6 +123,8 @@ class IOKitChannel:
         self.replies.append(data)
 
     def xfer(self, report: bytes, timeout: float = 0.5) -> bytes | None:
+        while cf.CFRunLoopRunInMode(MODE, 0, True) == HANDLED_SOURCE:  # a reply that came after its request timed out
+            pass                                                         # arrives now, not as this request's answer
         self.replies.clear()
         buf = (C.c_uint8 * 64).from_buffer_copy(report.ljust(64, b"\0")[:64])
         if iok.IOHIDDeviceSetReport(self.dev, 1, self.rid, buf, 64):  # kIOHIDReportTypeOutput
@@ -133,6 +136,7 @@ class IOKitChannel:
 
     def close(self) -> None:
         global _open_channels
+        iok.IOHIDDeviceRegisterInputReportCallback(self.dev, self.buf, 64, None, None)  # the device keeps no pointer into self
         iok.IOHIDDeviceUnscheduleFromRunLoop(self.dev, self.loop, MODE)
         iok.IOHIDDeviceClose(self.dev, 0)
         _open_channels -= 1
