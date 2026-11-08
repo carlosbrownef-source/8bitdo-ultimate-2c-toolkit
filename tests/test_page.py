@@ -32,6 +32,10 @@ class Node:
     def classes(self):
         return self.attrs.get("class", "").split()
 
+    def shown_text(self):
+        """Like all_text, leaving out what the hidden attribute hides."""
+        return "" if "hidden" in self.attrs else " ".join([" ".join(self.text)] + [c.shown_text() for c in self.children])
+
 
 class Tree(HTMLParser):
     def __init__(self, dom):
@@ -137,6 +141,9 @@ class TabsTest(PageCase):
         self.assertIn("disabled", dom.find("patch-write").attrs)
         self.assertEqual(self.hero("&diagsim=dongle&stockdongle=1")[1], "Original dongle firmware 1.03")
         self.assertEqual(next(n for n in dom.find("pic").walk() if n.tag == "svg").attrs.get("aria-label"), "2.4 GHz dongle")
+        text = dom.find("tab-firmware").shown_text()
+        self.assertNotIn("controller", text.replace("Xbox 360 controller", ""))   # no step talks about the controller
+        self.assertIn("hidden", dom.find("restore-why").attrs)
 
     def test_bluetooth_says_what_works_over_it(self):
         _, title, note = self.hero("&diagsim=bt")

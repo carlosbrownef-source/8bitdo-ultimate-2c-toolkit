@@ -46,7 +46,7 @@ function settingsAccess() {  // the reason the settings can't be changed right n
   const modes = st ? st.devices.map((d) => d.mode) : [];
   if (busy) return "Please wait until the task finishes.";
   if (modes.includes("boot")) return "These settings can't be changed in update mode. Turn the controller off and connect it by cable as usual.";
-  if (!modes.some((m) => m === "cable" || m === "cable_360")) return "Connect the controller by cable to change these settings.";
+  if (!modes.some((m) => m === "cable" || m === "cable_360")) return modes.includes("dongle") ? "These are the controller's settings, and the dongle has none. Connect the controller by cable to change them." : "Connect the controller by cable to change these settings.";
   if (!fw) return "Reading the firmware…";
   if (fw.error) return fw.error;
   if (!fw.recipes || !fw.recipes.includes("settings")) return SETTINGS_MISSING;
