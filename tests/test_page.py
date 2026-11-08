@@ -771,6 +771,24 @@ class SmallerTest(PageCase):
 
 
 class HelpTest(PageCase):
+    def test_help_states_the_same_facts_and_risks_as_the_readme(self):
+        text = self.server.dom().find("help").all_text()
+        for fact in ("about 1.25 ms sooner", "a worn button could occasionally register twice.",
+                     "In rare cases it could make the controller stop responding. This hasn't been observed.",
+                     "This saves battery over Bluetooth.", "Installing a different level replaces a saved one."):
+            self.assertIn(fact, text)
+        self.assertNotIn("about 1 ms", text)
+        self.assertEqual(text.count("It needs the Home ring's code"), 2)   # Controller settings and Fixes
+        order = [text.rindex(t + ".") for t in ("Xbox Series X|S controller over Bluetooth", "Rumble over Bluetooth", "Xbox 360 controller over cable", "Dimmer LEDs",
+                                              "Battery alerts", "Controller settings", "Fixes", "Processor rest", "Finer stick movement", "Faster button reading", "Home ring brightness")]
+        self.assertEqual(order, sorted(order))
+
+    def test_the_hero_lists_the_tweaks_in_the_toggles_order(self):
+        dom = self.server.dom()
+        chips = [" ".join(n.text) for n in dom.find("chips").children]
+        self.assertEqual(chips[:3], ["Xbox Series X|S controller over Bluetooth", "Rumble over Bluetooth", "Xbox 360 controller over cable"])
+        self.assertLess(chips.index("Processor rest between radio events"), chips.index("Finer stick movement"))
+        self.assertTrue(chips[-1].startswith("Home ring"))
     def test_help_opens_at_the_top_with_its_contents(self):
         dom = self.server.dom("&diagsim=boot&scenario=helpopen")
         self.assertEqual(dom.find("diag-snap").all_text(), "help-top 0")

@@ -82,7 +82,8 @@ function hero(devs, ctrl, boot) {
   const led = cls === "none" ? null : cls === "bad" ? "#e8695b" : boot ? "#ffffff" : getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
   $("pic").innerHTML = pad(led, cls === "none");
   const box = $("chips"); box.textContent = ""; box.hidden = !chips;
-  for (const t of chips || []) {
+  const order = [...tweakBoxes().map((x) => x.value), "ring"];   // as the toggles, the Home ring last
+  for (const t of (chips || []).slice().sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key))) {
     const c = document.createElement("span"); c.className = "chip" + (t.on ? " on" : "");
     c.innerHTML = t.on ? ICON.ok : ICON.dash; c.append(t.title); box.append(c);
   }
