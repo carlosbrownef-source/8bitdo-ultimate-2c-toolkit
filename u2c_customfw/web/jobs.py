@@ -15,6 +15,7 @@ ACTIONS = {"backup": cli.cmd_backup, "patch": cli.cmd_patch, "restore": cli.cmd_
 class Runner:
     def __init__(self, store):
         self.store, self.events, self.running, self.lock = store, [], False, None
+        self.writing = False   # a job that writes to the controller is running: the Mac app asks before quitting
         self.cond = threading.Condition()
 
     def push(self, event: dict) -> None:
@@ -32,7 +33,7 @@ class Runner:
 
     def _free(self) -> None:
         state.unlock_device(self.lock)
-        self.running = False
+        self.running = self.writing = False
         self.cond.notify_all()
 
     def claim(self) -> bool:
@@ -48,7 +49,7 @@ class Runner:
         with self.cond:
             if not self._take():
                 return False
-            self.events = []
+            self.events, self.writing = [], bool(params.get("write"))
         args = SimpleNamespace(**{**dict(write=False, tweaks="", backup=None, download=False, source="backup", expect=None,
                                          accept_disclaimer=False, force_unknown=False), **params})
         log = get_logger(self.store)

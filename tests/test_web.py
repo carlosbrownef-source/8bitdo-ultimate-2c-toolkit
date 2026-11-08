@@ -220,6 +220,21 @@ class WebTest(unittest.TestCase):
         self.assertEqual(self.call("POST", "/api/backup")[0], 202)
         self.events()
 
+    def test_busy_says_whether_a_write_is_running(self):
+        release = threading.Event()
+        state.accept(self.store)
+        jobs.ACTIONS["patch"] = lambda args, store: release.wait(5)
+        busy = lambda: json.loads(self.call("GET", "/api/busy")[1])["writing"]
+        self.assertFalse(busy())
+        self.call("POST", "/api/patch", {"tweaks": ["dim_leds"], "write": False})
+        self.assertFalse(busy())   # a check writes nothing
+        release.set(); self.events(); release.clear()
+        self.call("POST", "/api/patch", {"tweaks": ["dim_leds"], "write": True})
+        self.assertTrue(busy())
+        release.set(); self.events()
+        self.assertFalse(busy())
+        self.assertEqual(self.call("GET", "/api/busy", token=None)[0], 403)
+
     def test_second_job_while_busy_is_409(self):
         release = threading.Event()
         jobs.ACTIONS["backup"] = lambda args, store: release.wait(5)

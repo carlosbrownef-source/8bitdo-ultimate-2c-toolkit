@@ -59,7 +59,7 @@ def make_server(store: Path, port: int = 0):
                 return self.send(403, "forbidden", "text/plain")
             path = self.path.split("?")[0]
             route = {"/api/state": self.api_state, "/api/events": self.api_events, "/api/firmware": self.api_firmware,
-                     "/api/settings": self.api_settings_read}.get(path)
+                     "/api/settings": self.api_settings_read, "/api/busy": self.api_busy}.get(path)
             if route:
                 return route()
             name = "index.html" if path == "/" else path.lstrip("/").removeprefix("static/")
@@ -81,6 +81,11 @@ def make_server(store: Path, port: int = 0):
             self.send(200, json.dumps({"version": __version__, "accepted": state.accepted(store), "devices": found,
                                        "backups": backups,
                                        "disclaimer": disclaimer.text()}))
+
+        def api_busy(self):
+            """For the Mac app's quit and close guard: the server knows, even when the page has lost track."""
+            if self.auth():
+                self.send(200, json.dumps({"writing": runner.writing}))
 
         def api_firmware(self):
             """Read the connected controller's bank A (read-only) and name its firmware and tweaks."""
