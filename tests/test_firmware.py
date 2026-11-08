@@ -267,8 +267,8 @@ class FromEarlierVersionsTest(unittest.TestCase):
         regions = {(e.addr, e.size) for r in recipes.RECIPES.values() for e in r.edits}
         self.assertEqual(set(stock_hashes.REGION_SHA256), regions, "run tools/make_constants.py after changing a recipe's edits")
 
-    def test_untried_tweaks_are_left_out_of_0_4(self):
-        self.assertFalse({"ble_interval", "soft_rumble"} & set(recipes.RECIPES))
+    def test_softer_rumble_start_stays_out(self):
+        self.assertNotIn("soft_rumble", recipes.RECIPES)  # dropped in 0.4; ble_interval is back in 0.5, hidden until tried
 
     def test_finer_sticks_change_the_threshold_in_all_four_places(self):
         edits = {e.addr: e.new for e in recipes.RECIPES["stick_precision"].edits}
@@ -306,6 +306,25 @@ class FromEarlierVersionsTest(unittest.TestCase):
     def test_cpu_rest_is_not_offered_in_the_app(self):
         html = (Path(recipes.__file__).parents[1] / "web" / "static" / "index.html").read_text()
         self.assertNotIn('value="cpu_rest"', html)
+
+    def test_ble_interval_asks_for_11_25_to_15_ms(self):
+        img = recipes.build(self.stock, ["ble_interval"], **self.k)
+        self.assertEqual(img[0xA0DE - image.BASE:0xA0E6 - image.BASE], bytes.fromhex("09a00ca100a2c8a3"))  # min 9, max 12, latency 0, timeout 200
+        self.assertEqual(recipes.identify(img, **self.k).recipes, ("ble_interval",))
+
+    def test_fast_scan_halves_the_scan_period_and_keeps_home_and_turbo_timings(self):
+        img = recipes.build(self.stock, ["fast_scan"], **self.k)
+        at = lambda a, n: img[a - image.BASE:a - image.BASE + n]
+        self.assertEqual(at(0xD288, 4), (40000).to_bytes(4, "little"))  # 2.5 ms of the 16 MHz system tick
+        self.assertEqual(at(0xC8E2, 2), bytes.fromhex("13aa"))  # Home counts 20 scans, still 50 ms
+        self.assertEqual(at(0xC8E6, 2), bytes.fromhex("14a2"))
+        self.assertEqual(at(0xC640, 2), bytes.fromhex("0bae"))  # turbo's phase every 12 scans, still 30 ms
+        self.assertEqual(recipes.identify(img, **self.k).recipes, ("fast_scan",))
+
+    def test_bluetooth_rate_tweaks_are_not_offered_in_the_app(self):
+        html = (Path(recipes.__file__).parents[1] / "web" / "static" / "index.html").read_text()
+        for key in ("ble_interval", "fast_scan"):
+            self.assertNotIn(f'value="{key}"', html)
 
     def test_firmware_from_0_4_is_still_recognised_without_cpu_rest(self):
         """0.4.0's blobs are pinned in test_the_published_tweaks_keep_their_bytes, so this is what a controller on 0.4.0 holds."""
