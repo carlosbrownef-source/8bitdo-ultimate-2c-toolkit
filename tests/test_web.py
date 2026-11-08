@@ -195,6 +195,17 @@ class WebTest(unittest.TestCase):
         self.assertEqual(ev[-1]["type"], "error")
         self.assertIn("boom", ev[-1]["message"])
 
+    def test_nothing_uses_the_controller_while_another_process_does(self):
+        held = state.lock_device(self.store)   # as the command line, or another copy of the app, holds it
+        self.addCleanup(state.unlock_device, held)
+        jobs.ACTIONS["backup"] = lambda args, store: None
+        self.assertEqual(self.call("POST", "/api/backup")[0], 409)
+        self.assertEqual(self.call("GET", "/api/firmware")[0], 409)
+        self.assertIsNone(state.lock_device(self.store))
+        state.unlock_device(held)
+        self.assertEqual(self.call("POST", "/api/backup")[0], 202)
+        self.events()
+
     def test_second_job_while_busy_is_409(self):
         release = threading.Event()
         jobs.ACTIONS["backup"] = lambda args, store: release.wait(5)

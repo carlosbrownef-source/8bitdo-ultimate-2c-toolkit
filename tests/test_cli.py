@@ -136,6 +136,15 @@ class CliTest(unittest.TestCase):
             with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
                 cli.main(["restore", "backup", *extra])
 
+    def test_a_command_waits_for_no_one_while_the_app_uses_the_controller(self):
+        held = state.lock_device(self.tmp)
+        self.addCleanup(state.unlock_device, held)
+        dev = SimBoot(self.flash)
+        code, text = run(["patch", "--tweaks", "cable_360", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], dev)
+        self.assertEqual(code, 2)
+        self.assertIn("Another copy of the app, or the command line, is using the controller.", text)
+        self.assertEqual(dev.ops, [])
+
     def test_no_device(self):
         code, text = run(["backup", "--store", str(self.tmp)], [])
         self.assertEqual(code, 2)

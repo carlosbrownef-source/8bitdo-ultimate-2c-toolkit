@@ -194,7 +194,12 @@ def main(argv=None) -> int:
     args.say, args.hint, args.progress = print, print, Bar()
     store = args.store or state.default_store()
     get_logger(store).info("command %s", args.cmd)
+    lock = None
     try:
+        if args.cmd in ("devices", "backup", "patch", "restore"):
+            lock = state.lock_device(store)
+            if lock is None:
+                raise Exit(2, "Another copy of the app, or the command line, is using the controller. Wait until it finishes, then try again.")
         {"devices": cmd_devices, "backup": cmd_backup, "identify": cmd_identify, "patch": cmd_patch,
          "restore": cmd_restore, "report": cmd_report}[args.cmd](args, store)
     except Exit as e:
@@ -203,4 +208,7 @@ def main(argv=None) -> int:
     except (OpError, fetch.FetchError, protocol.ProtocolError, PermissionDenied) as e:
         print(f"stopped: {e}", file=sys.stderr)
         return 1
+    finally:
+        if lock:
+            state.unlock_device(lock)
     return 0
