@@ -309,17 +309,19 @@ function popover(button, ...content) {  // a small pop-up under an (i) button, o
   const pop = document.createElement("div");
   pop.id = `pop-${document.querySelectorAll(".pop").length}`; pop.className = "pop"; pop.popover = "auto"; pop.append(...content);
   document.body.append(pop); button.setAttribute("aria-controls", pop.id);
-  let timer = 0;  // opens on hover or click; leaving the button for the pop-up keeps it open
-  const show = () => { clearTimeout(timer); if (!pop.matches(":popover-open")) pop.showPopover(); };
+  let timer = 0, anchor = button;  // opens on hover or click; leaving the button for the pop-up keeps it open
+  const show = (from) => { clearTimeout(timer); anchor = from; if (!pop.matches(":popover-open")) pop.showPopover(); };
   const hide = () => { clearTimeout(timer); timer = setTimeout(() => pop.hidePopover(), 200); };
-  button.addEventListener("click", show); button.addEventListener("mouseenter", show); button.addEventListener("mouseleave", hide);
+  const hover = (el, when = () => true) => { el.addEventListener("mouseenter", () => when() && show(el)); el.addEventListener("mouseleave", hide); };
+  button.addEventListener("click", () => show(button)); hover(button);
   pop.addEventListener("mouseenter", () => clearTimeout(timer)); pop.addEventListener("mouseleave", hide);
   pop.addEventListener("beforetoggle", (e) => {
     if (e.newState !== "open") return;
-    const r = button.getBoundingClientRect(), up = r.bottom > innerHeight * 0.6;
+    const r = anchor.getBoundingClientRect(), up = r.bottom > innerHeight * 0.6;
     pop.style.left = `${Math.max(12, Math.min(r.left - 14, innerWidth - 332))}px`;
     pop.style.top = up ? "auto" : `${r.bottom + 8}px`; pop.style.bottom = up ? `${innerHeight - r.top + 8}px` : "auto";
   });
+  return hover;  // more places that open it on hover
 }
 document.addEventListener("scroll", () => document.querySelectorAll(".pop:popover-open").forEach((p) => p.hidePopover()), true);
 tweakBoxes().forEach((x) => {  // each explanation sits behind an (i) button next to the name; a caution stays in view
@@ -334,7 +336,7 @@ tweakBoxes().forEach((x) => {  // each explanation sits behind an (i) button nex
   fig.innerHTML = pad(null, false, "gboot").replace(/(data-k="[LR]B" )/g, '$1class="hold" ')
     .replace('<circle cx="150" cy="59" r="1.6" fill="#1c2026"/>', '<circle class="blink" cx="150" cy="59" r="6" fill="#fff" opacity=".25"/><circle class="blink" cx="150" cy="59" r="2.4" fill="#fff"/>');
   cap.textContent = "Turn the controller fully off, then hold LB and RB, shown in colour, while plugging in the cable. The small light below the Home ring will blink white.";
-  popover(bootInfo, fig, cap);
+  popover(bootInfo, fig, cap)($("tweaks-act").querySelector(".btns"), () => bootInfo.isConnected);  // Check First and Install show it too, until it's in update mode
 }
 document.querySelectorAll("[data-base]").forEach((b) => (b.onclick = () => {
   base = b.dataset.base; document.querySelectorAll("[data-base]").forEach((x) => setOn(x, x === b));

@@ -25,7 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKN
         diagnostics.web = web
         web.navigationDelegate = self
         web.underPageBackgroundColor = background
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 860),
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 900),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         // The title bar replaces the page's own top bar (hidden with ?native=1): name, what it is for, and Help.
         window.title = "U2C Firmware Toolkit"
@@ -37,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKN
         window.toolbar = toolbar
         window.toolbarStyle = .unified
         window.backgroundColor = background
-        window.contentMinSize = NSSize(width: 760, height: 640)
+        window.contentMinSize = NSSize(width: 760, height: 720)
         window.contentView = web
         window.delegate = self
         window.center()

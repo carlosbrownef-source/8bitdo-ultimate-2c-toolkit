@@ -80,6 +80,7 @@
     installed: () => { document.getElementById("diag-snap").textContent = tweaks().join(); },
     infopop: () => { $("strip-firmware").click(); const x = document.querySelector('.tweak[value="fast_scan"]'), b = x.parentElement.querySelector(".info"); b.click(); setTimeout(() => { document.getElementById("diag-snap").textContent = `${x.checked} ${document.getElementById(b.getAttribute("aria-controls")).matches(":popover-open")}`; }, 200); },
     bootpop: () => { $("strip-firmware").click(); setTimeout(() => $("boot-info").click(), 300); },
+    installhover: () => { $("strip-firmware").click(); setTimeout(() => { $("tweaks-act").querySelector(".btns").dispatchEvent(new MouseEvent("mouseenter")); document.getElementById("diag-snap").textContent = String(document.querySelector(".pop-pad").parentElement.matches(":popover-open")); }, 300); },
     keptchoice: () => { document.querySelector('.tweak[value="cable_360"]').click(); refresh(); setTimeout(() => { document.getElementById("diag-snap").textContent = tweaks().join(); }, 1000); },
     noalerts: () => { document.querySelector('.tweak[value="battery_alerts"]').click(); document.querySelector('.tweak[value="settings"]').click(); document.querySelector('.tweak[value="fixes"]').click(); document.querySelector('.tweak[value="cpu_rest"]').click(); document.getElementById("diag-snap").textContent = tweaks().join(); },
     setvibration: () => document.querySelector('[data-field="vibration"] [data-value="50"]').click(),

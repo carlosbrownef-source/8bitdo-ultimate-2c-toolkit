@@ -143,6 +143,10 @@ class TabsTest(PageCase):
         self.assertIn("hidden", self.server.dom("&diagsim=web&permission=1").find("privacy-open").attrs)   # only the Mac app can open it
         self.assertIn("hidden", self.server.dom().find("privacy-open").attrs)
 
+    def test_hovering_check_first_or_install_shows_the_update_mode_help_until_ready(self):
+        self.assertEqual(self.server.dom("&diagsim=cable&scenario=installhover").find("diag-snap").all_text(), "true")
+        self.assertEqual(self.server.dom("&diagsim=boot&scenario=installhover").find("diag-snap").all_text(), "false")
+
     def test_update_mode_help_is_behind_the_question_mark_until_ready(self):
         dom = self.server.dom()
         self.assertEqual(dom.find("pre-boot").all_text().strip(), "In update mode")
