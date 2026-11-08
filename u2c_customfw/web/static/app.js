@@ -114,8 +114,9 @@ function render() {
 
   const can = { backup: !!ctrl, "patch-dry": patchable, "patch-write": patchable,
     "restore-backup-dry": boot && !!fw && !!fw.restore_backup, "restore-backup": boot && !!fw && !!fw.restore_backup, "restore-stock-dry": boot && backed && on109, "restore-stock": boot && backed && on109,
-    "force-open": boot && backed, "report-open": true, refresh: true, "details-refresh": true };
+    "force-open": boot && backed, "report-open": true, refresh: true };
   for (const [id, ok] of Object.entries(can)) $(id).disabled = off || !ok;
+  $("backup").classList.toggle("sec", backed);   // once there's a backup, installing is the main step
   const stockWhy = !boot || !backed || !fw || fw.error || on109 ? "" : fw.version ? `Not available, because this controller has firmware ${fw.version.toFixed(2)}.`
     : "Not available, because the firmware version can't be identified.";
   $("restore-stock-why").textContent = stockWhy; $("restore-stock-why").hidden = !stockWhy;
@@ -279,9 +280,10 @@ async function readFirmware() {  // read-only; skipped while a job runs, and the
 document.querySelectorAll("[data-icon]").forEach((e) => (e.innerHTML = ICON[e.dataset.icon]));
 document.querySelectorAll(".seg button").forEach((b) => b.setAttribute("aria-pressed", b.classList.contains("on")));
 $("disclaimer").oncancel = (e) => e.preventDefault();
+$("disclaimer-quit").hidden = !bridge();   // declining: only the Mac app can quit itself
+$("disclaimer-quit").onclick = () => bridge().postMessage({ op: "quit" });
 $("accept").onclick = async () => { await api("POST", "/api/accept"); $("disclaimer").close(); refresh(); };
 $("refresh").onclick = refresh;
-$("details-refresh").onclick = refresh;
 TABS.forEach((t) => ($(`strip-${t}`).onclick = () => showTab(t)));
 $("force-go").onclick = () => showTab("diagnostics");
 $("privacy-open").onclick = () => bridge().postMessage({ op: "privacy" });

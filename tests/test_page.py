@@ -597,9 +597,10 @@ class ControllerTestCard(PageCase):
         _, body, _ = self.body("cable&scenario=latebt")
         self.assertNotIn("disabled", next(n for n in body.walk() if n.attrs.get("data-op") == "direct").attrs)
 
-    def test_details_have_their_own_refresh(self):
-        _, _, text = self.body("boot&scenario=refreshbutton")
-        self.assertNotIn("can't run in update mode", text)
+    def test_one_read_again_button(self):
+        dom = self.server.dom("&diagsim=boot")
+        self.assertEqual(dom.find("refresh").all_text(), "Read Again")
+        self.assertIsNone(dom.find("details-refresh"))
 
     def test_the_firmware_is_read_once_when_opening_the_tab(self):
         dom, _, _ = self.body("boot")
@@ -750,6 +751,23 @@ class AccessibilityTest(PageCase):
         text = self.server.dom("&diagsim=bt").find("test-body").all_text()
         self.assertIn("Left motor", text)
         self.assertIn("Right motor", text)
+
+
+class SmallerTest(PageCase):
+    def test_the_firmware_source_is_capitalised_like_the_other_choices(self):
+        dom = self.server.dom()
+        self.assertEqual([" ".join(n.text) for n in dom.walk() if "data-base" in n.attrs], ["Your backup", "8BitDo's server"])
+
+    def test_back_up_steps_back_once_there_is_a_backup(self):
+        self.assertIn("sec", self.server.dom().find("backup").classes())
+        self.assertNotIn("sec", self.server.dom("&diagsim=boot&nobackup=1").find("backup").classes())
+
+    def test_the_disclaimer_can_be_declined_in_the_mac_app(self):
+        dom = self.server.dom("&diagsim=boot&scenario=quit")
+        self.assertNotIn("hidden", dom.find("disclaimer-quit").attrs)
+        self.assertEqual(dom.find("disclaimer-quit").all_text(), "Quit")
+        self.assertIn('{"op":"quit"}', dom.find("diag-sent").all_text())
+        self.assertIn("hidden", self.server.dom("&diagsim=web").find("disclaimer-quit").attrs)
 
 
 class HelpTest(PageCase):

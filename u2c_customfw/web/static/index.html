@@ -29,7 +29,7 @@
       <p class="src" id="fw-note"></p>
       <button id="privacy-open" class="sec small" hidden>Open Input Monitoring Settings…</button>
       <div class="chips" id="chips"></div>
-      <div class="herob"><button id="refresh" class="sec">Refresh</button></div>
+      <div class="herob"><button id="refresh" class="sec">Read Again</button></div>
     </div>
   </section>
 
@@ -56,7 +56,7 @@
       <div class="base"><span>Home ring brightness:</span>
         <div class="seg" id="ring"><button data-ring="" class="on">Normal</button><button data-ring="ring_25">25 %</button><button data-ring="ring_5">5 %</button><button data-ring="ring_1">1 %</button><button data-ring="ring_0_1">0.1 %</button><button data-ring="ring_off">Off</button></div></div>
       <div class="base"><span>Take the original firmware 1.09 from:</span>
-        <div class="seg"><button data-base="backup" class="on">your backup</button><button data-base="download">8BitDo's server</button></div></div>
+        <div class="seg"><button data-base="backup" class="on">Your backup</button><button data-base="download">8BitDo's server</button></div></div>
       <div class="boot" id="boot-box"><span id="boot-icon"></span><div><b id="boot-title">Update mode</b><span id="boot-text">Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white.</span></div></div>
       <div class="btns"><button id="patch-dry" class="sec job">Check first</button><button id="patch-write" class="job">Install tweaks…</button></div>
       <p style="margin:10px 0 0;font-size:13px"><span id="choose-one" hidden></span> Changing the firmware voids the controller's warranty.</p>
@@ -106,8 +106,7 @@
       <div id="test-body"></div>
     </section>
     <div class="cols even">
-      <section class="cd" id="firmware-details"><h2>Firmware details</h2><div id="details-body"></div>
-        <button id="details-refresh" class="sec small" style="margin-top:12px">Refresh</button></section>
+      <section class="cd" id="firmware-details"><h2>Firmware details</h2><div id="details-body"></div></section>
       <section class="cd"><h2>Problem report</h2>
         <p>Creates a text you can attach to a bug report, with the device IDs, the firmware's state and the latest log lines. It never includes your controller's address or its Bluetooth pairings.</p>
         <button id="report-open" class="sec small job">Create a problem report</button></section>
@@ -132,7 +131,7 @@
   <pre id="log" hidden></pre>
 </footer>
 
-<dialog id="disclaimer"><div id="disclaimer-text"></div><menu><button id="accept">I understand and accept</button></menu></dialog>
+<dialog id="disclaimer"><div id="disclaimer-text"></div><menu><button id="disclaimer-quit" class="sec" hidden>Quit</button><button id="accept">I understand and accept</button></menu></dialog>
 
 <dialog id="confirm">
   <div class="ic" data-icon="warn" id="confirm-icon"></div>

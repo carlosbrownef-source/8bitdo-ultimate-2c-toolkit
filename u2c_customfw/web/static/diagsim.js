@@ -91,6 +91,7 @@
     restorecheck: () => $("restore-backup-dry").click(),
     installask: () => $("patch-write").click(),
     backupjob: () => $("backup").click(),
+    quit: () => $("disclaimer-quit").click(),
     gotofirmware: () => $("settings-goto").click(),
     privacy: () => $("privacy-open").click(),
     helpopen: () => { $("help-open").click(); setTimeout(() => { document.getElementById("diag-snap").textContent = `${document.activeElement.id} ${$("help").scrollTop}`; }, 100); },
@@ -103,7 +104,6 @@
     ringsave: () => document.getElementById("ring-save").click(),
     reopen: () => { showTab("firmware"); showTab("diagnostics"); },
     latebt: () => { window.simReplugged = true; window.u2cDiagnostics({ type: "state", connected: false }); window.u2cDiagnostics(PAD); },
-    refreshbutton: () => { window.simReplugged = true; document.getElementById("details-refresh").click(); },
   };
 
   if (mode !== "web") {

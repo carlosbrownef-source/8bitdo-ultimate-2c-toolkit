@@ -26,6 +26,7 @@ final class Diagnostics: NSObject, WKScriptMessageHandler {
         case "vibrate": vibrate(body["locality"] as? String ?? "default", body["id"])
         case "direct": direct(body["id"])
         case "ring": ring(body["level"] as? Int ?? 255, body["save"] as? Bool ?? false, body["id"])
+        case "quit": NSApp.terminate(nil)   // declining the disclaimer
         case "privacy":   // the Input Monitoring list, when macOS refused the controller
             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") { NSWorkspace.shared.open(url) }
         default: break
