@@ -823,8 +823,12 @@ class HelpTest(PageCase):
         text = self.server.dom().find("help").all_text()
         for fact in ("about 1.25 ms sooner", "a worn button could occasionally register twice.",
                      "In rare cases it could make the controller stop responding. This hasn't been observed.",
-                     "This saves battery over Bluetooth.", "Installing a different level replaces a saved one."):
+                     "Installing a different level replaces a saved one."):
             self.assertIn(fact, text)
+        for promise in ("saves battery", "battery life"):   # not claimed until it's measured
+            self.assertNotIn(promise, text.lower())
+            self.assertNotIn(promise, self.server.dom().find("tab-firmware").all_text().lower())
+            self.assertNotIn(promise, (Path(__file__).parent.parent / "README.md").read_text().lower())
         self.assertNotIn("about 1 ms", text)
         self.assertIn("Backups are kept on this Mac, in ~/Library/Application Support/u2c-customfw.", text)
         self.assertEqual(text.count("It needs the Home ring's code"), 2)   # Controller settings and Fixes
