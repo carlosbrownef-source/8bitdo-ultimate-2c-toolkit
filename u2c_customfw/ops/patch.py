@@ -23,14 +23,17 @@ def check_unit(ch, backup) -> None:
         raise OpError(f"{e}. Nothing was written.") from e
 
 
-def check_no_pending_update(ch) -> None:
-    """A staged update could replace the tweaks at the next start (fields as in vomba/8bitdo-ultimate-2c-apple)."""
+PENDING = "A firmware update is pending on this controller, and it could replace the tweaks the next time the controller starts. Nothing was written. Start the controller normally once, then check again."
+
+
+def check_no_pending_update(ch, message: str = PENDING) -> None:
+    """A staged update could replace what is written at the next start (fields as in vomba/8bitdo-ultimate-2c-apple)."""
     try:
         pending = probe.pending_update(ch, "boot")
     except protocol.ProtocolError as e:
         raise OpError(f"{e}. Nothing was written.") from e
     if pending:
-        raise OpError("A firmware update is pending on this controller, and it could replace the tweaks the next time the controller starts. Nothing was written. Start the controller normally once, then check again.")
+        raise OpError(message)
 
 
 def current_bank_a(ch) -> bytes:

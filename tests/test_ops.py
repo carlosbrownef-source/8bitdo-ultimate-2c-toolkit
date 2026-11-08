@@ -365,6 +365,17 @@ class RestoreTest(Base):
         self.assertEqual(bytes(dev.f[0x6000:0x18400]), STOCK_A)
         self.assertEqual(bytes(dev.f[0x19000:]), before[0x19000:])
 
+    def test_a_pending_update_refuses_restoring_the_original_but_not_the_backup(self):
+        f = bytearray(self.flash)
+        f[0x3F018:0x3F01C] = (0x1234).to_bytes(4, "little")
+        for force in (False, True):
+            dev = SimBoot(bytes(f))
+            with self.assertRaises(OpError) as e:
+                restore.plan_restore(dev, self.backup, "stock", STOCK_A, force)
+            self.assertIn("A firmware update is pending on this controller, and it could replace the restored firmware", str(e.exception))
+            self.assertIn("Nothing was written.", str(e.exception))
+        self.assertIn(0x3F000, restore.plan_restore(SimBoot(bytes(f)), self.backup, "backup", None).other_sectors)  # the record comes back too
+
     def test_restore_checks_the_unit(self):
         other = bytearray(self.flash); other[image.MAC_SECTOR + 9] ^= 1
         with self.assertRaises(OpError):

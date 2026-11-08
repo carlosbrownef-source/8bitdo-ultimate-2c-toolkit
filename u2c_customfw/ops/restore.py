@@ -4,7 +4,7 @@ from .. import protocol
 from ..firmware import image, recipes
 from ..protocol import boot
 from .backup import describe, taken
-from .patch import check_unit, current_bank_a
+from .patch import check_no_pending_update, check_unit, current_bank_a
 from .probe import detect_version
 from .plan import OpError, Plan, count
 
@@ -17,7 +17,9 @@ def plan_restore(ch, backup, source: str, stock, force_unknown: bool = False) ->
     if source not in ("backup", "stock"):
         raise OpError(f"unknown restore source {source!r}")
     cur = current_bank_a(ch)
-    if source == "stock":
+    if source == "stock":  # a backup restore puts the update record back too, so only this one can be undone by it
+        check_no_pending_update(ch, "A firmware update is pending on this controller, and it could replace the restored firmware the next time "
+                                    "the controller starts. Nothing was written. Restoring your backup still works.")
         v, _ = detect_version(ch, "boot", cur)
         if v is None and not force_unknown:
             raise OpError("This controller's firmware version can't be identified, so nothing was written. Restoring your "
