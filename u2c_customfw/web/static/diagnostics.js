@@ -7,7 +7,7 @@ const STICK_SEEN = 0.5, TRIGGER_SEEN = 0.1, STICK_TRAVEL = 7, RESULT_TIMEOUT_MS 
 const IDLE_LINE = "Vibrates for under a second. Nothing is written to the controller.";
 
 let testVisible = false, testConnected = null, testState = null, testSeen = new Set(), testName = null, testMounted = null, testPending = null, testTimer = null, testId = 0;
-const bridge = () => window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.diagnostics;
+const bridge = () => window.u2cSimBridge || (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.diagnostics);  // the simulator's, then the Mac app's
 
 function clearPending() {
   clearTimeout(testTimer);

@@ -88,7 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKN
         p.executableURL = res.appendingPathComponent("python/bin/python3")
         p.arguments = ["-m", "u2c_customfw.web"]
         var env = ProcessInfo.processInfo.environment
-        env["PYTHONPATH"] = res.appendingPathComponent("app").path
+        env["PYTHONPATH"] = env["U2C_CORE_PATH"] ?? res.appendingPathComponent("app").path   // macos/preview.sh runs the repository's core
         env["PYTHONDONTWRITEBYTECODE"] = "1"
         p.environment = env
         let out = Pipe(), err = Pipe()

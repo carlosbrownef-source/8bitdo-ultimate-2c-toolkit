@@ -2,6 +2,7 @@
 """HTTP server bound to 127.0.0.1 on a random port. API calls need the session token in X-Token; the Host header must
 be this address (against DNS rebinding)."""
 import json
+import os
 import secrets
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -335,5 +336,6 @@ def make_server(store: Path, port: int = 0):
 
 def serve(store: Path, port: int = 0) -> None:
     httpd, token = make_server(store, port)
-    print(f"U2C_URL http://127.0.0.1:{httpd.server_address[1]}/?token={token}", flush=True)
+    page = os.environ.get("U2C_PAGE_QUERY", "") if os.environ.get("U2C_SIM") else ""   # macos/preview.sh: the page simulator, never with real devices
+    print(f"U2C_URL http://127.0.0.1:{httpd.server_address[1]}/?token={token}{page}", flush=True)
     httpd.serve_forever()

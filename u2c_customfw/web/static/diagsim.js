@@ -120,13 +120,13 @@
   };
 
   if (mode !== "web") {
-    window.webkit = { messageHandlers: { diagnostics: { postMessage(m) {
+    window.u2cSimBridge = { postMessage(m) {  // the Mac app's own window.webkit can't be replaced, so bridge() looks here first
       document.getElementById("diag-sent").textContent += JSON.stringify(m) + " ";
       if (m.op === "start") window.u2cDiagnostics(STATES[mode]);
       if (m.op === "ring") window.u2cDiagnostics(query.get("ringfail") ? { type: "result", op: "ring", id: m.id, ok: false, error: "The report failed" } : { type: "result", op: "ring", id: m.id, ok: true });
       if ((m.op === "vibrate" || m.op === "direct") && !UNANSWERED.includes(scenario))
         window.u2cDiagnostics(scenario === "vibrateerror" ? { type: "result", op: m.op, id: m.id, ok: false, error: "The engine failed" } : { type: "result", op: m.op, id: m.id, ok: true });
-    } } } };
+    } };
   }
   for (const id of ["diag-sent", "diag-snap", "diag-fetch", "diag-posted"]) { const p = document.createElement("pre"); p.id = id; p.hidden = true; document.body.append(p); }
   addEventListener("DOMContentLoaded", () => {

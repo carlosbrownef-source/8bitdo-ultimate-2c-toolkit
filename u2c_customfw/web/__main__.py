@@ -14,4 +14,5 @@ else:  # the simulation's fake backup never goes into the real store
 if os.environ.get("U2C_SIM"):
     from .. import sim
     sim.install(store, unknown=os.environ["U2C_SIM"] == "unknown")
+    state.accept(store)   # a temporary store: no disclaimer for the simulation
 serve(store)
