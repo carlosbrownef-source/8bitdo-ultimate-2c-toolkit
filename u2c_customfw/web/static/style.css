@@ -26,7 +26,7 @@ body.native .bar{display:none}
 .alert{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--warn);margin-left:7px;vertical-align:1px}
 
 main{flex:1;overflow:auto;padding:14px 22px 22px}
-.wrap{max-width:1100px;margin:0 auto}
+.wrap{max-width:1240px;margin:0 auto}
 
 .hero{display:grid;grid-template-columns:250px 1fr;gap:26px;align-items:center;padding:20px 24px;border-radius:16px;background:var(--card);border:1px solid var(--line)}
 .hero.bad{border-color:rgba(232,105,91,.5)}
@@ -160,3 +160,11 @@ dialog label{display:flex;gap:10px;align-items:flex-start;margin-top:10px}dialog
 }
 .cd p+.twgrid{margin-top:0}#tweaks-card>p{margin:4px 0 10px}
 #tweaks-act .btns button:disabled{pointer-events:none}  /* so hovering them still reaches .btns */
+@media (min-width:1140px){  /* wide window: Tweaks on the left, Back Up and Restore beside it */
+  #tab-firmware{display:grid;grid-template-columns:1fr 420px;column-gap:14px;align-items:start}
+  #tab-firmware>*{grid-column:1/-1}
+  #tab-firmware .stack{display:contents}
+  #backup-card{grid-column:2;grid-row:3;margin-top:14px}
+  #tweaks-card{grid-column:1;grid-row:3/span 2;margin-top:14px}
+  #tweaks-card~.cd{grid-column:2;grid-row:4;margin-top:14px}
+}
