@@ -1,4 +1,4 @@
-# READ THIS FIRST
+# Before you start
 
 **This is a vibe-coded project.** It was written with an AI assistant (Opus 5.5) and tested on one controller, my own. It should work on the same model and firmware, unless there are new hardware versions.
 

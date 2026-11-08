@@ -48,6 +48,7 @@ class DisclaimerTest(unittest.TestCase):
         for phrase in ("tested on one controller, my own", "edge cases may exist", "I cannot know if it's possible for 8BitDo to tell",
                        "it won't let you continue", "the controller reports itself differently", "Not affiliated with or endorsed by 8BitDo"):
             self.assertIn(phrase, text)
+        self.assertTrue(text.startswith("# Before you start\n"))
 
     def test_readme_gives_credit_to_the_other_projects(self):
         text = (ROOT / "README.md").read_text()

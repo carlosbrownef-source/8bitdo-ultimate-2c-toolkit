@@ -148,6 +148,15 @@ class TabsTest(PageCase):
         self.assertEqual(dom.find("boot-text").all_text(), "You can check or install now.")
         self.assertIn("Turn the controller fully off", self.server.dom("&diagsim=cable").find("boot-text").all_text())
 
+    def test_the_last_resort_is_one_calm_line_unless_it_applies(self):
+        dom = self.server.dom()
+        zone = dom.find("force-zone")
+        self.assertNotIn("hot", zone.classes())
+        self.assertIn("Last-resort install for firmware that can't be identified.", zone.all_text())
+        self.assertIn("Only for firmware that can't be identified", zone.all_text())
+        self.assertIn("Install firmware 1.09 over an unknown version?", dom.find("force").all_text())
+        self.assertNotIn("WARNING", dom.all_text())
+
     def test_no_hint_when_the_firmware_is_known(self):
         dom = self.server.dom()
         self.assertIn("hidden", dom.find("force-hint").attrs)

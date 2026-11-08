@@ -113,8 +113,9 @@
         <button id="report-open" class="sec small job">Create a problem report</button></section>
     </div>
     <section class="danger-zone" id="force-zone">
-      <div><h2>WARNING: only for firmware that can't be identified</h2>
-        <p>Erases the firmware on the controller and replaces it with 8BitDo's original firmware 1.09, without any tweaks. Use it only if the firmware can't be identified and Restore doesn't work. There's no way to check beforehand that 1.09 is right for this controller, so it may not start afterwards. Your backup can always be restored.</p></div>
+      <div><p class="calm">Last-resort install for firmware that can't be identified.</p>
+        <h2>Only for firmware that can't be identified</h2>
+        <p class="full">Erases the firmware on the controller and replaces it with 8BitDo's original firmware 1.09, without any tweaks. Use it only if the firmware can't be identified and Restore doesn't work. There's no way to check beforehand that 1.09 is right for this controller, so it may not start afterwards. Your backup can always be restored.</p></div>
       <button id="force-open" class="wtxt job">Install firmware 1.09 anyway…</button>
     </section>
   </div>
@@ -144,7 +145,7 @@
 
 <dialog id="force">
   <div class="ic" data-icon="warn"></div>
-  <h3>WARNING: install firmware 1.09 over an unknown version</h3>
+  <h3>Install firmware 1.09 over an unknown version?</h3>
   <ul>
     <li>The controller's firmware version can't be identified, so there is no way to check that 1.09 is right for it.</li>
     <li>Its firmware will be erased and replaced with 8BitDo's original 1.09. If it was made for a different version, the controller may <strong>not start</strong> afterwards, or buttons, Bluetooth, battery or rumble may misbehave.</li>

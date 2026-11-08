@@ -97,6 +97,7 @@ main{flex:1;overflow:auto;padding:18px 22px 22px}
 .danger-zone p{margin:0;font-size:14px;color:var(--dim)}
 .danger-zone.hot{border-color:rgba(232,105,91,.5);background:var(--warn-bg)}
 .danger-zone.hint{margin:0 0 16px}
+.danger-zone .calm,.danger-zone:not(.hot) :is(h2,.full,button){display:none}.danger-zone:not(.hot){border-color:transparent;padding:4px 20px}.danger-zone:not(.hot) .calm{display:block}
 .cols.even{grid-template-columns:1fr 1fr}
 .test{display:grid;grid-template-columns:300px 1fr;gap:22px;margin-top:10px;align-items:start}
 .test-pic.dimmed{opacity:.4}
