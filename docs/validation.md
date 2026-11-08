@@ -147,6 +147,12 @@ battery log in an unused flash area), the command line of this repository and sm
    bcdDevice `0x0114`, the same name and version as the dongle's X-input descriptor, so a paired dongle can't be told from the
    controller by its USB identity alone.
 
+8. **Dongle over 2.4 GHz.** On 2026-11-08 the dongle's Xbox 360 change, with bcdDevice `0x0103`, was written by a separate
+   tool and read back. With the controller on 2.4 GHz it presents as `045e:028e` version `0x0103`, and the controller test saw
+   every control and rumble worked. With both sticks in circles for 63 s, 62,995 reports arrived: 1,000 per second, median gap
+   1.0 ms, 99 % within 1.2 ms, longest 11.3 ms (over Bluetooth: 104 per second, median 14.8 ms). The app reads the paired
+   dongle's firmware through it in about 4.5 s and shows it as the dongle with the controller connected.
+
 Still to do: Restore when a 4 KB block outside the firmware area differs from the backup; quitting or closing the window during
-a real write; the dongle over 2.4 GHz with the controller (identity, rumble, latency); the 12.5 ms request on Linux or Windows;
-and, from 0.4, a sleeping Mac with the cable in and the closed Bluetooth update.
+a real write; the 12.5 ms request on Linux or Windows; and, from 0.4, a sleeping Mac with the cable in and the closed Bluetooth
+update.
