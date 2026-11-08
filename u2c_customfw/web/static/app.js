@@ -310,7 +310,7 @@ $("log-toggle").onclick = () => { const l = $("log"); l.hidden = !l.hidden; $("l
 $("backup").onclick = () => runJob("Backing up…", "/api/backup", null, "Backup saved");
 $("patch-dry").onclick = () => runJob("Checking…", "/api/patch", { tweaks: tweaks(), base, write: false }, "Check passed");
 $("patch-write").onclick = async () => {
-  if (await ask("Install these tweaks?", "This changes the controller's firmware and voids its warranty.", tweakTitles(), "Install", "install"))
+  if (await ask("Install these tweaks?", "This changes the controller's firmware. Installing modified firmware probably voids the controller\'s warranty.", tweakTitles(), "Install", "install"))
     runJob("Installing…", "/api/patch", { tweaks: tweaks(), base, write: true }, "Tweaks installed");
 };
 $("restore-backup-dry").onclick = () => runJob("Checking…", "/api/restore", { source: "backup", backup: fw.restore_backup.name, write: false }, "Check passed");

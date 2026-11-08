@@ -21,7 +21,7 @@ RESTORED = ("Restored. Unplug the controller and connect it again. If its Blueto
             "System Settings → Bluetooth and pair it again.")
 UNCHANGED = "The controller already has this firmware, so nothing was written."
 CHECKED = "The check passed and nothing was written."
-DISCLAIMER_HELP = ("Read DISCLAIMER.md first. There's no warranty, using this voids the controller's warranty, and it only works with the Ultimate 2C on firmware 1.09. "
+DISCLAIMER_HELP = ("Read DISCLAIMER.md first. There's no warranty. Installing modified firmware probably voids the controller's warranty. It only works with the Ultimate 2C on firmware 1.09. "
                    "To write to the controller, add --accept-disclaimer once.")
 
 

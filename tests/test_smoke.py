@@ -67,6 +67,16 @@ class DisclaimerTest(unittest.TestCase):
         order = [text.index(h) for h in ("## What it does", "## Install", "## Use", "## Diagnostics", "## What the tweaks do", "## Credits", "## License")]
         self.assertEqual(order, sorted(order))
 
+    def test_one_warranty_sentence(self):
+        self.assertIn("Installing modified firmware probably voids the controller's warranty.", (ROOT / "README.md").read_text())
+        disclaimer = (ROOT / "DISCLAIMER.md").read_text()
+        self.assertIn("**Installing it probably voids your controller's warranty.**", disclaimer)
+        self.assertIn("makes a lot of assumptions", disclaimer)
+        for path in ("README.md", "DISCLAIMER.md", "u2c_customfw/cli.py", "u2c_customfw/disclaimer.py", "u2c_customfw/web/static/index.html", "u2c_customfw/web/static/app.js"):
+            text = (ROOT / path).read_text()
+            for old in ("lose your controller's warranty", "voids its warranty", "voids the warranty", "this voids", "Changing the firmware voids"):
+                self.assertNotIn(old, text, path)
+
 
 class MacBuildTest(unittest.TestCase):
     def test_the_app_is_built_for_the_macos_it_declares(self):

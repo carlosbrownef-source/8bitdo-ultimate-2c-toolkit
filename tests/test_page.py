@@ -203,7 +203,7 @@ class TabsTest(PageCase):
         self.assertEqual((row.attrs.get("id"), row.classes()), ("tweaks-act", ["act"]))
         for id_ in ("pre-backup", "pre-boot", "patch-dry", "patch-write", "choose-one"):
             self.assertIsNotNone(row.find(id_), id_)
-        self.assertIn("warranty", row.all_text())
+        self.assertIn("Installing modified firmware probably voids the controller's warranty.", row.all_text())
 
     def test_the_back_up_step_asks_for_the_cable_only_without_a_controller(self):
         self.assertIn("hidden", self.server.dom().find("backup-connect").attrs)
@@ -702,6 +702,7 @@ class ConfirmTest(PageCase):
         self.assertIn("danger", dom.find("confirm-yes").classes())
         self.assertNotIn("hidden", dom.find("confirm-icon").attrs)
         self.assertNotIn("hidden", dom.find("confirm-warranty").attrs)
+        self.assertIn("Installing modified firmware probably voids the controller's warranty.", dom.find("confirm-text").all_text())
 
     def test_each_tweak_says_what_it_does_and_the_chips_keep_its_name(self):
         dom = self.server.dom("&diagsim=boot&scenario=installask")
