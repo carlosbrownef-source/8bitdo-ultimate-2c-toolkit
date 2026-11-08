@@ -45,8 +45,8 @@ class NameTest(unittest.TestCase):
 class DisclaimerTest(unittest.TestCase):
     def test_full_disclaimer_has_the_owners_wording(self):
         text = (ROOT / "DISCLAIMER.md").read_text()
-        for phrase in ("tested on one controller, my own", "edge cases may exist", "I cannot know if it's possible for 8BitDo to tell",
-                       "it won't let you continue", "the controller reports itself differently", "Not affiliated with or endorsed by 8BitDo"):
+        for phrase in ("tested on one controller and one dongle, my own", "edge cases may exist", "I cannot know if it's possible for 8BitDo to tell",
+                       "it won't let you continue", "the controller and the dongle report themselves differently", "Not affiliated with or endorsed by 8BitDo"):
             self.assertIn(phrase, text)
         self.assertTrue(text.startswith("# Before you start\n"))
 
@@ -68,9 +68,9 @@ class DisclaimerTest(unittest.TestCase):
         self.assertEqual(order, sorted(order))
 
     def test_one_warranty_sentence(self):
-        self.assertIn("Installing modified firmware probably voids the controller's warranty.", (ROOT / "README.md").read_text())
+        self.assertIn("Installing modified firmware probably voids the controller's and the dongle's warranty.", (ROOT / "README.md").read_text())
         disclaimer = (ROOT / "DISCLAIMER.md").read_text()
-        self.assertIn("**Installing it probably voids your controller's warranty.**", disclaimer)
+        self.assertIn("**Installing it probably voids your controller's and dongle's warranty.**", disclaimer)
         self.assertIn("makes a lot of assumptions", disclaimer)
         for path in ("README.md", "DISCLAIMER.md", "u2c_customfw/cli.py", "u2c_customfw/disclaimer.py", "u2c_customfw/web/static/index.html", "u2c_customfw/web/static/app.js"):
             text = (ROOT / path).read_text()
