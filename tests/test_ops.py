@@ -510,19 +510,19 @@ class DiagnosticsDataTest(Base):
 
 class ProbeTest(Base):
     def test_cable_stock_and_patched(self):
-        self.assertEqual(probe.read_state(SimApp(controller_flash()), "cable"), recipes.State(True, ()))
+        self.assertEqual(probe.read_firmware(SimApp(controller_flash()), "cable").state, recipes.State(True, ()))
         built = recipes.build(STOCK_A, ["bt_xbox", "dim_leds"], **K)
-        st = probe.read_state(SimApp(controller_flash(built)), "cable_360")
+        st = probe.read_firmware(SimApp(controller_flash(built)), "cable_360").state
         self.assertEqual((st.known, st.recipes), (True, ("bt_xbox", "dim_leds")))
 
     def test_boot_mode_and_unknown(self):
         odd = bytearray(controller_flash()); odd[0x9000] ^= 0xFF
-        self.assertFalse(probe.read_state(SimBoot(bytes(odd)), "boot").known)
+        self.assertFalse(probe.read_firmware(SimBoot(bytes(odd)), "boot").state.known)
 
     def test_dongle_refused(self):
         f = bytearray(controller_flash()); f[0x10000:0x10010] = b"\xff" * 16
         with self.assertRaises(OpError):
-            probe.read_state(SimApp(bytes(f)), "cable")
+            probe.read_firmware(SimApp(bytes(f)), "cable")
 
 
 class VersionTest(Base):

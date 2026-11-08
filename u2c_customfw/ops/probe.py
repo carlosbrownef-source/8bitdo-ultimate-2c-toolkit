@@ -101,7 +101,3 @@ def read_firmware(ch, mode: str) -> Firmware:
         raise OpError(str(e)) from e
     version, how = detect_version(ch, mode, bank_a)
     return Firmware(state, version, how, pending, identity, ring)
-
-
-def read_state(ch, mode: str) -> recipes.State:
-    return read_firmware(ch, mode).state
