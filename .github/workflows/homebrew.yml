@@ -26,13 +26,17 @@ jobs:
           tag=${TAG:-$(gh release view --repo "$REPO" --json tagName -q .tagName)}
           v=${tag#v}
           tar=$(curl -fsSL "https://github.com/$REPO/archive/refs/tags/$tag.tar.gz" | shasum -a 256 | cut -d' ' -f1)
-          for i in $(seq 10); do  # the zip may be attached shortly after the release is published
-            curl -fsSL -o app.zip "https://github.com/$REPO/releases/download/$tag/firmware-toolkit-$v-macos-arm64.zip" && break
-            [ "$i" = 10 ] && exit 1; sleep 30
+          sums=""
+          for arch in arm64 x86_64; do  # the zips may be attached shortly after the release is published
+            for i in $(seq 10); do
+              curl -fsSL -o app.zip "https://github.com/$REPO/releases/download/$tag/firmware-toolkit-$v-macos-$arch.zip" && break
+              [ "$i" = 10 ] && exit 1; sleep 30
+            done
+            sums="$sums $(shasum -a 256 app.zip | cut -d' ' -f1)"; rm app.zip
           done
-          zip=$(shasum -a 256 app.zip | cut -d' ' -f1); rm app.zip
+          read -r arm intel <<< "$sums"
           perl -pi -e "s|/tags/v[^/]+\.tar\.gz|/tags/$tag.tar.gz|; s|sha256 \"\w+\"|sha256 \"$tar\"|" Formula/firmware-toolkit.rb
-          perl -pi -e "s|version \"[^\"]+\"|version \"$v\"|; s|sha256 \"\w+\"|sha256 \"$zip\"|" Casks/firmware-toolkit.rb
+          perl -pi -e "s|version \"[^\"]+\"|version \"$v\"|; s|arm:\s+\"[0-9a-f]{64}\"|arm:   \"$arm\"|; s|intel: \"[0-9a-f]{64}\"|intel: \"$intel\"|" Casks/firmware-toolkit.rb
           git diff --quiet && { echo "Tap already at $tag"; exit 0; }
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
