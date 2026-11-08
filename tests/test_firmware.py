@@ -303,9 +303,11 @@ class FromEarlierVersionsTest(unittest.TestCase):
             recipes.build(self.stock, ["cpu_rest"], **self.k)
         self.assertIn("ring level", str(e.exception))
 
-    def test_cpu_rest_is_not_offered_in_the_app(self):
+    def test_the_app_offers_cpu_rest_on_by_default(self):
         html = (Path(recipes.__file__).parents[1] / "web" / "static" / "index.html").read_text()
-        self.assertNotIn('value="cpu_rest"', html)
+        self.assertIn('value="cpu_rest" checked', html)
+        js = (Path(recipes.__file__).parents[1] / "web" / "static" / "app.js").read_text()
+        self.assertIn('"cpu_rest"', js.split("RING_CODE_USERS = ")[1].split(";")[0])  # it needs the ring's code
 
     def test_ble_interval_asks_for_11_25_to_15_ms(self):
         img = recipes.build(self.stock, ["ble_interval"], **self.k)

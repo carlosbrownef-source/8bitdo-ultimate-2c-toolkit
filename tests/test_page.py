@@ -221,7 +221,7 @@ class SettingsTabTest(PageCase):
 
     def test_installing_includes_settings_by_default_with_the_ring_code(self):
         dom = self.server.dom("&diagsim=boot&scenario=installed")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,fixes,ring_normal")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,fixes,cpu_rest,ring_normal")
 
     def test_sticks_and_triggers_have_their_controls(self):
         dom = self.server.dom(self.READY)
@@ -440,7 +440,7 @@ class ControllerTestCard(PageCase):
         dom, _, _ = self.body("boot&tweaks=1&scenario=installed")
         self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ring_5")
 
-    def test_alerts_off_with_normal_installs_no_ring_code(self):
+    def test_alerts_off_with_normal_installs_no_ring_code(self):  # with the other tweaks that need it off too
         dom, _, _ = self.body("boot&scenario=noalerts")
         self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds")
 
@@ -450,7 +450,7 @@ class ControllerTestCard(PageCase):
 
     def test_original_firmware_keeps_the_suggested_tweaks(self):
         dom, _, _ = self.body("boot&scenario=installed")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,fixes,ring_normal")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,battery_alerts,settings,fixes,cpu_rest,ring_normal")
 
     def ring_button(self, dom, index):
         return next(n for n in dom.find("ring-card").walk() if n.attrs.get("data-live") == str(index))
