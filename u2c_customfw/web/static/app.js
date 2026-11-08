@@ -18,6 +18,13 @@ const ICON = {
   warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></svg>',
 };
 
+/* The 2.4 GHz dongle, drawn from scratch and lying on its side: a light brick body and its USB-C plug. */
+const dongleArt = (dim) => `<svg viewBox="0 0 300 172" fill="none" role="img" aria-label="2.4 GHz dongle"><defs><linearGradient id="gd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9dde2"/><stop offset="1" stop-color="#b4bac2"/></linearGradient><linearGradient id="gp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6e9ec"/><stop offset="1" stop-color="#9aa1ab"/></linearGradient></defs>
+<g opacity="${dim ? ".5" : "1"}"><rect x="230" y="70" width="50" height="32" rx="9" fill="url(#gp)" stroke="#8a919b" stroke-width="1.5"/><rect x="271" y="76" width="5" height="20" rx="2.5" fill="#2a2f36"/>
+<rect x="222" y="56" width="14" height="60" rx="3" fill="#c9ced4" stroke="#9aa1ab" stroke-width="1.5"/>
+<rect x="52" y="44" width="176" height="84" rx="7" fill="url(#gd)" stroke="#9aa1ab" stroke-width="1.5" ${dim ? 'stroke-dasharray="5 4"' : ""}/>
+<path d="M54 72h172M54 100h172M110 44v28M180 44v28M80 72v28M150 72v28M200 72v28M120 100v28M170 100v28" stroke="#a3a9b1" stroke-width="1.5"/></g></svg>`;
+
 /* Ultimate 2C, drawn from scratch: offset sticks, d-pad lower left, ABXY upper right, home button with its LED ring. */
 const stick = (x, y, k) => `<circle cx="${x}" cy="${y}" r="19" fill="#1c2026"/><g data-k="${k}"><circle cx="${x}" cy="${y}" r="13.5" fill="#4b525c"/><circle cx="${x}" cy="${y}" r="9" fill="#424851"/></g>`;
 const face = (x, y, t) => `<circle data-k="${t}" cx="${x}" cy="${y}" r="8.6" fill="#4b525c"/><text x="${x}" y="${y + 2.9}" text-anchor="middle" font-size="8.5" font-weight="600" fill="#b9c0c9" font-family="-apple-system,sans-serif">${t}</text>`;
@@ -86,7 +93,7 @@ function hero(devs, ctrl, boot) {
   $("fw-note").textContent = note;
   $("privacy-open").hidden = !(fw && fw.permission && bridge());
   const led = cls === "none" ? null : cls === "bad" ? "#e8695b" : boot ? "#ffffff" : getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
-  $("pic").innerHTML = pad(led, cls === "none");
+  $("pic").innerHTML = dongle && !ctrl ? dongleArt(cls === "none") : pad(led, cls === "none");
   const n = chips ? chips.filter((t) => t.on).length : 0;
   $("sumrow").hidden = !chips;
   $("sum").textContent = !n ? "No tweaks installed." : `${n} ${n === 1 ? "tweak" : "tweaks"} installed.`;

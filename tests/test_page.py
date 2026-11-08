@@ -136,6 +136,7 @@ class TabsTest(PageCase):
         self.assertEqual(dom.find("choose-one").all_text(), "This version of the app can't change the dongle yet.")
         self.assertIn("disabled", dom.find("patch-write").attrs)
         self.assertEqual(self.hero("&diagsim=dongle&stockdongle=1")[1], "Original dongle firmware 1.03")
+        self.assertEqual(next(n for n in dom.find("pic").walk() if n.tag == "svg").attrs.get("aria-label"), "2.4 GHz dongle")
 
     def test_bluetooth_says_what_works_over_it(self):
         _, title, note = self.hero("&diagsim=bt")
