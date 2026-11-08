@@ -66,7 +66,17 @@
 	.section .resthook, "ax"
 	tjl	rest_main_poll
 	.section .hstall, "ax"
+	.ifdef STALL_METER
+	tjl	meter_stall
+	.else
 	tjl	stall_hook
+	.endif
+
+@ Stall meter test build only: the battery notification's call to the percentage at 0xb8e8 goes to meter_level (rest.c).
+	.ifdef STALL_METER
+	.section .hmeter, "ax"
+	tjl	meter_level
+	.endif
 
 @ 0xd1c8 loaded the idle counter into r2 and the limit 8999 into r3 for the compare after it. This loads the limit from the
 @ settings, or the stock value until they're loaded. It doesn't touch the other registers.

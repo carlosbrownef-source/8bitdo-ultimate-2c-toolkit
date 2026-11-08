@@ -8,7 +8,7 @@ SECTIONS
 	.packer 0xb908 : { *(.text.pack_xbox) *(.text.put16) *(.text.trig) *(.text.hat) *(.rodata.btn_src) }
 	.noop 0x18390 : { *(.text.noop_write) }
 	.rumble 0x18390 : { *(.text.rumble_write) *(.text.rumble_level) }
-	.led 0x1738 : AT(0x7738) { *(.text.main_tick) *(.text.test_chords) }
+	.led 0x1738 : AT(0x7738) { *(.text.main_tick) *(.text.test_chords) *(.text.meter_stall) *(.text.meter_level) }
 	.hook 0xa43c : { *(.hook) }
 	.ringhook 0xd4f0 : { *(.ringhook) }
 	.vhooka 0xf83c : { *(.vhooka) }
@@ -28,6 +28,7 @@ SECTIONS
 	.hsweep 0xa2dc : { *(.hsweep) }
 	.resthook 0xa484 : { *(.resthook) }
 	.hstall 0xa4ae : { *(.hstall) }
+	.hmeter 0xb8e8 : { *(.hmeter) }
 	.wdog 0x20 : AT(0x6020) { *(.text.rest_main_poll) *(.text.rest_poll) }
 	.stall 0x248c : AT(0x848c) { *(.text.stall_hook) }
 	.sram 0x1210 : AT(0x7210) { *(.text.sram_guard) *(.text.scan_hook) *(.text.trigger) }

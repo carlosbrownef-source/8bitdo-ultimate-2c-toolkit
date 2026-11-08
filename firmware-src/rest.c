@@ -64,6 +64,36 @@ __attribute__((noinline)) void test_chords(u32 b)
 }
 #endif
 
+#if defined(STALL_METER) && !defined(HOST)
+/* Stall meter test build only (tools/stalltest in the private notes): the share of time the CPU spent stalled, in percent,
+ * sent over Bluetooth in place of the battery level, which the host then logs. The firmware sends that level every
+ * 0xa9ab5000 ticks (177.9 s, literal at 0xa308), and only then asks for it, so each value covers the time since the last.
+ * Both run from RAM in .led (packer.ld), so it needs the dimmer LEDs installed and leaves out the test chords. The count
+ * sits in the free part of the Home ring's state, zeroed at boot. */
+#define METER (*(volatile u32 *)0x841670) /* stalled 16 MHz ticks since the last value */
+#define SYSTICK (*(volatile u32 *)0x800740)
+
+void stall_hook(void);
+
+void meter_stall(void)
+{
+	u32 t = SYSTICK;
+
+	stall_hook();
+	t = SYSTICK - t;
+	if (t > 800) /* 50 us: a pass that doesn't stall returns in a few */
+		METER += t;
+}
+
+u32 meter_level(void)
+{
+	u32 v = (METER >> 8) * 75 >> 23; /* ticks * 100 / 2.86e9: within 1 % of the 177.9 s period */
+
+	METER = 0;
+	return v;
+}
+#endif
+
 /* Every 100 ms in both positions: a watchdog fed only in the Bluetooth branch would reset the controller as soon as the
  * cable went in, and a hang anywhere in the main loop stops this feed. Stock turns the watchdog off at boot. Bits 24-27
  * of the word clear on write, so they're written as 0. */
