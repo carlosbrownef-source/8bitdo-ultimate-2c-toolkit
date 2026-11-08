@@ -19,6 +19,7 @@ from . import jobs
 
 STATIC = Path(__file__).parent / "static"
 SETTINGS_MISSING = "To change these settings, install Controller settings in the Firmware tab."
+KEEPALIVE_S = 15
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css"}
 
 
@@ -246,10 +247,12 @@ def make_server(store: Path, port: int = 0):
             i = 0
             while True:
                 with runner.cond:
-                    while i >= len(runner.events):
-                        if not runner.cond.wait(timeout=15):
-                            self.wfile.write(b": keepalive\n\n"); self.wfile.flush()
+                    if i >= len(runner.events):
+                        runner.cond.wait(timeout=KEEPALIVE_S)
                     batch = runner.events[i:]
+                if not batch:   # written outside the lock, so a client that stops reading can't hold up the job
+                    self.wfile.write(b": keepalive\n\n"); self.wfile.flush()
+                    continue
                 i += len(batch)
                 for e in batch:
                     self.wfile.write(f"data: {json.dumps(e)}\n\n".encode())

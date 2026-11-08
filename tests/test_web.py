@@ -186,6 +186,20 @@ class WebTest(unittest.TestCase):
             self.assertIn(line, log)
         self.assertNotIn(str(self.store), log)
 
+    def test_a_quiet_job_gets_keepalives_and_then_its_end(self):
+        import http.client
+        release = threading.Event()
+        jobs.ACTIONS["backup"] = lambda args, store: release.wait(5)
+        with mock.patch.object(server, "KEEPALIVE_S", 0.05):
+            self.call("POST", "/api/backup")
+            conn = http.client.HTTPConnection("127.0.0.1", self.httpd.server_address[1], timeout=5)
+            conn.request("GET", "/api/events", headers={"X-Token": self.token})
+            r = conn.getresponse()
+            self.assertEqual(r.read(13), b": keepalive\n\n")
+            release.set()
+            self.assertIn(b'"type": "done"', r.read())
+            conn.close()
+
     def test_errors_become_error_events(self):
         def fake(args, store):
             raise RuntimeError("boom")
