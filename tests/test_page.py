@@ -599,6 +599,18 @@ class ConfirmTest(PageCase):
         self.assertNotIn("hidden", dom.find("confirm-icon").attrs)
         self.assertNotIn("hidden", dom.find("confirm-warranty").attrs)
 
+    def test_each_tweak_says_what_it_does_and_the_chips_keep_its_name(self):
+        dom = self.server.dom("&diagsim=boot&scenario=installask")
+        rows = [n for n in dom.find("tab-firmware").walk() if "tw" in n.classes()]
+        self.assertEqual(len(rows), 10)
+        for row in rows:
+            line = next((n for n in row.walk() if n.tag == "small"), None)
+            self.assertIsNotNone(line, row.all_text())
+            self.assertTrue(line.all_text().endswith("."), line.all_text())
+        self.assertNotIn("(", dom.find("tab-firmware").all_text().split("Home ring brightness")[0])
+        chips = [" ".join(n.text) for n in dom.find("confirm-chips").children]
+        self.assertIn("Rumble over Bluetooth", chips)
+
     def test_reset_is_not_styled_as_danger(self):
         dom = self.server.dom(SettingsTabTest.READY + "&scenario=resetopen")
         self.assertNotIn("danger", dom.find("confirm-yes").classes())
