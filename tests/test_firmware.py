@@ -321,10 +321,10 @@ class FromEarlierVersionsTest(unittest.TestCase):
         self.assertEqual(at(0xC640, 2), bytes.fromhex("0bae"))  # turbo's phase every 12 scans, still 30 ms
         self.assertEqual(recipes.identify(img, **self.k).recipes, ("fast_scan",))
 
-    def test_bluetooth_rate_tweaks_are_not_offered_in_the_app(self):
+    def test_the_app_offers_faster_buttons_but_not_the_connection_request(self):
         html = (Path(recipes.__file__).parents[1] / "web" / "static" / "index.html").read_text()
-        for key in ("ble_interval", "fast_scan"):
-            self.assertNotIn(f'value="{key}"', html)
+        self.assertIn('value="fast_scan"', html)
+        self.assertNotIn('value="ble_interval"', html)  # macOS refuses it; whether Linux grants stock's 7.5 ms is untested
 
     def test_firmware_from_0_4_is_still_recognised_without_cpu_rest(self):
         """0.4.0's blobs are pinned in test_the_published_tweaks_keep_their_bytes, so this is what a controller on 0.4.0 holds."""
