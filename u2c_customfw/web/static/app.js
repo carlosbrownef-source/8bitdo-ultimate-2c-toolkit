@@ -59,9 +59,14 @@ function hero(devs, ctrl, boot) {
   let cls = "", title = "Firmware not read", note = "", chips = null;
   if (err) [cls, title, note] = ["bad", "Can't look for controllers", err.name];
   else if (!ctrl && !bt && !dongle) [cls, title, note] = ["none", "No controller found", "Connect it by cable, or put it in update mode."];
-  else if (!ctrl && dongle) [cls, title, note] = ["none", "This is the 2.4 GHz dongle", "The app works only with the controller itself. Connect the controller by cable."];
   else if (reading) title = "Reading the firmware…";
   else if (fw && fw.error) [cls, title, note] = ["bad", "Can't read the firmware", fw.error];
+  else if (fw && fw.device === "dongle") {  // read-only for now: what it holds, and the one tweak there is for it
+    title = !fw.known ? (fw.version ? `Unrecognised dongle firmware ${fw.version.toFixed(2)}` : "Unknown dongle firmware")
+      : fw.tweaks.some((t) => t.on) ? `Dongle firmware ${fw.version.toFixed(2)} with tweaks` : `Original dongle firmware ${fw.version.toFixed(2)}`;
+    note = "This version of the app reads the dongle but can't change it yet.";
+    chips = fw.tweaks;
+  }
   else if (fw && fw.note) [title, note] = [!ctrl && bt ? "Connected over Bluetooth" : title, fw.note];
   else if (fw && fw.known) {
     title = fw.recipes.length ? "Firmware 1.09 with tweaks" : "Original firmware 1.09";
@@ -101,6 +106,7 @@ function showDetails(open) {
 function render() {
   const devs = st ? st.devices : [];
   const ctrl = devs.find((d) => CONTROLLER.includes(d.mode)), boot = !!ctrl && ctrl.mode === "boot";
+  const dongleOnly = !ctrl && devs.some((d) => d.mode === "dongle");
   const backed = !!st && st.backups.length > 0, off = busy || reading, on109 = !!fw && !!fw.version && fw.version.toFixed(2) === "1.09";
   const patchable = boot && backed && tweaks().length > 0 && !(fw && fw.known === false && !on109);
   hero(devs, ctrl, boot);
@@ -115,7 +121,9 @@ function render() {
   const xbox = tweakBoxes().find((x) => x.value === "bt_xbox"), rumble = tweakBoxes().find((x) => x.value === "bt_rumble");
   if (!xbox.checked) rumble.checked = false;
   tweakBoxes().forEach((x) => { x.disabled = busy || (x === rumble && !xbox.checked); x.parentElement.classList.toggle("off", x.disabled); });
-  const installWhy = !tweaks().length ? "Choose at least one tweak." : !fw || fw.known !== false || on109 ? ""
+  $("ctrl-tweaks").hidden = $("tweaks-opts").hidden = dongleOnly; $("dongle-tweaks").hidden = !dongleOnly;
+  $("dongle-360").checked = $("dongle-360").defaultChecked = dongleOnly && !!fw && fw.device === "dongle" && fw.tweaks[0].on;
+  const installWhy = dongleOnly ? "This version of the app can't change the dongle yet." : !tweaks().length ? "Choose at least one tweak." : !fw || fw.known !== false || on109 ? ""
     : fw.version ? "This app only installs tweaks over firmware 1.09." : "This firmware can't be identified. Restore your backup first.";
   $("choose-one").textContent = installWhy; $("choose-one").hidden = !installWhy;
 
@@ -170,11 +178,19 @@ function details() {
   if (fw.error) return say(fw.error);
   if (fw.note) return say(fw.note);
   const id = fw.boot_identity;
+  const v = fw.version ? fw.version.toFixed(2) : "";
+  const rows = fw.device === "dongle" ? [["Device", "The 2.4 GHz dongle"],
+    ["Firmware", !fw.known ? (v ? `Unrecognised ${v}` : "Unknown") : fw.tweaks[0].on ? [`${v} with 1 tweak`, fw.tweaks[0].title] : `Original ${v}`],
+    ["Identified from", fw.known ? "The installed firmware" : v ? "The dongle's update record" : "Nothing it holds"]] : null;
+  if (rows) return detailRows(box, rows);
   const titles = (fw.titles || []).map((t, i) => [tweakOrder(fw.recipes[i] || ""), t]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
-  const rows = [["Firmware", !fw.known ? "Unknown" : fw.recipes.length ? [`1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}`, ...titles] : "Original 1.09"],
+  return detailRows(box, [["Firmware", !fw.known ? "Unknown" : fw.recipes.length ? [`1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}`, ...titles] : "Original 1.09"],
     ["Identified from", VERSION_FROM[fw.version_from] || fw.version_from],
     ["Pending update", fw.pending ? "Yes. It could replace the tweaks the next time the controller starts." : "None"],
-    ["Device in update mode", !inUpdateMode ? "Only available in update mode" : id == null ? "No answer" : WHO[id] || "An unknown device"]];
+    ["Device in update mode", !inUpdateMode ? "Only available in update mode" : id == null ? "No answer" : WHO[id] || "An unknown device"]]);
+}
+
+function detailRows(box, rows) {
   const dl = document.createElement("dl"); dl.className = "rows";
   for (const [k, v] of rows) {  // a list is one line each
     const t = document.createElement("dt"), d = document.createElement("dd"); t.textContent = k;

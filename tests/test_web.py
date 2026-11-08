@@ -423,6 +423,17 @@ class WebTest(unittest.TestCase):
             data = json.loads(self.call("GET", "/api/firmware")[1])
         self.assertIsNone(data["restore_backup"])
 
+    def test_firmware_endpoint_reads_the_idle_dongle(self):
+        from tests.test_dongle import XBOX, K as DK, flash
+        from u2c_customfw.ops import dongle
+        info = transport.DeviceInfo(0x2DC8, 0x301C, 0xFFA0, "USB", "IDLE", None)
+        with mock.patch.object(cli, "find", lambda: [devices.Found(info, "dongle")]), \
+                mock.patch.object(cli, "open_channel", lambda i, rid: SimApp(flash(XBOX))), \
+                mock.patch.object(dongle, "STOCK_SHA256", DK["stock_sha256"]), mock.patch.object(dongle, "XBOX360_SHA256", DK["xbox360_sha256"]):
+            data = json.loads(self.call("GET", "/api/firmware")[1])
+        self.assertEqual(data, {"device": "dongle", "known": True, "version": 1.03,
+                                "tweaks": [{"key": "dongle_360", "title": "Xbox 360 controller over 2.4 GHz", "on": True}]})
+
     def test_the_hidden_tweak_is_never_shown(self):
         built = recipes.build(STOCK_A, ["bt_xbox", "ble_interval"], **K)
         info = transport.DeviceInfo(0x2DC8, 0x310A, 0xFF7A, "USB", "x", None)

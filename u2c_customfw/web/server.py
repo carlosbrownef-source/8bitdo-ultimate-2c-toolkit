@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, urlparse
 from .. import __version__, disclaimer, settings, state
 from .. import cli
 from ..firmware import recipes
-from ..ops import backup as bkp, probe, report as report_mod, shown
+from ..ops import backup as bkp, dongle, probe, report as report_mod, shown
 from ..ops import settings as settings_ops
 from ..ops.plan import OpError
 from ..protocol import ProtocolError, app
@@ -224,7 +224,7 @@ def make_server(store: Path, port: int = 0):
                 return self.send(200, json.dumps({"note": note}))
             f = ours[0]
             if f.mode == "dongle":
-                return self.send(200, json.dumps({"error": "That is the 2.4 GHz dongle, which this app does not support."}))
+                return self.dongle_report(f)
             try:
                 ch = cli.open_channel(f.info, 0 if f.mode == "boot" else 0x81)
                 try:
@@ -246,6 +246,21 @@ def make_server(store: Path, port: int = 0):
                                        "tweaks": [{"key": k, "title": recipes.RECIPES[k].title, "on": k in keys}
                                                   for k in shown(k for k, r in recipes.RECIPES.items() if not r.group)]
                                                  + [{"key": "ring", "title": ring[0] if ring else "Home ring: normal", "on": bool(ring)}]}))
+
+        def dongle_report(self, f):
+            """The idle dongle, read-only: its firmware and whether it has the one tweak there is for it."""
+            try:
+                ch = cli.open_channel(f.info, 0x81)
+                try:
+                    fw = dongle.read_firmware(ch)
+                finally:
+                    ch.close()
+            except PermissionDenied as e:
+                return self.send(200, json.dumps({"error": str(e), "permission": True}))
+            except (OpError, OSError, ProtocolError) as e:
+                return self.send(200, json.dumps({"error": str(e)}))
+            self.send(200, json.dumps({"device": "dongle", "known": fw.known, "version": fw.version,
+                                       "tweaks": [{"key": "dongle_360", "title": "Xbox 360 controller over 2.4 GHz", "on": fw.xbox360}]}))
 
         def api_events(self):
             if not self.auth():

@@ -126,10 +126,16 @@ class TabsTest(PageCase):
         dom = self.server.dom(query)
         return dom, dom.find("fw-title").all_text(), dom.find("fw-note").all_text()
 
-    def test_the_dongle_is_named_and_the_drawing_dimmed(self):
+    def test_the_dongle_shows_its_firmware_and_its_one_tweak(self):
         dom, title, note = self.hero("&diagsim=dongle")
-        self.assertEqual((title, note), ("This is the 2.4 GHz dongle", "The app works only with the controller itself. Connect the controller by cable."))
-        self.assertIn("none", dom.find("hero").classes())
+        self.assertEqual((title, note), ("Dongle firmware 1.03 with tweaks", "This version of the app reads the dongle but can't change it yet."))
+        self.assertEqual([" ".join(n.text) for n in dom.find("chips").children], ["Xbox 360 controller over 2.4 GHz"])
+        self.assertIn("hidden", dom.find("ctrl-tweaks").attrs)
+        self.assertNotIn("hidden", dom.find("dongle-tweaks").attrs)
+        self.assertEqual({k: k in dom.find("dongle-360").attrs for k in ("checked", "disabled")}, {"checked": True, "disabled": True})
+        self.assertEqual(dom.find("choose-one").all_text(), "This version of the app can't change the dongle yet.")
+        self.assertIn("disabled", dom.find("patch-write").attrs)
+        self.assertEqual(self.hero("&diagsim=dongle&stockdongle=1")[1], "Original dongle firmware 1.03")
 
     def test_bluetooth_says_what_works_over_it(self):
         _, title, note = self.hero("&diagsim=bt")
@@ -729,7 +735,7 @@ class ConfirmTest(PageCase):
 
     def test_each_tweak_says_what_it_does_and_the_chips_keep_its_name(self):
         dom = self.server.dom("&diagsim=boot&scenario=installask")
-        rows = [n for n in dom.find("tab-firmware").walk() if "tw" in n.classes()]
+        rows = [n for n in dom.find("ctrl-tweaks").walk() if "tw" in n.classes()]
         self.assertEqual(len(rows), 10)
         pops = {n.attrs["id"]: n for n in dom.walk() if "pop" in n.classes()}
         for row in rows:   # each explanation is in a pop-up behind its (i) button, outside the row

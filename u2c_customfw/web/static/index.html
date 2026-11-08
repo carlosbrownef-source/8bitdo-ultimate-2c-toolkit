@@ -42,7 +42,7 @@
     <section class="cd" id="tweaks-card">
       <h2><span class="no">2</span>Tweaks<span class="tag">Installs new firmware</span></h2>
       <p>Choose the tweaks to add to the controller's firmware.</p>
-      <div class="twgrid">
+      <div class="twgrid" id="ctrl-tweaks">
         <label class="tw"><input type="checkbox" class="tweak" value="bt_xbox" checked><span class="sw"></span><span>Xbox Series X|S controller over Bluetooth<small>macOS and its games recognise the controller over Bluetooth.</small></span></label>
         <label class="tw"><input type="checkbox" class="tweak" value="bt_rumble" checked><span class="sw"></span><span>Rumble over Bluetooth<small>Games can make it vibrate over Bluetooth.</small><em class="note">Needs Xbox Series X|S controller over Bluetooth.</em></span></label>
         <label class="tw"><input type="checkbox" class="tweak" value="cable_360" checked><span class="sw"></span><span>Xbox 360 controller over cable<small>macOS recognises the controller when it's connected by cable.</small></span></label>
@@ -54,7 +54,10 @@
         <label class="tw"><input type="checkbox" class="tweak" value="stick_precision"><span class="sw"></span><span>Finer stick movement<small>Slow stick movements advance in smaller steps.</small><em class="note">A stick held still may move by one step now and then.</em></span></label>
         <label class="tw"><input type="checkbox" class="tweak" value="fast_scan"><span class="sw"></span><span>Faster button reading<small>Presses arrive about 1.25 ms sooner.</small><em class="note">A worn button could register twice.</em></span></label>
       </div>
-      <div class="opts"><span>The tweaks are added to 8BitDo's original firmware 1.09. Take it from:</span>
+      <div class="twgrid" id="dongle-tweaks" hidden>
+        <label class="tw off"><input type="checkbox" id="dongle-360" disabled><span class="sw"></span><span>Xbox 360 controller over 2.4 GHz<em class="note">The app can't install it yet. It comes in a later version.</em></span></label>
+      </div>
+      <div class="opts" id="tweaks-opts"><span>The tweaks are added to 8BitDo's original firmware 1.09. Take it from:</span>
         <div><div class="seg"><button data-base="backup" class="on">Your Backup</button><button data-base="download">8BitDo's Server</button></div></div></div>
       <div class="act" id="tweaks-act"><ul class="pre"><li id="pre-backup"></li><li id="pre-boot"></li></ul><div class="btns"><button id="patch-dry" class="sec job">Check First</button><button id="patch-write" class="job">Install Tweaks…</button></div>
         <p><span id="choose-one" hidden></span> Installing modified firmware probably voids the controller's warranty.</p></div>

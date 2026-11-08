@@ -24,7 +24,7 @@
     }
     if (path.startsWith("/api/ring")) return query.get("ringfail") ? new Response(JSON.stringify({ error: "The controller said no." }), { status: 409 }) : json({ ok: true });
     if (path.startsWith("/api/firmware") && device === "bluetooth_xbox") return json({ note: "Connect the controller by cable to see or change its firmware. Over Bluetooth, you can test it in Diagnostics and change the Home ring in Settings." });
-    if (path.startsWith("/api/firmware") && device === "dongle") return json({ error: "That is the 2.4 GHz dongle, which this app does not support." });
+    if (path.startsWith("/api/firmware") && device === "dongle") return json({ device: "dongle", known: true, version: 1.03, tweaks: [{ key: "dongle_360", title: "Xbox 360 controller over 2.4 GHz", on: !query.has("stockdongle") }] });
     if (path.startsWith("/api/firmware") && query.get("permission")) return json({ error: "macOS refused access to the controller. Allow Input Monitoring for this app in System Settings > Privacy & Security > Input Monitoring, then try again.", permission: true });
     const answer = await realFetch(url, options);
     if (path.startsWith("/api/firmware") && query.get("tweaks")) {  // &tweaks=all: the default tweaks with the ring at 5 %
