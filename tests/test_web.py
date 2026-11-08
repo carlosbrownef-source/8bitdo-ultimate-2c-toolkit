@@ -138,7 +138,17 @@ class WebTest(unittest.TestCase):
         self.assertEqual(self.call("POST", "/api/backup")[0], 202)
         ev = self.events()
         self.assertEqual([e["type"] for e in ev], ["log", "progress", "progress", "done"])
+        self.assertEqual(ev[-1], {"type": "done", "message": "starting", "unchanged": False})
         self.assertEqual(ev[2], {"type": "progress", "label": "write", "done": 100, "total": 100})
+
+    def test_the_end_event_carries_the_last_sentence_and_whether_anything_changed(self):
+        def fake(args, store):
+            args.say("Installing changes 3 bytes of the firmware.")
+            args.say("The controller already has this firmware, so nothing was written.")
+            args.unchanged = True
+        jobs.ACTIONS["backup"] = fake
+        self.call("POST", "/api/backup")
+        self.assertEqual(self.events()[-1], {"type": "done", "message": "The controller already has this firmware, so nothing was written.", "unchanged": True})
 
     def test_command_line_hints_stay_out_of_the_app(self):
         def fake(args, store):

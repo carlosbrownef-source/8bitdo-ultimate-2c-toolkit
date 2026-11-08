@@ -4,7 +4,7 @@ from .. import protocol
 from ..firmware import image, recipes
 from ..protocol import boot
 from . import probe
-from .plan import OpError, Plan, apply, count  # noqa: F401  (apply is part of this module's interface)
+from .plan import OpError, Plan, apply, count, listed  # noqa: F401  (apply is part of this module's interface)
 
 
 def check_unit(ch, backup) -> None:
@@ -62,4 +62,5 @@ def plan_patch(ch, backup, stock: bytes, keys) -> Plan:
     target[image.BASE:image.APP_END] = new
     diff = sum(x != y for x, y in zip(cur, new))
     note = "This replaces firmware 1.09 that this app doesn't recognise. " if replacing else ""
-    return Plan(bytes(target), diff > 0, [], diff, f"{note}{count(diff, 'byte')} of the firmware will change. Tweaks: {', '.join(recipes.RECIPES[k].title for k in keys) or 'none'}.")
+    tweaks = listed(recipes.RECIPES[k].title for k in keys) if keys else "no tweaks"
+    return Plan(bytes(target), diff > 0, [], diff, f"{note}Installing changes {count(diff, 'byte')} of the firmware, with {tweaks}.")

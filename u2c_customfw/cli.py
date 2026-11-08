@@ -15,6 +15,12 @@ from .transport import PermissionDenied, open_channel
 
 CONTROLLER_MODES = ("cable", "cable_360", "boot", "dongle")
 BOOT_HELP = "Turn the controller fully off, then hold L1 + R1 while plugging in the cable. The light will blink white."
+INSTALLED = ("Installed. Unplug the controller and connect it again. If you changed a Bluetooth tweak, remove the controller in "
+             "System Settings → Bluetooth and pair it again.")
+RESTORED = ("Restored. Unplug the controller and connect it again. If its Bluetooth tweaks changed, remove the controller in "
+            "System Settings → Bluetooth and pair it again.")
+UNCHANGED = "The controller already has this firmware, so nothing was written."
+CHECKED = "The check passed and nothing was written."
 DISCLAIMER_HELP = ("Read DISCLAIMER.md first. There's no warranty, using this voids the controller's warranty, and it only works with the Ultimate 2C on firmware 1.09. "
                    "To write to the controller, add --accept-disclaimer once.")
 
@@ -87,8 +93,9 @@ def cmd_backup(args, store):
         b = bkp.backup(ch, f.mode, store, args.progress)
     finally:
         ch.close()
-    s = b.state
-    args.say(f"saved {b.path}\nsha256 {b.sha256}\nfirmware: " + (("original 1.09" + (f" with tweaks: {', '.join(s.recipes)}" if s.recipes else "")) if s.known else "unknown"))
+    get_logger(store).info("backup %s sha256 %s", b.path.name, b.sha256)   # the name only: the folder holds the user's name
+    args.hint(f"{b.path}\nsha256 {b.sha256}")
+    args.say(f"Backup saved as “{b.path.name}”. The controller has {bkp.describe(b.state)}.")
 
 
 def cmd_identify(args, store):
@@ -120,6 +127,21 @@ def _backup_for(args, ch, store, recognised=False):
     return b
 
 
+def _write(args, ch, plan, done, hint):
+    """Write the plan unless it's a check or changes nothing, and end with the sentence the app shows as the result."""
+    if not plan.bank_a and not plan.other_sectors:
+        args.unchanged = True
+        args.say(UNCHANGED)
+        return
+    if not args.write:
+        args.say(f"{CHECKED} {plan.summary}")
+        args.hint(hint)
+        return
+    args.say(plan.summary)
+    patch.apply(ch, plan, args.progress)
+    args.say(done)
+
+
 def cmd_patch(args, store):
     need_accept(args, store)
     f = pick(("boot",))
@@ -127,13 +149,7 @@ def cmd_patch(args, store):
     try:
         b = _backup_for(args, ch, store)
         plan = patch.plan_patch(ch, b, stock_for(args, b, store), [k for k in args.tweaks.split(",") if k])
-        args.say(plan.summary)
-        if not args.write:
-            args.say("The check passed. This was a dry run, so nothing was written.")
-            args.hint("Add --write to install.")
-            return
-        patch.apply(ch, plan, args.progress)
-        args.say("Done. Unplug the controller and plug it back in. If a Bluetooth tweak changed, remove the controller from Bluetooth settings and pair it again.")
+        _write(args, ch, plan, INSTALLED, "Add --write to install.")
     finally:
         ch.close()
 
@@ -148,13 +164,7 @@ def cmd_restore(args, store):
             raise Exit(2, "The backup to restore isn't the one shown, so nothing was written. Check again.")
         stock = fetch.fetch_stock() if args.source == "stock" else None
         plan = restore.plan_restore(ch, b, args.source, stock, args.force_unknown)
-        args.say(plan.summary)
-        if not args.write:
-            args.say("The check passed. This was a dry run, so nothing was written.")
-            args.hint("Add --write to restore.")
-            return
-        patch.apply(ch, plan, args.progress)
-        args.say("Done. Unplug the controller and plug it back in.")
+        _write(args, ch, plan, RESTORED, "Add --write to restore.")
     finally:
         ch.close()
 

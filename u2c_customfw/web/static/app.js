@@ -159,21 +159,24 @@ function details() {
 }
 
 const STEPS = { "pass 1": [0, 50], "pass 2": [50, 50], write: [0, 100] };  // progress labels from the core
-const setPct = (p) => { $("prog-bar").style.width = p + "%"; $("pc").textContent = p + " %"; };
+const setPct = (p) => { $("prog-bar").style.width = p + "%"; $("pc").textContent = p + " %"; $("prog").setAttribute("aria-valuenow", p); };
+const LOST = "The app lost track of the task, which may still be running. Do not disconnect the controller until it has had time to finish, then read the firmware again.";
 function line(text, bad) {
   const el = $("log"), s = document.createElement("span");
   if (bad) s.className = "e";
   s.textContent = text + "\n"; el.append(s); el.scrollTop = el.scrollHeight;
 }
 
-async function runJob(label, path, body) {
+async function runJob(label, path, body, doneText) {  // doneText: the status when it worked, such as "Backup saved"
   busy = true; render();
-  $("log").textContent = ""; $("log").hidden = false; $("log-toggle").hidden = false; $("log-toggle").textContent = "Hide log ▾";
-  $("dock").className = "dock run"; $("dock-status").textContent = label;
-  $("idle").hidden = true; $("prog").hidden = $("pc").hidden = false; setPct(0);
-  let ok = false;
+  $("log").textContent = ""; $("log").hidden = true; $("log-toggle").hidden = false; $("log-toggle").textContent = "Show log ▴";
+  $("dock").className = "dock run"; $("dock-status").textContent = label; $("dock-message").hidden = true;
+  $("idle").textContent = "Do not disconnect the controller or quit the app until this finishes."; $("idle").hidden = !(body && body.write);
+  $("prog").hidden = $("pc").hidden = false; setPct(0);
+  let end = null, started = false;
   try {
     await api("POST", path, body);
+    started = true;
     const r = await fetch("/api/events?token=" + encodeURIComponent(token));
     const reader = r.body.getReader(), dec = new TextDecoder(); let buf = "";
     for (;;) {
@@ -185,12 +188,15 @@ async function runJob(label, path, body) {
         const e = JSON.parse(chunk.slice(6));
         if (e.type === "log") line(e.text);
         else if (e.type === "progress") { const [from, span] = STEPS[e.label] || [0, 100]; setPct(Math.floor(from + (span * e.done) / Math.max(e.total, 1))); }
-        else if (e.type === "done") ok = true;
-        else if (e.type === "error") line("Stopped: " + e.message, true);
+        else if (e.type === "done") end = e;
+        else if (e.type === "error") { end = e; line(e.message, true); }
       }
     }
-  } catch (e) { line("Stopped: " + e.message, true); }
-  $("dock").className = "dock " + (ok ? "done" : "err"); $("dock-status").textContent = ok ? "Done" : "Stopped";
+  } catch (e) { line(e.message, true); end = { type: "error", message: started ? LOST : e.message }; }
+  end = end || { type: "error", message: LOST };   // the stream ended without saying how the task did
+  const ok = end.type === "done";
+  $("dock").className = "dock " + (ok ? "done" : "err"); $("dock-status").textContent = !ok ? "Not completed" : end.unchanged ? "No changes needed" : doneText;
+  $("dock-message").textContent = end.message || ""; $("dock-message").hidden = !end.message; $("idle").hidden = true;
   if (ok) setPct(100);
   busy = false; refresh();
 }
@@ -276,29 +282,29 @@ document.querySelectorAll("[data-base]").forEach((b) => (b.onclick = () => {
 }));
 $("log-toggle").onclick = () => { const l = $("log"); l.hidden = !l.hidden; $("log-toggle").textContent = l.hidden ? "Show log ▴" : "Hide log ▾"; };
 
-$("backup").onclick = () => runJob("Backing up", "/api/backup");
-$("patch-dry").onclick = () => runJob("Checking", "/api/patch", { tweaks: tweaks(), base, write: false });
+$("backup").onclick = () => runJob("Backing up…", "/api/backup", null, "Backup saved");
+$("patch-dry").onclick = () => runJob("Checking…", "/api/patch", { tweaks: tweaks(), base, write: false }, "Check passed");
 $("patch-write").onclick = async () => {
   if (await ask("Install these tweaks?", "This changes the controller's firmware and voids its warranty.", tweakTitles(), "Install", "install"))
-    runJob("Installing", "/api/patch", { tweaks: tweaks(), base, write: true });
+    runJob("Installing…", "/api/patch", { tweaks: tweaks(), base, write: true }, "Tweaks installed");
 };
-$("restore-backup-dry").onclick = () => runJob("Checking", "/api/restore", { source: "backup", backup: fw.restore_backup.name, write: false });
-$("restore-stock-dry").onclick = () => runJob("Checking", "/api/restore", { source: "stock", write: false });
+$("restore-backup-dry").onclick = () => runJob("Checking…", "/api/restore", { source: "backup", backup: fw.restore_backup.name, write: false }, "Check passed");
+$("restore-stock-dry").onclick = () => runJob("Checking…", "/api/restore", { source: "stock", write: false }, "Check passed");
 $("restore-backup").onclick = async () => {
   const b = fw.restore_backup;
   if (await ask("Restore your backup?", `This replaces the controller's firmware with your backup “${b.name}”, made on ${b.taken}, which has ${b.firmware}.`, [], "Restore"))
-    runJob("Restoring", "/api/restore", { source: "backup", backup: b.name, write: true });
+    runJob("Restoring…", "/api/restore", { source: "backup", backup: b.name, write: true }, "Backup restored");
 };
 $("restore-stock").onclick = async () => {
   if (await ask("Restore the original firmware 1.09?", "This replaces the controller's firmware with 8BitDo's original 1.09, downloaded from 8BitDo. Your settings, pairings and calibration stay as they are.", [], "Restore", "danger"))
-    runJob("Restoring", "/api/restore", { source: "stock", write: true });
+    runJob("Restoring…", "/api/restore", { source: "stock", write: true }, "Original firmware restored");
 };
 $("force-open").onclick = () => {
   const d = $("force"), tick = $("force-understand"), yes = $("force-yes");
   tick.checked = false; yes.disabled = true;
   tick.onchange = () => { yes.disabled = !tick.checked; };
   $("force-no").onclick = () => d.close();
-  yes.onclick = () => { d.close(); runJob("Installing", "/api/restore", { source: "stock", write: true, force_unknown: true }); };
+  yes.onclick = () => { d.close(); runJob("Installing…", "/api/restore", { source: "stock", write: true, force_unknown: true }, "Original firmware installed"); };
   d.showModal();
 };
 $("report-open").onclick = async () => {

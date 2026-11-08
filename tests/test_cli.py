@@ -10,7 +10,7 @@ from unittest import mock
 from u2c_customfw import cli, state, transport
 from u2c_customfw.firmware import image, recipes
 from u2c_customfw.ops import devices
-from u2c_customfw.sim import SimBoot
+from u2c_customfw.sim import SimApp, SimBoot
 from tests.test_ops import K, STOCK_A, controller_flash
 
 
@@ -86,7 +86,8 @@ class CliTest(unittest.TestCase):
         dev = SimBoot(self.flash)
         code, text = run(["patch", "--tweaks", "cable_360", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], dev)
         self.assertEqual(code, 0, text)
-        self.assertIn("dry run", text.lower())
+        self.assertIn("The check passed and nothing was written. Installing changes", text)
+        self.assertIn("with Xbox 360 controller over cable.", text)
         self.assertIn("--write", text)
         self.assertEqual([o for o in dev.ops if o[0] != "read"], [])
 
@@ -103,6 +104,24 @@ class CliTest(unittest.TestCase):
         code, text = run(["patch", "--tweaks", "cable_360", "--write", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], dev)
         self.assertEqual(code, 0, text)
         self.assertEqual(recipes.identify(bytes(dev.f[0x6000:0x18400]), **K).recipes, ("cable_360",))
+        self.assertTrue(text.rstrip().endswith("Installed. Unplug the controller and connect it again. If you changed a Bluetooth tweak, "
+                                               "remove the controller in System Settings → Bluetooth and pair it again."), text)
+
+    def test_backup_says_what_it_saved_in_a_sentence(self):
+        code, text = run(["backup", "--store", str(self.tmp)], [found("cable")], SimApp(self.flash))
+        self.assertEqual(code, 0, text)
+        self.assertRegex(text, r"Backup saved as “controller-\d{8}-\d{6}\.bin”\. The controller has the original firmware 1\.09\.")
+        self.assertIn("sha256 ", text)   # for the command line only
+
+    def test_installing_what_is_there_writes_nothing_and_says_so(self):
+        state.accept(self.tmp)
+        built = recipes.build(STOCK_A, ["cable_360"], **K)
+        f = bytearray(self.flash); f[image.BASE:image.APP_END] = built
+        dev = SimBoot(bytes(f))
+        code, text = run(["patch", "--tweaks", "cable_360", "--write", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], dev)
+        self.assertEqual(code, 0, text)
+        self.assertIn("The controller already has this firmware, so nothing was written.", text)
+        self.assertEqual([o for o in dev.ops if o[0] != "read"], [])
 
     def test_report_uses_the_newest_backups_firmware_state(self):
         code, text = run(["report", "--store", str(self.tmp)], [found("cable")])

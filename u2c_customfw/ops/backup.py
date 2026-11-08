@@ -10,7 +10,7 @@ from .. import protocol
 from ..firmware import image, recipes
 from ..protocol import boot
 from . import probe, shown
-from .plan import OpError
+from .plan import OpError, listed
 
 CABLE_MODES = ("cable", "cable_360")
 
@@ -94,7 +94,7 @@ def describe(state: recipes.State) -> str:
     titles = [recipes.RECIPES[k].title for k in shown(state.recipes)]
     if not titles:
         return "the original firmware 1.09"
-    return "firmware 1.09 with " + (titles[0] if len(titles) == 1 else f"{', '.join(titles[:-1])} and {titles[-1]}")
+    return "firmware 1.09 with " + listed(titles)
 
 
 def find_original(backup: Backup, store: Path) -> bytes | None:

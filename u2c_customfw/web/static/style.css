@@ -117,6 +117,7 @@ main{flex:1;overflow:auto;padding:18px 22px 22px}
 .dock .tog{background:none;color:var(--dim);padding:4px 8px;font-weight:500;font-size:13px}
 .dock pre{margin:10px 0 0;background:#07090c;border:1px solid var(--line);border-radius:8px;padding:9px 12px;height:140px;overflow:auto;white-space:pre-wrap;color:#cfd5dc}
 .dock pre .e{color:var(--warn)}
+.dock .msg{margin:6px 0 0;font-size:14px}
 
 dialog{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:16px;padding:24px;width:min(500px,calc(100% - 32px));box-shadow:0 24px 60px rgba(0,0,0,.6);max-height:92vh;overflow:auto}
 dialog::backdrop{background:rgba(0,0,0,.62)}

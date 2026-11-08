@@ -57,6 +57,7 @@ class Runner:
 
         def say(text):
             log.info("  %s", text)
+            args.last = str(text)   # the last sentence is the task's result
             self.push({"type": "log", "text": str(text)})
         args.say = say
         args.hint = lambda text: None  # command-line advice, meaningless in the app
@@ -67,7 +68,7 @@ class Runner:
     def _run(self, name, args):
         try:
             ACTIONS[name](args, self.store)
-            end = {"type": "done"}
+            end = {"type": "done", "message": getattr(args, "last", ""), "unchanged": getattr(args, "unchanged", False)}
         except cli.Exit as e:
             end = {"type": "error", "message": e.msg}
         except (OpError, fetch.FetchError, PermissionDenied) as e:

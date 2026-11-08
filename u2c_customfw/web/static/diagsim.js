@@ -10,6 +10,8 @@
     document.getElementById("diag-fetch").textContent += path + " ";
     const device = window.simReplugged ? "bluetooth_xbox" : { bt: "bluetooth_xbox", btstock: "bluetooth", cable: "cable", web: "cable", none: "bluetooth_xbox", background: "bluetooth_xbox", noext: "bluetooth_xbox", busy: "bluetooth_xbox" }[mode];
     if (path.startsWith("/api/restore")) document.getElementById("diag-posted").textContent += options.body + " ";
+    if (query.get("job") && /^\/api\/(backup|patch|restore)/.test(path)) return new Response('{"started": "job"}', { status: 202 });
+    if (query.get("job") && path.startsWith("/api/events")) return new Response(JOB_EVENTS[query.get("job")].map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""), { status: 200 });
     if (path.startsWith("/api/settings") && options && options.method === "POST") {
       document.getElementById("diag-posted").textContent += options.body + " ";
       if (query.get("slow")) await new Promise((r) => setTimeout(r, 2000));
@@ -29,6 +31,13 @@
     return answer;
   };
 
+  const JOB_EVENTS = {  // &job=: what a task's event stream says, without running it
+    backup: [{ type: "log", text: "Backup saved as “controller-20261108-012334.bin”. The controller has the original firmware 1.09." }, { type: "done", message: "Backup saved as “controller-20261108-012334.bin”. The controller has the original firmware 1.09.", unchanged: false }],
+    check: [{ type: "done", message: "The check passed and nothing was written. Installing changes 4,452 bytes of the firmware, with Dimmer LEDs.", unchanged: false }],
+    install: [{ type: "progress", label: "write", done: 50, total: 100 }, { type: "done", message: "Installed. Unplug the controller and connect it again.", unchanged: false }],
+    unchanged: [{ type: "done", message: "The controller already has this firmware, so nothing was written.", unchanged: true }],
+    refused: [{ type: "error", message: "This controller has firmware 1.08, and this app only supports 1.09, so nothing was written." }],
+  };
   const PAD = { type: "state", connected: true, name: "8BitDo Ultimate 2C (X/S)", category: "Xbox One", extended: true, localities: ["default", "left", "right"], transport: "Bluetooth Low Energy", foreground: true };
   if (query.get("battery")) { const [level, state] = query.get("battery").split(","); PAD.battery = { level: +level, state }; }
   const STATES = { bt: PAD, btstock: PAD, busy: PAD, boot: PAD, cable: { ...PAD, name: "Xbox 360 Controller", category: "Xbox 360", transport: "USB" }, none: { type: "state", connected: false },
@@ -36,6 +45,7 @@
   const REST = { lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, pressed: [] };
   const input = (e) => window.u2cDiagnostics({ type: "input", ...REST, ...e });
   const snap = () => { document.getElementById("diag-snap").textContent += document.getElementById("test-body").innerHTML.includes("disabled") ? " disabled " : ""; document.getElementById("diag-snap").textContent += document.getElementById("test-body").textContent; };
+  const snapIdle = () => { document.getElementById("diag-snap").textContent += $("idle").hidden ? "" : $("idle").textContent; };
   const clickOp = (op) => document.querySelector(`[data-op="${op}"]`).click();
   const press = () => { input({ pressed: ["A"] }); input({ lx: 0.8, ly: 0.6 }); input({ lx: 0.8, ly: 0.6, lt: 0.5 }); };
   const UNANSWERED = ["vibrate", "vibrateleave", "vibratestate", "lateresult"];
@@ -75,6 +85,9 @@
     restoreask: () => $("restore-backup").click(),
     restorecheck: () => $("restore-backup-dry").click(),
     installask: () => $("patch-write").click(),
+    backupjob: () => $("backup").click(),
+    checkjob: () => runJob("Checking…", "/api/patch", { tweaks: ["dim_leds"], base: "backup", write: false }, "Check passed"),
+    installjob: () => { $("patch-write").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); setTimeout(snapIdle, 0); }, 200); },
     resetyes: () => { $("settings-reset").click(); setTimeout(() => { $("confirm-yes").click(); $("confirm").onclose(); }, 200); },  // headless Chrome holds back the close event
     ringlevel: () => document.querySelector('[data-live="1"]').click(),
     ringreread: () => { document.querySelector('[data-live="1"]').click(); setTimeout(refresh, 300); },

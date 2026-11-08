@@ -118,11 +118,12 @@
 
 <footer class="dock" id="dock">
   <div class="row">
-    <span class="st"><i></i><span id="dock-status">Ready</span></span>
+    <span class="st"><i></i><span id="dock-status" aria-live="polite">Ready</span></span>
     <span class="idle" id="idle">No task running.</span>
-    <div class="prog" id="prog" hidden><i id="prog-bar"></i></div><span class="pc" id="pc" hidden></span>
-    <button class="tog" id="log-toggle" hidden>Hide log ▾</button>
+    <div class="prog" id="prog" role="progressbar" aria-label="Progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden><i id="prog-bar"></i></div><span class="pc" id="pc" hidden></span>
+    <button class="tog" id="log-toggle" hidden>Show log ▴</button>
   </div>
+  <p class="msg" id="dock-message" aria-live="polite" hidden></p>
   <pre id="log" hidden></pre>
 </footer>
 

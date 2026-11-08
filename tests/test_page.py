@@ -605,6 +605,46 @@ class ConfirmTest(PageCase):
         self.assertIn("hidden", dom.find("confirm-warranty").attrs)
 
 
+class DockTest(PageCase):
+    def end(self, scenario, job):
+        dom = self.server.dom(f"&diagsim=boot&job={job}&scenario={scenario}")
+        return dom, dom.find("dock-status").all_text(), dom.find("dock-message")
+
+    def test_a_backup_says_what_it_saved(self):
+        dom, status, message = self.end("backupjob", "backup")
+        self.assertEqual(status, "Backup saved")
+        self.assertNotIn("hidden", message.attrs)
+        self.assertIn("Backup saved as “controller-", message.all_text())
+        self.assertIn("hidden", dom.find("log").attrs)   # the log starts collapsed
+        self.assertIn("Show log", dom.find("log-toggle").all_text())
+
+    def test_a_check_says_it_passed_and_what_installing_changes(self):
+        _, status, message = self.end("checkjob", "check")
+        self.assertEqual(status, "Check passed")
+        self.assertIn("The check passed and nothing was written. Installing changes", message.all_text())
+
+    def test_a_write_says_not_to_disconnect_and_then_what_to_do(self):
+        dom, status, message = self.end("installjob", "install")
+        self.assertIn("Do not disconnect the controller or quit the app until this finishes.", dom.find("diag-snap").all_text())
+        self.assertEqual(status, "Tweaks installed")
+        self.assertTrue(message.all_text().startswith("Installed. Unplug the controller and connect it again."))
+        self.assertIn("hidden", dom.find("idle").attrs)
+
+    def test_a_refusal_is_not_completed_with_its_reason_in_plain_text(self):
+        dom, status, message = self.end("checkjob", "refused")
+        self.assertEqual(status, "Not completed")
+        self.assertIn("err", dom.find("dock").classes())
+        self.assertIn("nothing was written", message.all_text())
+
+    def test_nothing_to_write_isnt_called_installed(self):
+        self.assertEqual(self.end("checkjob", "unchanged")[1], "No changes needed")
+
+    def test_the_dock_is_announced(self):
+        dom, _, _ = self.end("checkjob", "check")
+        self.assertEqual(dom.find("dock-status").attrs.get("aria-live"), "polite")
+        self.assertEqual((dom.find("prog").attrs.get("role"), dom.find("prog").attrs.get("aria-valuenow")), ("progressbar", "100"))
+
+
 class HelpTest(PageCase):
     def test_help_describes_diagnostics(self):
         text = self.server.dom().find("help").all_text()
