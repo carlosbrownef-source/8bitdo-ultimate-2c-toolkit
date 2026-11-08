@@ -569,7 +569,7 @@ class ControllerTestCard(PageCase):
 
     def test_reading_the_same_firmware_keeps_the_choice_made(self):
         dom, _, _ = self.body("boot&tweaks=1&scenario=keptchoice")
-        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ring_1")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,cable_360,ring_5")
 
     def test_original_firmware_keeps_the_suggested_tweaks(self):
         dom, _, _ = self.body("boot&scenario=installed")
@@ -612,7 +612,7 @@ class ControllerTestCard(PageCase):
 
     def test_card_explains_when_the_tweak_is_missing(self):
         dom, _, _ = self.body("cable")
-        self.assertIn("Home ring brightness", dom.find("ring-note").all_text())
+        self.assertIn("Install the tweaks", dom.find("ring-note").all_text())
         self.assertIn("disabled", self.ring_button(dom, 1).attrs)
 
     def test_card_explains_firmware_from_an_earlier_version(self):
@@ -727,7 +727,12 @@ class ConfirmTest(PageCase):
             line = next((n for n in row.walk() if n.tag == "small"), None)
             self.assertIsNotNone(line, row.all_text())
             self.assertTrue(line.all_text().endswith("."), line.all_text())
-        self.assertNotIn("(", dom.find("tab-firmware").all_text().split("Home ring brightness")[0])
+        self.assertNotIn("(", dom.find("tab-firmware").all_text().split("Take the original firmware")[0])
+        for row in rows:   # each explanation is behind its (i) button, closed
+            info = next(n for n in row.walk() if "info" in n.classes())
+            self.assertEqual((info.tag, info.attrs.get("aria-expanded")), ("button", "false"))
+            self.assertIn("hidden", next(n for n in row.walk() if n.tag == "small").attrs)
+        self.assertFalse(any("data-ring" in n.attrs for n in dom.find("tab-firmware").walk()))   # the ring is set in Settings only
         chips = [" ".join(n.text) for n in dom.find("confirm-chips").children]
         self.assertIn("Rumble over Bluetooth", chips)
 
@@ -783,7 +788,6 @@ class AccessibilityTest(PageCase):
 
     def test_segmented_controls_and_chips_say_which_is_chosen(self):
         dom = self.server.dom()
-        self.assertEqual(self.pressed(dom, "data-ring"), {"": "true", "ring_25": "false", "ring_5": "false", "ring_1": "false", "ring_0_1": "false", "ring_off": "false"})
         self.assertEqual(self.pressed(dom, "data-base"), {"backup": "true", "download": "false"})
         dom = self.server.dom(SettingsTabTest.READY + "&mapped=1")
         vibration = next(n for n in dom.find("settings-cards").walk() if n.attrs.get("data-field") == "vibration")
@@ -826,7 +830,7 @@ class HelpTest(PageCase):
         text = self.server.dom().find("help").all_text()
         for fact in ("about 1.25 ms sooner", "a worn button could occasionally register twice.",
                      "In rare cases it could make the controller stop responding. This hasn't been observed.",
-                     "Installing a different level replaces a saved one."):
+                     "Installing keeps the ring's level as it is, and you change it in the Settings tab."):
             self.assertIn(fact, text)
         for promise in ("saves battery", "battery life"):   # not claimed until it's measured
             self.assertNotIn(promise, text.lower())
@@ -834,9 +838,9 @@ class HelpTest(PageCase):
             self.assertNotIn(promise, (Path(__file__).parent.parent / "README.md").read_text().lower())
         self.assertNotIn("about 1 ms", text)
         self.assertIn("Backups are kept on this Mac, in ~/Library/Application Support/u2c-customfw.", text)
-        self.assertEqual(text.count("It needs the Home ring's code"), 2)   # Controller settings and Fixes
+        self.assertEqual(text.count("It needs the Home ring's code."), 3)   # Battery alerts, Controller settings and Fixes
         order = [text.rindex(t + ".") for t in ("Xbox Series X|S controller over Bluetooth", "Rumble over Bluetooth", "Xbox 360 controller over cable", "Dimmer LEDs",
-                                              "Battery alerts", "Controller settings", "Fixes", "Processor rest", "Finer stick movement", "Faster button reading", "Home ring brightness")]
+                                              "Battery alerts", "Controller settings", "Fixes", "Processor rest", "Finer stick movement", "Faster button reading")]
         self.assertEqual(order, sorted(order))
 
     def test_the_hero_lists_the_tweaks_in_the_toggles_order(self):

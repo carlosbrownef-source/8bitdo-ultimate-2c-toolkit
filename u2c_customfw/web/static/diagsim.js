@@ -78,7 +78,7 @@
     report: () => document.getElementById("report-open").click(),
     replugged: () => { window.simReplugged = true; },
     installed: () => { document.getElementById("diag-snap").textContent = tweaks().join(); },
-    keptchoice: () => { document.querySelector('[data-ring="ring_1"]').click(); refresh(); setTimeout(() => { document.getElementById("diag-snap").textContent = tweaks().join(); }, 1000); },
+    keptchoice: () => { document.querySelector('.tweak[value="cable_360"]').click(); refresh(); setTimeout(() => { document.getElementById("diag-snap").textContent = tweaks().join(); }, 1000); },
     noalerts: () => { document.querySelector('.tweak[value="battery_alerts"]').click(); document.querySelector('.tweak[value="settings"]').click(); document.querySelector('.tweak[value="fixes"]').click(); document.querySelector('.tweak[value="cpu_rest"]').click(); document.getElementById("diag-snap").textContent = tweaks().join(); },
     setvibration: () => document.querySelector('[data-field="vibration"] [data-value="50"]').click(),
     setandsave: () => { document.querySelector('[data-field="vibration"] [data-value="50"]').click(); setTimeout(() => $("settings-save").click(), 200); },

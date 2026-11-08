@@ -1,7 +1,7 @@
 # U2C Firmware Toolkit
 
 <p align="center">
-  <img src="docs/images/firmware.png" alt="The Firmware tab, showing firmware 1.09 with its tweaks, the backup and restore steps and the Home ring brightness" width="420">
+  <img src="docs/images/firmware.png" alt="The Firmware tab, showing firmware 1.09 with its tweaks, the backup and restore steps" width="420">
   <img src="docs/images/diagnostics.png" alt="The Diagnostics tab, testing a controller over Bluetooth" width="420">
 </p>
 
@@ -62,7 +62,7 @@ The Settings tab changes the controller while it's connected by cable, once the 
 - **Power:** how long it stays on, connected, with nobody using it, and whether it vibrates on connecting.
 - **Button remapping:** what each button does, or nothing. Home and the triggers can't be changed.
 - **Calibration:** a guide to the controller's own stick calibration. The app doesn't send it anything.
-- **Home ring:** its brightness. This also works over Bluetooth, with Rumble over Bluetooth installed.
+- **Home ring:** its brightness, applied at once and kept with Save Ring Level. This also works over Bluetooth, with Rumble over Bluetooth installed.
 
 With every setting at its default, the sticks, triggers and buttons run the firmware's original code. The live view is only available in the Mac app; the settings work anyway.
 
@@ -84,14 +84,14 @@ The controller test is only available in the Mac app for now, because it uses ma
 | Xbox Series X\|S controller over Bluetooth | Over Bluetooth the controller presents as an Xbox Series X\|S pad (`045e:0b13`), so macOS's GameController framework handles it natively (name "8BitDo Ultimate 2C (X/S)"). Needs a re-pair afterwards (or macOS may still detect it as a HID device). |
 | Rumble over Bluetooth | Rumble works over Bluetooth (the original firmware switches the motors off in that mode). Needs the Xbox tweak as it uses its profile. In rare cases it could make the controller stop responding. This hasn't been observed. |
 | Xbox 360 controller over cable | Plugged in by cable it presents as a wired Xbox 360 pad (`045e:028e`), which Apple's own driver takes. It changes the least code of all the tweaks. |
-| Dimmer LEDs | Slightly lowers the brightness of the controller's three lights, by giving them weak drive strength. It is subtle: to really change the ring around the Home button, use Home ring brightness. |
-| Battery alerts | The ring blinks slowly while charging and quickly at 15 % or less, even if you turned it off. The motors give one short pulse when charging starts, one long pulse when it completes, and two short pulses at 5 % or less, again every 5 minutes. With this on and the brightness on Normal, the ring's code is installed at full brightness. |
-| Controller settings | Adds what the Settings tab changes. Needs the Home ring's code, which is installed at full brightness if you don't choose a level. |
+| Dimmer LEDs | Slightly lowers the brightness of the controller's three lights, by giving them weak drive strength. It is subtle: to really change the ring around the Home button, use Home Ring in the Settings tab. |
+| Battery alerts | The ring blinks slowly while charging and quickly at 15 % or less, even if you turned it off. The motors give one short pulse when charging starts, one long pulse when it completes, and two short pulses at 5 % or less, again every 5 minutes. Needs the Home ring's code. |
+| Controller settings | Adds what the Settings tab changes. Needs the Home ring's code. |
 | Fixes | Moving a stick counts as using the controller, which the original firmware only notices through buttons, so playing only with sticks no longer turns it off after 15 minutes. A dropped connection gets its full search time. Unplugging the cable in the Bluetooth position restarts the controller, so it finds the Mac at once. It also closes the firmware update over Bluetooth, which needs no encryption. Needs the Home ring's code. |
 | Processor rest | Over Bluetooth on battery, the original firmware keeps the processor busy in a loop. This stops it for up to 1 ms at a time between radio events, woken by the radio, the system timer or its own 1 ms timer. A watchdog restarts the controller if the main loop ever stops for 3 s. On by default. Needs the Home ring's code. |
 | Finer stick movement | The firmware ignores stick changes of up to 20 of about 4,000 steps, which makes slow movement advance in small jumps. This lowers that threshold to 14, just above the noise measured on one controller, and reads the sticks twice per report. A stick held still away from the centre may still move by one step now and then. Off by default. Needs the Home ring's code. |
 | Faster button reading | The firmware reads the buttons and triggers every 5 ms. This reads them every 2.5 ms, so a press arrives about 1.25 ms sooner on average. The time Home must be held and turbo's rate are rescaled to stay the same. About 100 fast taps on one controller showed no double presses, but the firmware has no other debounce, so a worn button could bounce. Off by default. |
-| Home ring brightness | Sets the ring around the Home button while connected: 25 %, 5 %, 1 %, 0.1 % or off (the percentage is PWM duty, not perceived brightness). It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. You can change the level at once with L4 + R4 on the controller, or in the Settings tab, and save it without installing anything. Installing a different level replaces a saved one. |
+| Home ring | The code that drives the ring around the Home button, installed with any tweak that needs it. Its level is set in the Settings tab or with L4 + R4: normal, 25 %, 5 %, 1 %, 0.1 % or off (the percentage is PWM duty, not perceived brightness). It still blinks while searching or pairing, at its usual brightness, and settles at your level once connected. Installing keeps the ring's level as it is. |
 
 Each tweak is a hash-checked set of byte edits to the stock v1.09 image; nothing else in the firmware changes, and the controller's bootloader, MAC, calibration and pairings are never written.
 

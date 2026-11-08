@@ -37,13 +37,13 @@ const CONTROLLER = ["cable", "cable_360", "boot"];
 let st = null, fw = null, reading = false, busy = false, base = "backup";
 
 const tweakBoxes = () => [...document.querySelectorAll(".tweak")];
-const ringButtons = () => [...document.querySelectorAll("#ring button")];
-const ringChoice = () => ringButtons().find((b) => b.classList.contains("on"));
+const RING_NAMES = { ring_normal: "normal", ring_25: "25 %", ring_5: "5 %", ring_1: "1 %", ring_0_1: "0.1 %", ring_off: "off" };
+let ringKept = "";  // the Home ring level installed, kept by the next install; the Settings tab changes it
 const RING_CODE_USERS = ["battery_alerts", "settings", "fixes", "stick_precision", "cpu_rest"];
 const needsRingCode = () => tweakBoxes().some((x) => RING_CODE_USERS.includes(x.value) && x.checked);
-const tweaks = () => [...tweakBoxes().filter((x) => x.checked).map((x) => x.value), ...(ringChoice().dataset.ring ? [ringChoice().dataset.ring] : needsRingCode() ? ["ring_normal"] : [])];
+const tweaks = () => [...tweakBoxes().filter((x) => x.checked).map((x) => x.value), ...(ringKept ? [ringKept] : needsRingCode() ? ["ring_normal"] : [])];
 const tweakTitles = () => [...tweakBoxes().filter((x) => x.checked).map((x) => x.parentElement.lastElementChild.firstChild.textContent),
-  ...(ringChoice().dataset.ring || needsRingCode() ? [`Home ring: ${ringChoice().textContent.toLowerCase()}`] : [])];
+  ...(ringKept || needsRingCode() ? [`Home ring: ${RING_NAMES[ringKept || "ring_normal"]}`] : [])];
 
 function lastBackup(names) {  // controller-YYYYMMDD-HHMMSS….bin, oldest first
   const m = names.length && names[names.length - 1].match(/controller-(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)/);
@@ -117,7 +117,6 @@ function render() {
   const xbox = tweakBoxes().find((x) => x.value === "bt_xbox"), rumble = tweakBoxes().find((x) => x.value === "bt_rumble");
   if (!xbox.checked) rumble.checked = false;
   tweakBoxes().forEach((x) => { x.disabled = busy || (x === rumble && !xbox.checked); x.parentElement.classList.toggle("off", x.disabled); });
-  ringButtons().forEach((b) => (b.disabled = busy));
   const installWhy = !tweaks().length ? "Choose at least one tweak." : !fw || fw.known !== false || on109 ? ""
     : fw.version ? "This app only installs tweaks over firmware 1.09." : "This firmware can't be identified. Restore your backup first.";
   $("choose-one").textContent = installWhy; $("choose-one").hidden = !installWhy;
@@ -281,8 +280,7 @@ function matchInstalled() {  // start from what's installed, so installing doesn
   if (!key || key === matched) return;
   matched = key;
   tweakBoxes().forEach((x) => (x.checked = fw.recipes.includes(x.value)));
-  const level = ringButtons().find((b) => fw.recipes.includes(b.dataset.ring)) || ringButtons()[0];
-  ringButtons().forEach((b) => setOn(b, b === level));
+  ringKept = fw.recipes.find((k) => k in RING_NAMES) || "";
 }
 
 let fwSeq = 0;
@@ -309,7 +307,13 @@ $("privacy-open").onclick = () => bridge().postMessage({ op: "privacy" });
 $("help-open").onclick = () => $("help").showModal();
 $("help-close").onclick = () => $("help").close();
 tweakBoxes().forEach((x) => (x.onchange = render));
-ringButtons().forEach((b) => (b.onclick = () => { ringButtons().forEach((o) => setOn(o, o === b)); render(); }));
+tweakBoxes().forEach((x) => {  // each explanation sits behind an (i) button next to the name
+  const name = x.parentElement.lastElementChild, line = name.querySelector("small"), b = document.createElement("button");
+  b.type = "button"; b.className = "info"; b.textContent = "i"; line.hidden = true;
+  b.setAttribute("aria-label", `About ${name.firstChild.textContent}`); b.setAttribute("aria-expanded", "false");
+  b.onclick = (e) => { e.preventDefault(); line.hidden = !line.hidden; b.setAttribute("aria-expanded", String(!line.hidden)); };
+  name.insertBefore(b, line);
+});
 document.querySelectorAll("[data-base]").forEach((b) => (b.onclick = () => {
   base = b.dataset.base; document.querySelectorAll("[data-base]").forEach((x) => setOn(x, x === b));
 }));

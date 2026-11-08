@@ -308,7 +308,7 @@ function ringAccess() {  // how the card can reach the controller, or why it can
   if (modes.some((m) => m === "cable" || m === "cable_360")) {
     if (!fw) return { note: "Reading the firmware…" };
     if (fw.outdated) return { note: "This firmware has the Home ring from an earlier version. Install the tweaks again to change it here." };
-    if (fw.ring_level === undefined || fw.ring_level === null) return { note: "To change the ring here, install a Home ring brightness in the Firmware tab." };
+    if (fw.ring_level === undefined || fw.ring_level === null) return { note: "Install the tweaks from the Firmware tab to change the ring here. Its code comes with Battery alerts, Controller settings, Fixes and Processor rest." };
     return { via: "cable" };
   }
   if (modes.includes("bluetooth_xbox")) return bridge() ? { via: "bluetooth" } : { note: "Over Bluetooth, this only works in the Mac app." };
