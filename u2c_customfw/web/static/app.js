@@ -64,10 +64,10 @@ function hero(devs, ctrl, boot) {
   else if (fw && fw.note) [title, note] = [!ctrl && bt ? "Connected over Bluetooth" : title, fw.note];
   else if (fw && fw.known) {
     title = fw.recipes.length ? "Firmware 1.09 with tweaks" : "Original firmware 1.09";
-    note = fw.version_from && fw.version_from !== "unknown" ? "Version read from the controller" : "";
+    note = IDENTIFIED[fw.version_from] ? `Identified from ${IDENTIFIED[fw.version_from]}` : "";
     chips = fw.tweaks;
   } else if (fw && fw.version && fw.version.toFixed(2) !== "1.09")
-    [cls, title, note] = ["bad", `Firmware ${fw.version.toFixed(2)} isn't supported`, "This app only works with firmware 1.09. Update the controller with 8BitDo's own updater first, or restore your backup."];
+    [cls, title, note] = ["bad", `Firmware ${fw.version.toFixed(2)} isn't supported`, "This app only works with firmware 1.09. Install 1.09 with 8BitDo's own updater, or restore your backup."];
   else if (fw && fw.version) [cls, title, note] = ["", "Unrecognised firmware 1.09", "It doesn't match the original firmware 1.09 or this app's tweaks, perhaps a test build or firmware modified outside this app. Installing tweaks replaces it with the original 1.09 plus the tweaks you choose."];
   else if (fw) [cls, title, note] = ["bad", "Unknown firmware", "It doesn't match the original firmware 1.09, with or without this app's tweaks. It may be another firmware version, which you can update with 8BitDo's own updater, or firmware modified outside this app, which restoring your backup replaces."];
 
@@ -160,8 +160,10 @@ function showTab(name) {
   render();
 }
 
-const VERSION_FROM = { "update record": "The controller's update record", "bank A hash": "The installed firmware", "bank B hash": "The second copy of the firmware", unknown: "It couldn't be determined" };
-const WHO = { 0x301b: "controller", 0x301c: "2.4 GHz dongle" };
+const IDENTIFIED = { "update record": "the controller's update record", "bank A hash": "the installed firmware", "bank B hash": "the second copy of the firmware" };
+const VERSION_FROM = { "update record": "The update record", "bank A hash": "The installed firmware", "bank B hash": "The second copy of the firmware", unknown: "Couldn't be identified" };
+const WHO = { 0x301b: "The controller", 0x301c: "The 2.4 GHz dongle" };  // the problem report keeps the number
+const tweakOrder = (key) => key.startsWith("ring") ? Infinity : tweakBoxes().findIndex((x) => x.value === key);  // as the toggles, the Home ring last
 const firmwareName = () => !fw.known ? "Unknown" : fw.recipes.length ? `1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}${fw.titles && fw.titles.length ? `: ${fw.titles.join(", ")}` : ""}` : "Original 1.09";
 function details() {
   const box = $("details-body"), inUpdateMode = !!st && st.devices.some((d) => d.mode === "boot");
@@ -171,11 +173,17 @@ function details() {
   if (fw.error) return say(fw.error);
   if (fw.note) return say(fw.note);
   const id = fw.boot_identity;
-  const rows = [["Firmware", firmwareName()], ["Version read from", VERSION_FROM[fw.version_from] || fw.version_from],
+  const titles = (fw.titles || []).map((t, i) => [tweakOrder(fw.recipes[i] || ""), t]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+  const rows = [["Firmware", !fw.known ? "Unknown" : fw.recipes.length ? [`1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}`, ...titles] : "Original 1.09"],
+    ["Identified from", VERSION_FROM[fw.version_from] || fw.version_from],
     ["Pending update", fw.pending ? "Yes. It could replace the tweaks the next time the controller starts." : "None"],
-    ["Update-mode identity", !inUpdateMode ? "Only available in update mode" : id == null ? "No answer" : `0x${id.toString(16)} · ${WHO[id] || "unknown device"}`]];
+    ["Device in update mode", !inUpdateMode ? "Only available in update mode" : id == null ? "No answer" : WHO[id] || "An unknown device"]];
   const dl = document.createElement("dl"); dl.className = "rows";
-  for (const [k, v] of rows) { const t = document.createElement("dt"), d = document.createElement("dd"); t.textContent = k; d.textContent = v; dl.append(t, d); }
+  for (const [k, v] of rows) {  // a list is one line each
+    const t = document.createElement("dt"), d = document.createElement("dd"); t.textContent = k;
+    for (const line of [].concat(v)) { const l = document.createElement("div"); l.textContent = line; d.append(l); }
+    dl.append(t, d);
+  }
   box.innerHTML = ""; box.append(dl);
 }
 
@@ -190,7 +198,7 @@ function line(text, bad) {
 
 async function runJob(label, path, body, doneText) {  // doneText: the status when it worked, such as "Backup saved"
   busy = true; render();
-  $("log").textContent = ""; $("log").hidden = true; $("log-toggle").hidden = false; $("log-toggle").textContent = "Show log ▴";
+  $("log").textContent = ""; $("log").hidden = true; $("log-toggle").hidden = false; $("log-toggle").textContent = "Show Log ▴";
   $("dock").className = "dock run"; $("dock-status").textContent = label; $("dock-message").hidden = true;
   $("idle").textContent = "Do not disconnect the controller or quit the app until this finishes."; $("idle").hidden = !(body && body.write);
   $("prog").hidden = $("pc").hidden = false; setPct(0);
@@ -305,7 +313,7 @@ ringButtons().forEach((b) => (b.onclick = () => { ringButtons().forEach((o) => s
 document.querySelectorAll("[data-base]").forEach((b) => (b.onclick = () => {
   base = b.dataset.base; document.querySelectorAll("[data-base]").forEach((x) => setOn(x, x === b));
 }));
-$("log-toggle").onclick = () => { const l = $("log"); l.hidden = !l.hidden; $("log-toggle").textContent = l.hidden ? "Show log ▴" : "Hide log ▾"; };
+$("log-toggle").onclick = () => { const l = $("log"); l.hidden = !l.hidden; $("log-toggle").textContent = l.hidden ? "Show Log ▴" : "Hide Log ▾"; };
 
 $("backup").onclick = () => runJob("Backing up…", "/api/backup", null, "Backup saved");
 $("patch-dry").onclick = () => runJob("Checking…", "/api/patch", { tweaks: tweaks(), base, write: false }, "Check passed");

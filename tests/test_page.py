@@ -163,8 +163,10 @@ class TabsTest(PageCase):
         self.assertIn("hidden", dom.find("strip-alert").attrs)
 
     def test_details_in_update_mode(self):
-        text = self.server.dom("&diagsim=boot").find("firmware-details").all_text()
-        self.assertIn("0x301b · controller", text)
+        text = " ".join(self.server.dom("&diagsim=boot").find("firmware-details").all_text().split())
+        self.assertIn("Device in update mode The controller", text)
+        self.assertNotIn("0x301b", text)   # the problem report keeps the number
+        self.assertIn("Identified from The installed firmware", text)   # the simulation has no update record
         self.assertIn("Pending update", text)
         self.assertIn("None", text)
 
@@ -204,6 +206,16 @@ class TabsTest(PageCase):
         for id_ in ("pre-backup", "pre-boot", "patch-dry", "patch-write", "choose-one"):
             self.assertIsNotNone(row.find(id_), id_)
         self.assertIn("Installing modified firmware probably voids the controller's warranty.", row.all_text())
+
+    def test_the_hero_says_where_the_version_came_from(self):
+        self.assertEqual(self.hero("")[2], "Identified from the installed firmware")
+
+    def test_buttons_are_title_case(self):
+        dom = self.server.dom()
+        labels = {id_: dom.find(id_).all_text() for id_ in ("backup", "patch-dry", "patch-write", "restore-backup-dry", "settings-save", "settings-reset", "report-open", "force-open", "force-yes")}
+        self.assertEqual(labels, {"backup": "Back Up", "patch-dry": "Check First", "patch-write": "Install Tweaks…", "restore-backup-dry": "Check First",
+                                  "settings-save": "Save to Controller", "settings-reset": "Reset to Defaults…", "report-open": "Create Problem Report",
+                                  "force-open": "Install Firmware 1.09 Anyway…", "force-yes": "Install Anyway"})
 
     def test_the_back_up_step_asks_for_the_cable_only_without_a_controller(self):
         self.assertIn("hidden", self.server.dom().find("backup-connect").attrs)
@@ -536,8 +548,8 @@ class ControllerTestCard(PageCase):
         self.assertIn("disabled", self.direct_button(body).attrs)
 
     def test_firmware_details_name_the_tweaks(self):
-        text = self.server.dom("&diagsim=boot&tweaks=1").find("firmware-details").all_text()
-        self.assertIn("1.09 with 2 tweaks: Dimmer LEDs, Home ring: 5 %", text)
+        text = " ".join(self.server.dom("&diagsim=boot&tweaks=1").find("firmware-details").all_text().split())
+        self.assertIn("Firmware 1.09 with 2 tweaks Dimmer LEDs Home ring: 5 %", text)   # one per line
 
     def test_a_replugged_controller_is_noticed_on_the_tab(self):
         _, _, text = self.body("boot&scenario=replugged", budget=7000)
@@ -733,7 +745,7 @@ class DockTest(PageCase):
         self.assertNotIn("hidden", message.attrs)
         self.assertIn("Backup saved as “controller-", message.all_text())
         self.assertIn("hidden", dom.find("log").attrs)   # the log starts collapsed
-        self.assertIn("Show log", dom.find("log-toggle").all_text())
+        self.assertIn("Show Log", dom.find("log-toggle").all_text())
 
     def test_a_check_says_it_passed_and_what_installing_changes(self):
         _, status, message = self.end("checkjob", "check")
@@ -785,14 +797,14 @@ class AccessibilityTest(PageCase):
 
     def test_the_vibration_buttons_name_the_motors(self):
         text = self.server.dom("&diagsim=bt").find("test-body").all_text()
-        self.assertIn("Left motor", text)
-        self.assertIn("Right motor", text)
+        self.assertIn("Left Motor", text)
+        self.assertIn("Right Motor", text)
 
 
 class SmallerTest(PageCase):
     def test_the_firmware_source_is_capitalised_like_the_other_choices(self):
         dom = self.server.dom()
-        self.assertEqual([" ".join(n.text) for n in dom.walk() if "data-base" in n.attrs], ["Your backup", "8BitDo's server"])
+        self.assertEqual([" ".join(n.text) for n in dom.walk() if "data-base" in n.attrs], ["Your Backup", "8BitDo's Server"])
 
     def test_back_up_steps_back_once_there_is_a_backup(self):
         self.assertIn("sec", self.server.dom().find("backup").classes())
@@ -839,9 +851,9 @@ class HelpTest(PageCase):
         self.assertIn("macOS may ask for your permission", text)
         self.assertIn("Diagnostics", text)
         after = text[text.index("Diagnostics"):]
-        for moved in ("Controller test", "Firmware details", "Create a problem report", "Install firmware 1.09 anyway"):
+        for moved in ("Controller test", "Firmware details", "Create Problem Report", "Install Firmware 1.09 Anyway"):
             self.assertIn(moved, after)
-        self.assertNotIn("Install firmware 1.09 anyway", text[:text.index("Diagnostics")])
+        self.assertNotIn("Install Firmware 1.09 Anyway", text[:text.index("Diagnostics")])
 
 
 class UnknownFirmwareTest(PageCase):
