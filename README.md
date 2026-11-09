@@ -22,12 +22,15 @@ Out of the box, macOS and most Mac games see the Ultimate 2C as a generic HID de
 
 The app installs 8BitDo's own firmware with the tweaks you choose, small edits that change how the controller and the dongle behave. With them:
 
-- **Works as a native controller.** Over Bluetooth it presents itself as an Xbox Series X|S controller, by cable and through the 2.4 GHz dongle as an Xbox 360 controller (through the dongle, at up to 1,000 reports a second), so macOS and its games recognise it every way.
-- **Rumble over Bluetooth**, which the original firmware doesn't have.
-- **Adjustable light.** Dim the ring around the Home button or turn it off, from the app or with L4 + R4.
-- **Battery alerts** with the ring and the motors when the battery is low, and when charging starts and completes.
-- **Settings that change at once**: dead zones, stick and trigger ranges, vibration strength, L4 and R4, button remapping and the power-off time.
-- **Fewer interruptions and a resting processor**: playing only with the sticks no longer turns it off, and over Bluetooth the processor rests between radio events.
+| Feature | What it does |
+| --- | --- |
+| **Native controller** | Over Bluetooth it presents itself as an Xbox Series X\|S controller, by cable and through the 2.4 GHz dongle as an Xbox 360 controller (through the dongle, at up to 1,000 reports a second), so macOS and its games recognise it every way. |
+| **Rumble over Bluetooth** | Games can make it vibrate over Bluetooth, which the original firmware doesn't allow. |
+| **Adjustable light** | Dim the ring around the Home button or turn it off, from the app or with L4 + R4. |
+| **Battery alerts** | The ring and the motors tell you when the battery is low, and when charging starts and completes. |
+| **Settings that change at once** | Change the dead zones, the stick and trigger ranges, the vibration strength, L4 and R4, the button layout and the power-off time from the app, without installing anything again. |
+| **Fewer interruptions** | Playing only with the sticks no longer turns it off, a lost connection gets its full minute to come back, and unplugging the cable reconnects it over Bluetooth at once. |
+| **Processor rest** | Over Bluetooth, the processor rests between radio events instead of running without a pause, and a watchdog restarts the controller if it ever stops responding. |
 
 The app itself also tests the controller, backs up the controller and the dongle, and restores your backup or 8BitDo's original firmware at any time.
 
