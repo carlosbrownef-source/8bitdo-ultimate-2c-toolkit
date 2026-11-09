@@ -20,13 +20,16 @@ Out of the box, macOS and most Mac games see the Ultimate 2C as a generic HID de
 
 ## What it does
 
+The app installs 8BitDo's own firmware with the tweaks you choose, small edits that change how the controller and the dongle behave. With them:
+
 - **Works as a native controller.** Over Bluetooth it presents itself as an Xbox Series X|S controller, by cable and through the 2.4 GHz dongle as an Xbox 360 controller (through the dongle, at up to 1,000 reports a second), so macOS and its games recognise it every way.
 - **Rumble over Bluetooth**, which the original firmware doesn't have.
 - **Adjustable light.** Dim the ring around the Home button or turn it off, from the app or with L4 + R4.
 - **Battery alerts** with the ring and the motors when the battery is low, and when charging starts and completes.
 - **Settings that change at once**: dead zones, stick and trigger ranges, vibration strength, L4 and R4, button remapping and the power-off time.
 - **Fewer interruptions and a resting processor**: playing only with the sticks no longer turns it off, and over Bluetooth the processor rests between radio events.
-- **Tests, backs up and restores** the controller and the dongle, and goes back to 8BitDo's original firmware at any time.
+
+The app itself also tests the controller, backs up the controller and the dongle, and restores your backup or 8BitDo's original firmware at any time.
 
 It works with the **Ultimate 2C Wireless on firmware 1.09** and its **2.4 GHz dongle on firmware 1.03**, on Macs with Apple silicon or Intel and macOS 13 or later. It doesn't work with other models. [docs/tweaks.md](docs/tweaks.md) explains each change in detail.
 
