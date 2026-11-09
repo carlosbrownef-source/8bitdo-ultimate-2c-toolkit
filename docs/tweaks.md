@@ -21,6 +21,6 @@ Each tweak is a hash-checked set of byte edits to the original firmware 1.09; no
 
 | Tweak | Effect |
 |---|---|
-| Xbox 360 controller over 2.4 GHz | With the controller connected through it, the dongle presents as a wired Xbox 360 pad (`045e:028e`, class `ff`), which Apple's own driver takes. Its bcdDevice becomes `0x0103` instead of `0x0114`, so the app can tell a paired dongle from the controller by cable without reading it; Apple's driver matches on vendor, product and interface class only. 9 bytes of its X-input device descriptor. |
+| Xbox 360 controller over 2.4 GHz | With the controller connected through it, the dongle presents as a wired Xbox 360 pad (`045e:028e`, class `ff`), which Apple's own driver takes, at up to 1,000 reports a second. Its bcdDevice becomes `0x0103` instead of `0x0114`, so the app can tell a paired dongle from the controller by cable without reading it; Apple's driver matches on vendor, product and interface class only. 9 bytes of its X-input device descriptor. |
 
 The app puts the dongle in update mode by itself whenever it writes; [SAFEGUARDS.md](../SAFEGUARDS.md) describes how it checks and writes the dongle. With the controller connected through the dongle, the app reads the dongle but changes nothing. The controller's own firmware can only be read by cable.

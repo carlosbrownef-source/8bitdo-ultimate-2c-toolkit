@@ -65,7 +65,8 @@ class DisclaimerTest(unittest.TestCase):
         self.assertIn("written with an AI assistant (Opus 5.5)", text[:text.index("## Install")])
         self.assertIn("(DISCLAIMER.md)", text[:text.index("## Install")])
         self.assertIn("Not affiliated with or endorsed by 8BitDo", text)
-        order = [text.index(h) for h in ("## What it does", "## Install", "## Use", "## Diagnostics", "## What the tweaks do", "## Credits", "## License")]
+        self.assertIn("(SAFEGUARDS.md)", text[:text.index("## Install")])
+        order = [text.index(h) for h in ("## What it does", "## Install", "## Use", "## Documentation", "## Credits", "## License")]
         self.assertEqual(order, sorted(order))
 
     def test_one_warranty_sentence(self):

@@ -4,10 +4,10 @@
 
 ### macOS won't open the app
 
-The app isn't signed, so macOS blocks it the first time. Open **System Settings → Privacy & Security**, scroll to the message about the app and click **Open Anyway**. Right-click → Open no longer works on current macOS. You can also remove the app from quarantine in Terminal:
+The app isn't signed, so macOS blocks it the first time. Open **System Settings → Privacy & Security**, scroll to the message about the app and click **Open Anyway**. Right-click → Open no longer works on current macOS. You can also remove the app from quarantine in Terminal, using the path where you put it:
 
 ```sh
-xattr -dr com.apple.quarantine "/Applications/Firmware Toolkit.app"
+xattr -dr com.apple.quarantine "path/to/Firmware Toolkit.app"
 ```
 
 ### The app doesn't see the controller or the dongle
@@ -34,7 +34,7 @@ Yes. The bootloader, which runs update mode, is never modified, so Restore alway
 
 ### Will 8BitDo's own apps still work?
 
-Probably not. With the tweaks installed, the controller and the dongle report themselves differently, so the Firmware Updater and Ultimate Software may not recognise them. Restore the original firmware first if you need them.
+Probably not. With the tweaks installed, the controller and the dongle report themselves differently, so the Firmware Updater and Ultimate Software may not recognise them.
 
 ## Compatibility
 
@@ -54,7 +54,7 @@ Out of the box, macOS and most Mac games see the Ultimate 2C as a generic HID de
 
 ### Does the app run on Linux?
 
-Not yet. The only part that depends on the operating system is `u2c_customfw/transport/`, and [porting.md](porting.md) explains how to port it.
+No, only macOS. The only part that depends on the operating system is `u2c_customfw/transport/`, and [porting.md](porting.md) explains how to port it.
 
 ### Why are there three names?
 
