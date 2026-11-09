@@ -52,6 +52,10 @@ The firmware of the controller and the dongle is neither encrypted nor signed: 8
 
 Out of the box, macOS and most Mac games see the Ultimate 2C as a generic HID device, not as a standard controller, and its dongle has the same problem. Windows doesn't need this: it is more flexible about detecting Xbox 360-compatible controllers by cable, and it supports Xbox 360 controllers over Bluetooth, which macOS doesn't.
 
+### Does a tweaked controller work on Windows or Linux?
+
+The tweaks were made for the Mac, but they live in the controller, so they go with it. A tweaked controller has been used on Linux, where it shows up as an Xbox One controller. It hasn't been tested on Windows yet, though it should behave the same. If you try it, feedback is welcome, and you can always restore the original firmware.
+
 ### Does the app run on Linux?
 
 No, only macOS. The only part that depends on the operating system is `u2c_customfw/transport/`, and [porting.md](porting.md) explains how to port it.
