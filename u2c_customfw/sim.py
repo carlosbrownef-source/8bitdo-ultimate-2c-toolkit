@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Simulated devices that answer like the controller's firmware and bootloader, for tests and U2C_SIM=1 UI checks."""
+import time
+
 from . import settings as settings_record
 from .protocol.boot import crc16
 
@@ -9,7 +11,7 @@ class SimApp:
 
     def __init__(self, flash: bytes, needs_session=False, needs_unprotect=False):
         self.flash, self.open, self.unprot, self.sent = bytes(flash), not needs_session, needs_unprotect, []
-        self.drop_saves, self.mapping, self.dead_zone_off = False, {}, None
+        self.drop_saves, self.mapping, self.dead_zone_off, self.reloading_until = False, {}, None, 0.0
         kept = settings_record.parse(self.flash[settings_record.SECTOR:settings_record.SECTOR + settings_record.SIZE]) if len(self.flash) > 0x7A000 else None
         self.fields = [(kept or settings_record.DEFAULTS)[f.name] for f in settings_record.FIELDS]  # the settings in its RAM
 
@@ -31,6 +33,8 @@ class SimApp:
 
     def _short_command(self, req: bytes):
         cmd = req[3]
+        if 0x54 <= cmd <= 0x58 and time.monotonic() < self.reloading_until:
+            return None   # settings.c ignores them until its next 100 ms pass has read the record again
         if cmd == 0x21:
             self.open = not self.unprot
             return bytes([0x02, 0x22]).ljust(64, b"\0")
@@ -44,6 +48,7 @@ class SimApp:
         elif cmd == 0x5A:
             kept = settings_record.parse(self.flash[settings_record.SECTOR:settings_record.SECTOR + settings_record.SIZE])
             self.fields = [(kept or settings_record.DEFAULTS)[f.name] for f in settings_record.FIELDS]
+            self.reloading_until = time.monotonic() + 0.1
         elif cmd == 0x57:
             self.mapping[req[4]] = int.from_bytes(req[5:9], "little")
         elif cmd == 0x58:

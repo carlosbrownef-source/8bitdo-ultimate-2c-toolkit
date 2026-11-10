@@ -9,6 +9,7 @@ from ..protocol import app
 from .plan import OpError
 
 CONFIRM_SECONDS = 1.0
+PASS = 0.15   # the firmware acts on settings commands every 100 ms
 NO_ANSWER = "The controller didn't answer. Check the cable and try again."
 _R4, _L4 = 1 << 25, 1 << 26  # what stock's records hold for "not mapped", or 0, or all ones
 _HOOK = next(e.new for e in recipes.RECIPES["settings"].edits if e.addr == settings.INSTALLED_HOOK)
@@ -43,6 +44,7 @@ def load(ch) -> dict:
     is then what the controller is doing. Unsaved changes are dropped."""
     kept = read(ch)
     app.settings_reload(ch)
+    time.sleep(PASS)   # the firmware ignores commands until its next pass has read the record again
     app.set_dead_zone(ch, kept["dead_zone_off"])
     app.set_mapping(ch, 0, kept["mapping"]["r4"])
     app.set_mapping(ch, 1, kept["mapping"]["l4"])
@@ -51,7 +53,7 @@ def load(ch) -> dict:
 
 def _kept(ch, values: dict, mapping=None, dead_zone_off=None) -> bool:
     """The firmware saves on its next 100 ms pass, which a record that already matches can't show, so this waits for it first."""
-    time.sleep(0.15)
+    time.sleep(PASS)
     end = time.monotonic() + CONFIRM_SECONDS
     while True:
         got = read(ch)
