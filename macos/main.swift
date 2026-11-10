@@ -77,9 +77,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKN
         NSApp.mainMenu = main
     }
 
-    func fail(_ message: String) {
-        let escaped = message.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
-        web.loadHTMLString("<body style='font:15px -apple-system;background:#101215;color:#e8eaed;padding:24px'><h3>Could not start</h3><pre>\(escaped)</pre></body>", baseURL: nil)
+    func fail(_ message: String, title: String = "Could not start", advice: String = "") {
+        let html = { (s: String) in s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;") }
+        web.loadHTMLString("<body style='font:15px -apple-system;background:#101215;color:#e8eaed;padding:24px'><h3>\(html(title))</h3>"
+                           + (advice.isEmpty ? "" : "<p style='max-width:640px'>\(html(advice))</p>") + "<pre style='white-space:pre-wrap'>\(html(message))</pre></body>", baseURL: nil)
     }
 
     func startCore() {
@@ -118,10 +119,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKN
         }
         p.terminationHandler = { [weak self] proc in
             if proc.terminationStatus != 0, let self = self {
+                err.fileHandleForReading.readabilityHandler = nil
                 errLock.lock()
-                let msg = String(data: errTail, encoding: .utf8) ?? ""
+                errTail.append(err.fileHandleForReading.readDataToEndOfFile())   // the traceback may still be in the pipe
+                let msg = String(decoding: errTail.suffix(8192), as: UTF8.self)    // a character cut at the start can't empty it
                 errLock.unlock()
-                DispatchQueue.main.async { self.fail("The Python core stopped (status \(proc.terminationStatus)).\n\n\(msg)") }
+                let how = proc.terminationReason == .uncaughtSignal ? "signal" : "status"
+                DispatchQueue.main.async {
+                    let started = self.coreURL != nil   // it stopped while the app was in use, perhaps in the middle of a write
+                    self.fail("The Python core stopped (\(how) \(proc.terminationStatus)).\n\n\(msg)",
+                              title: started ? "The app stopped working" : "Could not start",
+                              advice: started ? "If the controller or the dongle was being written, the write was interrupted. Quit, open the app again and use Restore. Put the controller in update mode first; the app puts the dongle in update mode by itself. Please report this, with the text below." : "")
+                }
             }
         }
         do { try p.run(); core = p } catch { fail("\(error)") }
