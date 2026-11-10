@@ -66,6 +66,7 @@ function diagnosticsRender() {
     return;
   }
   mountLive(body);
+  mountCirc();
 }
 
 const directAvailable = () => !!st && st.devices.some((d) => d.mode === "bluetooth_xbox");
@@ -131,6 +132,7 @@ function paintInput(e) {
   document.querySelectorAll("#test-seen [data-c]").forEach((el) => el.classList.toggle("now", pressed.has(el.dataset.c)));
   $("test-lt").style.width = `${Math.round(e.lt * 100)}%`;
   $("test-rt").style.width = `${Math.round(e.rt * 100)}%`;
+  updateCirc(e.lx, e.ly, e.rx, e.ry);
 }
 
 function vibrate(op) {
@@ -178,3 +180,248 @@ window.u2cDiagnostics = (e) => {
     finishVibrate(!e.ok ? e.error || "It couldn't be sent." : direct ? "Sent. You'll only feel it if Rumble over Bluetooth is installed." : "Sent. Did you feel it?");
   }
 };
+
+let circMounted = false, circL = null, circR = null;
+
+class StickTester {
+  constructor(canvasId, lxId, lyId, errId, secId) {
+    this.canvas = $(canvasId);
+    if (!this.canvas) return;
+    this.ctx = this.canvas.getContext("2d");
+    this.lxEl = $(lxId);
+    this.lyEl = $(lyId);
+    this.errEl = $(errId);
+    this.secEl = $(secId);
+    this.numBins = 32;
+    this.maxR = new Float32Array(this.numBins);
+    this.currX = 0;
+    this.currY = 0;
+
+    const dpr = window.devicePixelRatio || 1;
+    this.size = 200;
+    this.canvas.width = this.size * dpr;
+    this.canvas.height = this.size * dpr;
+    this.canvas.style.width = `${this.size}px`;
+    this.canvas.style.height = `${this.size}px`;
+    this.ctx.scale(dpr, dpr);
+    this.draw();
+  }
+
+  reset() {
+    this.maxR.fill(0);
+    this.currX = 0;
+    this.currY = 0;
+    if (this.lxEl) this.lxEl.textContent = "+0.00000";
+    if (this.lyEl) this.lyEl.textContent = "+0.00000";
+    if (this.errEl) {
+      this.errEl.textContent = "Avg Error: 0.0%";
+      this.errEl.style.color = "var(--dim)";
+    }
+    if (this.secEl) this.secEl.textContent = "0 / 32 sectors";
+    this.draw();
+  }
+
+  update(x, y) {
+    this.currX = x;
+    this.currY = y;
+    if (this.lxEl) this.lxEl.textContent = (x >= 0 ? "+" : "") + x.toFixed(5);
+    if (this.lyEl) this.lyEl.textContent = (y >= 0 ? "+" : "") + y.toFixed(5);
+
+    const r = Math.hypot(x, y);
+    if (r > 0.4) {
+      let angle = Math.atan2(y, x);
+      if (angle < 0) angle += 2 * Math.PI;
+      const bin = Math.floor((angle / (2 * Math.PI)) * this.numBins) % this.numBins;
+      if (r > this.maxR[bin]) {
+        this.maxR[bin] = Math.min(r, 1.8);
+      }
+    }
+
+    let sum = 0, count = 0;
+    for (let i = 0; i < this.numBins; i++) {
+      if (this.maxR[i] > 0) {
+        count++;
+        sum += Math.abs(this.maxR[i] - 1.0);
+      }
+    }
+
+    if (this.errEl) {
+      if (count > 0) {
+        const avg = (sum / count) * 100;
+        this.errEl.textContent = `Avg Error: ${avg.toFixed(1)}%`;
+        this.errEl.style.color = avg > 12 ? "var(--warn)" : "var(--accent)";
+      } else {
+        this.errEl.textContent = "Avg Error: 0.0%";
+        this.errEl.style.color = "var(--dim)";
+      }
+    }
+    if (this.secEl) this.secEl.textContent = `${count} / ${this.numBins} sectors`;
+
+    this.draw();
+  }
+
+  draw() {
+    if (!this.ctx) return;
+    const ctx = this.ctx, w = this.size, h = this.size, cx = w / 2, cy = h / 2, R0 = 64;
+    ctx.clearRect(0, 0, w, h);
+
+    // Subtle background circle
+    ctx.beginPath();
+    ctx.arc(cx, cy, R0, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.02)";
+    ctx.fill();
+
+    // Petals / wedges
+    const step = (Math.PI * 2) / this.numBins;
+    for (let i = 0; i < this.numBins; i++) {
+      const rVal = this.maxR[i];
+      if (rVal <= 0) continue;
+      const a1 = -(i + 1) * step;
+      const a2 = -i * step;
+      const rInner = Math.min(rVal, 1.0) * R0;
+
+      // Inner part (<= 1.0) in soft blue
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, rInner, a1, a2);
+      ctx.closePath();
+      ctx.fillStyle = i % 2 === 0 ? "rgba(90, 140, 245, 0.45)" : "rgba(80, 120, 230, 0.35)";
+      ctx.fill();
+
+      // Overshoot (> 1.0) in soft coral
+      if (rVal > 1.0) {
+        const rOuter = rVal * R0;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rInner, a2, a1, true);
+        ctx.arc(cx, cy, rOuter, a1, a2, false);
+        ctx.closePath();
+        ctx.fillStyle = i % 2 === 0 ? "rgba(240, 110, 110, 0.65)" : "rgba(220, 95, 95, 0.55)";
+        ctx.fill();
+      }
+    }
+
+    // Radial grid
+    ctx.beginPath();
+    for (let i = 0; i < this.numBins; i++) {
+      const angle = i * step;
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(angle) * (R0 * 1.3), cy - Math.sin(angle) * (R0 * 1.3));
+    }
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Target unit circle (r = 1.0)
+    ctx.beginPath();
+    ctx.arc(cx, cy, R0, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.32)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Inner deadzone ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, R0 * 0.14, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Center rest dot
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+    ctx.fill();
+
+    // Current stick position indicator
+    const px = cx + this.currX * R0;
+    const py = cy - this.currY * R0;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(px, py);
+    ctx.strokeStyle = "rgba(63, 200, 180, 0.7)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(px, py, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "#3fc8b4";
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+}
+
+function mountCirc() {
+  const box = $("circ-body");
+  if (!box) return;
+  if (!circMounted) {
+    box.innerHTML = `
+      <div class="circ-actions">
+        <div class="circ-note">Rotate each stick 2–3 times in full circles against the outer gate to measure circularity error.</div>
+        <div class="btns">
+          <button id="circ-reset" class="sec small">Reset Test</button>
+          <button id="circ-guide-btn" class="sec small">Hardware Calibration Guide</button>
+        </div>
+      </div>
+      <div id="circ-guide" class="circ-guide-box" hidden>
+        <h4>8BitDo Ultimate 2C Hardware Calibration</h4>
+        <ol>
+          <li>Connect the controller by cable and leave the analog sticks centered.</li>
+          <li>Hold <b>− (Select) + + (Start) + LB + RB</b> together for <b>7 seconds</b> until the status LED flashes rapidly.</li>
+          <li>Slowly rotate both sticks along their full outer boundary 2–3 times, and press both triggers (<b>LT</b> and <b>RT</b>) all the way in.</li>
+          <li>Press <b>− + + + LB + RB</b> once more to save calibration. The LED will stop flashing.</li>
+        </ol>
+      </div>
+      <div class="circ-grid">
+        <div class="circ-box">
+          <div class="circ-info">
+            <div class="circ-title">L STICK</div>
+            <div class="circ-axis">Axis 0 (X)</div>
+            <div class="circ-val" id="circ-lx">+0.00000</div>
+            <div class="circ-axis">Axis 1 (Y)</div>
+            <div class="circ-val" id="circ-ly">+0.00000</div>
+          </div>
+          <div class="circ-canvas-wrap">
+            <canvas id="circ-cvs-l"></canvas>
+            <div class="circ-error" id="circ-err-l">Avg Error: 0.0%</div>
+            <div class="circ-sectors" id="circ-sec-l">0 / 32 sectors</div>
+          </div>
+        </div>
+        <div class="circ-box">
+          <div class="circ-info">
+            <div class="circ-title">R STICK</div>
+            <div class="circ-axis">Axis 2 (X)</div>
+            <div class="circ-val" id="circ-rx">+0.00000</div>
+            <div class="circ-axis">Axis 3 (Y)</div>
+            <div class="circ-val" id="circ-ry">+0.00000</div>
+          </div>
+          <div class="circ-canvas-wrap">
+            <canvas id="circ-cvs-r"></canvas>
+            <div class="circ-error" id="circ-err-r">Avg Error: 0.0%</div>
+            <div class="circ-sectors" id="circ-sec-r">0 / 32 sectors</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    $("circ-reset").onclick = () => {
+      if (circL) circL.reset();
+      if (circR) circR.reset();
+    };
+    $("circ-guide-btn").onclick = () => {
+      const g = $("circ-guide");
+      if (g) g.hidden = !g.hidden;
+    };
+
+    circL = new StickTester("circ-cvs-l", "circ-lx", "circ-ly", "circ-err-l", "circ-sec-l");
+    circR = new StickTester("circ-cvs-r", "circ-rx", "circ-ry", "circ-err-r", "circ-sec-r");
+    circMounted = true;
+  }
+}
+
+function updateCirc(lx, ly, rx, ry) {
+  if (!circMounted) mountCirc();
+  if (circL) circL.update(lx, ly);
+  if (circR) circR.update(rx, ry);
+}

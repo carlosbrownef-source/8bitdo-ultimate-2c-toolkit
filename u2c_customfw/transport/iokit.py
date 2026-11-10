@@ -5,6 +5,7 @@ IOKit delivers input reports through a callback on the run loop of the thread th
 channel's xfer() must be called from that same thread.
 """
 import ctypes as C
+import threading
 import time
 
 from . import DeviceInfo, PermissionDenied
@@ -42,6 +43,9 @@ MODE = P.in_dll(cf, "kCFRunLoopDefaultMode")
 REPORT_CB = C.CFUNCTYPE(None, P, I32, P, C.c_int, C.c_uint32, C.POINTER(C.c_uint8), L)
 NOT_PERMITTED = 0xE00002E2
 HANDLED_SOURCE = 4   # kCFRunLoopRunHandledSource
+_lock = threading.Lock()
+_alive_callbacks = []
+_alive_buffers = []
 _managers = []  # devices stay valid while their manager is alive
 _open_channels = 0
 KEEP_MANAGERS = 4
@@ -84,8 +88,9 @@ def list_devices():
     mgr = iok.IOHIDManagerCreate(None, 0)
     iok.IOHIDManagerSetDeviceMatching(mgr, None)  # every HID device
     iok.IOHIDManagerOpen(mgr, 0)
-    _managers.append(mgr)
-    _release_old(_managers, _open_channels, KEEP_MANAGERS, _release_manager)
+    with _lock:
+        _managers.append(mgr)
+        _release_old(_managers, _open_channels, KEEP_MANAGERS, _release_manager)
     devs = iok.IOHIDManagerCopyDevices(mgr)
     if not devs:
         return []
@@ -103,8 +108,12 @@ class IOKitChannel:
     def __init__(self, dev: DeviceInfo, report_id: int):
         global _open_channels
         self.dev, self.rid, self.replies = dev.handle, report_id, []
+        self._closed = False
         self.buf = (C.c_uint8 * 64)()
         self.cb = REPORT_CB(self._on_report)
+        # Keep callbacks and buffers alive indefinitely to avoid use-after-free in libffi/IOKit
+        _alive_callbacks.append(self.cb)
+        _alive_buffers.append(self.buf)
         r = iok.IOHIDDeviceOpen(self.dev, 0) & 0xFFFFFFFF
         if r == NOT_PERMITTED:
             raise PermissionDenied("macOS refused access to the controller. Allow Input Monitoring for this app "
@@ -114,9 +123,12 @@ class IOKitChannel:
         self.loop = cf.CFRunLoopGetCurrent()
         iok.IOHIDDeviceScheduleWithRunLoop(self.dev, self.loop, MODE)
         iok.IOHIDDeviceRegisterInputReportCallback(self.dev, self.buf, 64, self.cb, None)
-        _open_channels += 1
+        with _lock:
+            _open_channels += 1
 
     def _on_report(self, ctx, result, sender, rtype, rid, report, length):
+        if getattr(self, "_closed", False):
+            return
         data = bytes(report[:length])
         if rid and (not data or data[0] != rid):
             data = bytes([rid]) + data
@@ -136,10 +148,12 @@ class IOKitChannel:
 
     def close(self) -> None:
         global _open_channels
+        self._closed = True
         iok.IOHIDDeviceRegisterInputReportCallback(self.dev, self.buf, 64, None, None)  # the device keeps no pointer into self
         iok.IOHIDDeviceUnscheduleFromRunLoop(self.dev, self.loop, MODE)
         iok.IOHIDDeviceClose(self.dev, 0)
-        _open_channels -= 1
+        with _lock:
+            _open_channels -= 1
 
 
 def open_channel(dev: DeviceInfo, report_id: int) -> IOKitChannel:
