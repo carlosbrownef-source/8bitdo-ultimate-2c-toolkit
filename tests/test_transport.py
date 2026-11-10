@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+import ctypes as C
+import gc
 import sys
 import unittest
 from collections import Counter
@@ -86,12 +88,37 @@ class TransportTest(unittest.TestCase):
         self.assertEqual(ch.xfer(b"request"), b"answer")
 
     @unittest.skipUnless(sys.platform == "darwin", "IOKit only on macOS")
-    def test_close_unregisters_the_report_callback(self):
+    def test_reopening_a_device_registers_nothing_python_can_free(self):
+        """IOKit can't reliably remove a report callback (its set compares by context but hashes every byte), so a
+        callback freed with its channel could still be called when the same device is opened again (crash: status 11)."""
         from u2c_customfw.transport import iokit
-        ch, calls = self.fake_channel([])
-        iokit._open_channels += 1
-        ch.close()
-        self.assertEqual(calls, [("dev", None, 64, None, None)])
+        calls = []
+        iok = mock.Mock(IOHIDDeviceOpen=lambda *a: 0, IOHIDDeviceRegisterInputReportCallback=lambda *a: calls.append(a))
+        with mock.patch.object(iokit, "iok", iok), mock.patch.object(iokit, "cf", mock.Mock()):
+            dev = transport.DeviceInfo(vendor=0, product=0, usage_page=0, transport="USB", name="x", handle=0x1234)
+            for _ in range(2):
+                ch = iokit.IOKitChannel(dev, 0)
+                ch.close()
+                del ch
+                gc.collect()
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0], calls[1])   # the same callback, buffer and context: IOKit's set keeps one entry
+        self.assertIs(calls[0][3], iokit._REPORT_CB)   # module-level, never freed
+
+    @unittest.skipUnless(sys.platform == "darwin", "IOKit only on macOS")
+    def test_reports_reach_only_the_open_channel_of_their_device(self):
+        from u2c_customfw.transport import iokit
+        iok = mock.Mock(IOHIDDeviceOpen=lambda *a: 0)
+        with mock.patch.object(iokit, "iok", iok), mock.patch.object(iokit, "cf", mock.Mock()):
+            dev = transport.DeviceInfo(vendor=0, product=0, usage_page=0, transport="USB", name="x", handle=0x1234)
+            ch = iokit.IOKitChannel(dev, 0)
+            report = (C.c_uint8 * 3)(1, 2, 3)
+            iokit._on_report(None, 0, 0x1234, 1, 0, report, 3)
+            iokit._on_report(None, 0, 0x9999, 1, 0, report, 3)   # another device
+            self.assertEqual(ch.replies, [b"\x01\x02\x03"])
+            ch.close()
+            iokit._on_report(None, 0, 0x1234, 1, 0, report, 3)   # after closing: dropped, not delivered anywhere
+            self.assertEqual(ch.replies, [b"\x01\x02\x03"])
 
     def test_device_info_fields(self):
         d = transport.DeviceInfo(vendor=0x2DC8, product=0x310A, usage_page=0xFF7A, transport="USB", name="x", handle=None)
