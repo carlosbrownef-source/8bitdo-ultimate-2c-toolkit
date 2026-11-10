@@ -9,6 +9,8 @@ on:
       tag:
         description: "Tag to publish (default: the latest release)"
         required: false
+permissions:
+  contents: read   # reads the release here; the tap is pushed with its own deploy key
 jobs:
   bump:
     runs-on: ubuntu-latest

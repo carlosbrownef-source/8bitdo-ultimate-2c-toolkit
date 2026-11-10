@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 name: tests
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   test:
     strategy:
