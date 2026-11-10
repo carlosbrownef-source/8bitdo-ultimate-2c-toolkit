@@ -4,7 +4,7 @@ import AppKit
 import IOKit.hid
 import WebKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKNavigationDelegate, NSWindowDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKNavigationDelegate, WKUIDelegate, NSWindowDelegate {
     var window: NSWindow!
     var web: WKWebView!
     let diagnostics = Diagnostics()
@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKN
         web = WKWebView(frame: .zero, configuration: configuration)
         diagnostics.web = web
         web.navigationDelegate = self
+        web.uiDelegate = self
         web.underPageBackgroundColor = background
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1144, height: 718),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -61,6 +62,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, WKN
     // If the page goes away without saying so, the test must not keep the Home button captured.
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { diagnostics.stop() }
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { diagnostics.stop() }
+    // A link that opens a new window (the new version's page) goes to the browser instead; only GitHub's pages.
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for action: WKNavigationAction,
+                 windowFeatures: WKWindowFeatures) -> WKWebView? {
+        if let url = action.request.url, url.scheme == "https", url.host == "github.com" { NSWorkspace.shared.open(url) }
+        return nil
+    }
 
     @objc func showHelp() { web.evaluateJavaScript("document.getElementById('help-open').click()") }
 

@@ -22,6 +22,7 @@
       const answer = await (await realFetch(url, options)).json();
       return json({ ...answer, available: true, note: "", values: Object.fromEntries(answer.fields.map((f) => [f.name, f.default])), dead_zone_off: false, mapping: { r4: 0, l4: query.get("mapped") ? 1 << 14 : 0 } });
     }
+    if (path.startsWith("/api/update") && query.get("update")) return json({ version: "9.9.9", url: "https://github.com/carlosbrownef-source/8bitdo-ultimate-2c-toolkit/releases/tag/v9.9.9" });
     if (path.startsWith("/api/ring")) return query.get("ringfail") ? new Response(JSON.stringify({ error: "The controller said no." }), { status: 409 }) : json({ ok: true });
     if (path.startsWith("/api/firmware") && device === "bluetooth_xbox") return json({ note: "Connect the controller by cable to see or change its firmware. Over Bluetooth, you can test it in Diagnostics and change the Home ring in Settings." });
     if (path.startsWith("/api/firmware") && String(device).startsWith("dongle")) return json({ device: "dongle", paired: device === "dongle_paired", boot: false, backed: !query.has("nodonglebackup"), stock_ok: true,

@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from .. import __version__, disclaimer, settings, state
+from .. import __version__, disclaimer, settings, state, update
 from .. import cli
 from ..firmware import recipes
 from ..ops import backup as bkp, dongle, probe, report as report_mod, shown
@@ -27,6 +27,7 @@ TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": 
 def make_server(store: Path, port: int = 0):
     token = secrets.token_urlsafe(24)
     runner = jobs.Runner(store)
+    checked = {}   # GitHub is asked once per launch
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):
@@ -60,7 +61,7 @@ def make_server(store: Path, port: int = 0):
                 return self.send(403, "forbidden", "text/plain")
             path = self.path.split("?")[0]
             route = {"/api/state": self.api_state, "/api/events": self.api_events, "/api/firmware": self.api_firmware,
-                     "/api/settings": self.api_settings_read, "/api/busy": self.api_busy}.get(path)
+                     "/api/settings": self.api_settings_read, "/api/busy": self.api_busy, "/api/update": self.api_update}.get(path)
             if route:
                 return route()
             name = "index.html" if path == "/" else path.lstrip("/").removeprefix("static/")
@@ -87,6 +88,14 @@ def make_server(store: Path, port: int = 0):
             """For the Mac app's quit and close guard: the server knows, even when the page has lost track."""
             if self.auth():
                 self.send(200, json.dumps({"writing": runner.writing}))
+
+        def api_update(self):
+            """A newer version, if there is one: {version, url}, or {}. The simulation never asks GitHub."""
+            if not self.auth():
+                return
+            if "answer" not in checked:
+                checked["answer"] = {} if os.environ.get("U2C_SIM") else update.newer() or {}
+            self.send(200, json.dumps(checked["answer"]))
 
         def api_firmware(self):
             """Read the connected controller's bank A (read-only) and name its firmware and tweaks."""

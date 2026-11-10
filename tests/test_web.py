@@ -232,6 +232,15 @@ class WebTest(unittest.TestCase):
         self.assertEqual(self.call("POST", "/api/backup")[0], 202)
         self.events()
 
+    def test_a_newer_version_is_asked_once_per_launch(self):
+        from u2c_customfw import update
+        found = {"version": "9.9.9", "url": "https://github.com/x"}
+        with mock.patch.dict("os.environ", {"U2C_SIM": ""}), mock.patch.object(update, "newer", return_value=found) as newer:
+            self.assertEqual(json.loads(self.call("GET", "/api/update")[1]), found)
+            self.assertEqual(json.loads(self.call("GET", "/api/update")[1]), found)
+            self.assertEqual(newer.call_count, 1)
+            self.assertEqual(self.call("GET", "/api/update", token=None)[0], 403)
+
     def test_busy_says_whether_a_write_is_running(self):
         release = threading.Event()
         state.accept(self.store)

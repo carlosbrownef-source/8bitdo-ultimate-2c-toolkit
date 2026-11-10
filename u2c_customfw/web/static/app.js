@@ -447,4 +447,10 @@ setInterval(async () => {
   try { now = await api("GET", "/api/state"); } catch (e) { return; }
   if (!busy && !reading && !refreshing && deviceKey(now) !== deviceKey(st)) refresh();
 }, WATCH_MS);
+api("GET", "/api/update").then((u) => {   // asked once, after the page is up; offline, nothing shows
+  if (!u.version) return;
+  $("update-version").textContent = u.version;
+  $("update-link").href = u.url;
+  $("update").hidden = false;
+}).catch(() => {});
 if (new URLSearchParams(location.search).has("diagsim")) showTab(new URLSearchParams(location.search).get("open") || "diagnostics");

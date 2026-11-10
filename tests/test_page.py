@@ -604,6 +604,14 @@ class ControllerTestCard(PageCase):
         dom, _, _ = self.body("boot&tweaks=1&scenario=installed")
         self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ring_5,ble_interval")
 
+    def test_a_newer_version_shows_a_line_with_its_page(self):
+        self.assertIn("hidden", self.server.dom().find("update").attrs)   # the simulation never asks GitHub
+        dom = self.server.dom("&diagsim=cable&update=1")
+        self.assertNotIn("hidden", dom.find("update").attrs)
+        self.assertEqual(dom.find("update-version").all_text(), "9.9.9")
+        self.assertEqual(dom.find("update-link").all_text(), "Download it from GitHub")
+        self.assertEqual(dom.find("update-link").attrs.get("href"), "https://github.com/carlosbrownef-source/8bitdo-ultimate-2c-toolkit/releases/tag/v9.9.9")
+
     def test_a_ring_level_is_not_kept_once_the_original_firmware_is_read(self):
         dom, _, _ = self.body("boot&tweaks=1&scenario=restored")
         self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ble_interval")
