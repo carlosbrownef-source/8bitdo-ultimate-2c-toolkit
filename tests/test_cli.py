@@ -60,7 +60,7 @@ class CliTest(unittest.TestCase):
 
     def test_protocol_errors_are_messages_not_tracebacks(self):
         class Dead(SimBoot):
-            def xfer(self, r, timeout=0.5):
+            def xfer(self, r, timeout=0.5, accept=None):
                 return None
         code, text = run(["patch", "--tweaks", "cable_360", "--store", str(self.tmp)], [found("boot", 0x3208, 0x8C)], Dead(self.flash))
         self.assertEqual(code, 1)

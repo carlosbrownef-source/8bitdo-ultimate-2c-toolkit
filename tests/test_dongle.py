@@ -88,7 +88,7 @@ class World:
         world = self
         if self.mode == "dongle":
             class Idle(SimApp):
-                def xfer(self, req, timeout=0.5):
+                def xfer(self, req, timeout=0.5, accept=None):
                     world.sent.append(req[:5].hex())
                     if req[:5] == b"\x81\x05\x00\x51\x00":
                         world.mode = "boot"
@@ -99,7 +99,7 @@ class World:
         from u2c_customfw.sim import SimBoot
 
         class Boot(SimBoot):
-            def xfer(self, r, timeout=0.5):
+            def xfer(self, r, timeout=0.5, accept=None):
                 if int.from_bytes(r[1:3], "little") == 7:
                     world.mode = "dongle"
                     return None

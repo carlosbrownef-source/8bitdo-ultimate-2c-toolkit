@@ -13,7 +13,7 @@ class SimApp:
         kept = settings_record.parse(self.flash[settings_record.SECTOR:settings_record.SECTOR + settings_record.SIZE]) if len(self.flash) > 0x7A000 else None
         self.fields = [(kept or settings_record.DEFAULTS)[f.name] for f in settings_record.FIELDS]  # the settings in its RAM
 
-    def xfer(self, req: bytes, timeout: float = 0.5):
+    def xfer(self, req: bytes, timeout: float = 0.5, accept=None):
         self.sent.append(req[:5].hex())
         if req[0:2] != b"\x81\x05" or req[2:4] == b"\x00\x51":
             raise AssertionError(f"unexpected request {req[:5].hex()}")
@@ -73,10 +73,10 @@ class SimBoot:
         self.f, self.size, self.ops, self.params, self.fail_after = bytearray(flash), len(flash), [], [], fail_after
         self.identity = (0x301B if len(flash) > 0x20000 else 0x301C) if identity == "auto" else identity  # None: no answer
 
-    def xfer(self, r: bytes, timeout: float = 0.5):
+    def xfer(self, r: bytes, timeout: float = 0.5, accept=None):
         cmd, n = int.from_bytes(r[1:3], "little"), int.from_bytes(r[5:7], "little")
         crc, param, addr = int.from_bytes(r[7:9], "little"), int.from_bytes(r[9:13], "little"), int.from_bytes(r[13:17], "little")
-        ok = lambda extra=b"": (bytes([0, 5, 0, 0, cmd]) + bytes(13) + extra).ljust(64, b"\0")
+        ok = lambda extra=b"": (bytes([0, 5, 0, 0]) + r[1:3] + r[5:17] + extra).ljust(64, b"\0")   # as 0x3804 builds it
         if cmd == 5:
             return ok(bytes(self.f[(addr + i) % self.size] for i in range(param)))
         if cmd == 8:
@@ -95,7 +95,7 @@ class SimBoot:
         if cmd == 3:
             data = r[17:17 + n]
             if crc16(data) != crc:
-                return bytes([0, 5, 1, 0, cmd]).ljust(64, b"\0")
+                return (bytes([0, 5, 1, 0]) + r[1:3] + r[5:17]).ljust(64, b"\0")
             self.ops.append(("write", addr, addr + n))
             self.params.append(param)
             for i, x in enumerate(data):

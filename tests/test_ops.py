@@ -80,7 +80,7 @@ class BackupTest(Base):
         dev = SimApp(controller_flash())
         real, calls = dev.xfer, [0]
 
-        def flaky(req, timeout=0.5):
+        def flaky(req, timeout=0.5, accept=None):
             r = real(req, timeout)
             calls[0] += 1
             if calls[0] > 11000 and r and req[2] == 0x05:
@@ -446,7 +446,7 @@ class DiagnosticsDataTest(Base):
         class Counting(SimBoot):
             asked = 0
 
-            def xfer(self, r, timeout=0.5):
+            def xfer(self, r, timeout=0.5, accept=None):
                 self.asked += int.from_bytes(r[1:3], "little") == 8
                 return super().xfer(r, timeout)
         for identity in ("auto", None):

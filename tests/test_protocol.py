@@ -18,7 +18,7 @@ class RingCommandTest(unittest.TestCase):
         sent = []
 
         class Ch:
-            def xfer(self, req, timeout=0.5):
+            def xfer(self, req, timeout=0.5, accept=None):
                 sent.append(req)
 
         app.set_ring(Ch(), 3)
@@ -57,7 +57,7 @@ class BootTest(unittest.TestCase):
 
     def test_identify_ignores_a_reply_of_the_wrong_length(self):
         class Odd(SimBoot):
-            def xfer(self, r, timeout=0.5):
+            def xfer(self, r, timeout=0.5, accept=None):
                 a = bytearray(super().xfer(r, timeout))
                 a[6:8] = b"\x10\0"
                 return bytes(a)
@@ -76,10 +76,32 @@ class BootTest(unittest.TestCase):
     def test_a_controller_identity_does_not_override_flash_that_looks_like_a_dongle(self):
         self.assertEqual(boot.kind(SimBoot(flash(0x20000)[:0x20000], identity=0x301B)), "dongle")
 
+    def test_a_late_reply_to_the_previous_chunk_is_passed_over(self):
+        class Late(SimBoot):   # each answer comes after the late, second reply to the request before it
+            prev = None
+
+            def xfer(self, r, timeout=0.5, accept=None):
+                replies = [a for a in (self.prev, super().xfer(r, timeout)) if a]
+                self.prev = replies[-1]
+                return next((a for a in replies if accept is None or accept(a)), None)
+        f = flash()
+        self.assertEqual(boot.read(Late(f), 0x6000, 46 * 6), f[0x6000:0x6000 + 46 * 6])
+
+    def test_the_bootloader_echoes_command_length_and_address_as_0x3804_builds_it(self):
+        a = SimBoot(flash()).xfer(boot.request(5, 0x12345, 4, datalen=4))
+        self.assertEqual((a[4], a[6:8], a[14:18]), (5, b"\x04\0", (0x12345).to_bytes(4, "little")))
+
+    def test_a_reply_for_another_address_is_not_an_answer(self):
+        dev = SimBoot(flash())
+        real = dev.xfer
+        dev.xfer = lambda r, timeout=0.5, accept=None: real(boot.request(5, 0x7000, 46, datalen=46), timeout)
+        with self.assertRaises(ProtocolError):
+            boot.read(dev, 0x6000, 46)
+
     def test_rejected_write_raises(self):
         dev = SimBoot(flash())
 
-        def bad_crc(report, timeout=0.5):
+        def bad_crc(report, timeout=0.5, accept=None):
             return bytes([0, 5, 1, 0, 3]).ljust(64, b"\0")
         dev.xfer = bad_crc
         with self.assertRaises(ProtocolError):
@@ -95,7 +117,7 @@ class AppTest(unittest.TestCase):
         dev = SimApp(flash())
         real = dev.xfer
 
-        def wrong_echo(report, timeout=0.5):
+        def wrong_echo(report, timeout=0.5, accept=None):
             r = bytearray(real(report, timeout))
             r[14] ^= 1
             return bytes(r)

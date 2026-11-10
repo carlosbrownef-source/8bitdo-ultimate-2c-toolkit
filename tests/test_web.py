@@ -305,7 +305,7 @@ class WebTest(unittest.TestCase):
         dev = self.settings_device()
         real = dev.xfer
         calls = []
-        def fading(req, timeout=0.5):
+        def fading(req, timeout=0.5, accept=None):
             if req[2] == 5 and int.from_bytes(req[14:18], "little") == 0xD1C8:
                 calls.append(1)
                 if len(calls) > 1:
@@ -329,7 +329,7 @@ class WebTest(unittest.TestCase):
         dev = self.settings_device()
         self.assertEqual(self.call("GET", "/api/settings")[0], 200)
         real = dev.xfer
-        dev.xfer = lambda req, timeout=0.5: real(req, timeout) if req[3] == 0x55 else None  # the save goes out, then nothing answers
+        dev.xfer = lambda req, timeout=0.5, accept=None: real(req, timeout) if req[3] == 0x55 else None  # the save goes out, then nothing answers
         code, body = self.call("POST", "/api/settings", {"save": True, "values": {f.name: f.default for f in settings.FIELDS}})
         self.assertEqual(code, 409)
         self.assertNotIn("Saved", body)

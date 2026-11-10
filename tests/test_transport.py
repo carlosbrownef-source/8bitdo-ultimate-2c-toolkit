@@ -61,8 +61,8 @@ class TransportTest(unittest.TestCase):
         for d in devices:  # the manager still holds them after the copy is released
             self.assertEqual(iokit._prop(d.handle, "VendorID") or 0, d.vendor)
 
-    def fake_channel(self, late):
-        """A channel on fake IOKit: the run loop first delivers the replies in late, then the answer to what was sent."""
+    def fake_channel(self, late, answers=(b"answer",)):
+        """A channel on fake IOKit: the run loop first delivers the replies in late, then answers once something is sent."""
         from u2c_customfw.transport import iokit
         ch = object.__new__(iokit.IOKitChannel)
         ch.dev, ch.rid, ch.replies, ch.loop, ch.buf = "dev", 0, [], "loop", None
@@ -74,7 +74,7 @@ class TransportTest(unittest.TestCase):
             ch.replies.append(queue.pop(0))
             return 4       # kCFRunLoopRunHandledSource
         cf = mock.Mock(CFRunLoopRunInMode=run)
-        iok = mock.Mock(IOHIDDeviceSetReport=lambda *a: queue.append(b"answer") or 0,
+        iok = mock.Mock(IOHIDDeviceSetReport=lambda *a: queue.extend(answers) or 0,
                         IOHIDDeviceRegisterInputReportCallback=lambda *a: calls.append(a))
         for name, fake in (("cf", cf), ("iok", iok)):
             p = mock.patch.object(iokit, name, fake)
@@ -86,6 +86,13 @@ class TransportTest(unittest.TestCase):
     def test_a_late_reply_isnt_taken_as_the_next_answer(self):
         ch, _ = self.fake_channel([b"late 1", b"late 2"])
         self.assertEqual(ch.xfer(b"request"), b"answer")
+
+    @unittest.skipUnless(sys.platform == "darwin", "IOKit only on macOS")
+    def test_a_late_reply_arriving_after_sending_is_passed_over_when_it_isnt_accepted(self):
+        ch, _ = self.fake_channel([], answers=[b"late", b"answer"])
+        self.assertEqual(ch.xfer(b"request", accept=lambda r: r == b"answer"), b"answer")
+        ch, _ = self.fake_channel([], answers=[b"late"])
+        self.assertIsNone(ch.xfer(b"request", 0.05, accept=lambda r: r == b"answer"))
 
     @unittest.skipUnless(sys.platform == "darwin", "IOKit only on macOS")
     def test_reopening_a_device_registers_nothing_python_can_free(self):
