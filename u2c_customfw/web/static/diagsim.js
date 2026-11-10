@@ -28,7 +28,7 @@
       restore_backup: query.has("nodonglebackup") ? null : { name: "dongle-20261108-120000.bin", taken: "8 Nov 2026 at 12:00", firmware: "the original firmware 1.03" }, known: true, version: 1.03, tweaks: [{ key: "dongle_360", title: "Xbox 360 controller over 2.4 GHz", on: !query.has("stockdongle") }] });
     if (path.startsWith("/api/firmware") && query.get("permission")) return json({ error: "macOS refused access to the controller. Allow Input Monitoring for this app in System Settings > Privacy & Security > Input Monitoring, then try again.", permission: true });
     const answer = await realFetch(url, options);
-    if (path.startsWith("/api/firmware") && query.get("tweaks")) {  // &tweaks=all: the default tweaks with the ring at 5 %
+    if (path.startsWith("/api/firmware") && query.get("tweaks") && !window.simRestored) {  // &tweaks=all: the default tweaks with the ring at 5 %
       const got = await answer.json(), all = query.get("tweaks") === "all";
       if (!got.tweaks) return json(got);
       const recipes = all ? ["bt_xbox", "bt_rumble", "cable_360", "dim_leds", "battery_alerts", "settings", "fixes", "cpu_rest", "ring_5"] : ["bt_xbox", "ring_5", ...(query.get("settings") ? ["settings"] : [])];
@@ -79,6 +79,7 @@
     report: () => document.getElementById("report-open").click(),
     replugged: () => { window.simReplugged = true; },
     installed: () => { document.getElementById("diag-snap").textContent = tweaks().join(); },
+    restored: async () => { window.simRestored = true; await readFirmware(); document.getElementById("diag-snap").textContent = tweaks().join(); },   // the next read finds the original firmware
     infopop: () => { $("strip-firmware").click(); const x = document.querySelector('.tweak[value="fast_scan"]'), b = x.parentElement.querySelector(".info"); b.click(); setTimeout(() => { document.getElementById("diag-snap").textContent = `${x.checked} ${document.getElementById(b.getAttribute("aria-controls")).matches(":popover-open")}`; }, 200); },
     bootpop: () => { $("strip-firmware").click(); setTimeout(() => $("boot-info").click(), 300); },
     installhover: () => { $("strip-firmware").click(); setTimeout(() => { $("tweaks-act").querySelector(".btns").dispatchEvent(new MouseEvent("mouseenter")); document.getElementById("diag-snap").textContent = String(document.querySelector(".pop-pad").parentElement.matches(":popover-open")); }, 300); },

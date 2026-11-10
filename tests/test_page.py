@@ -604,6 +604,10 @@ class ControllerTestCard(PageCase):
         dom, _, _ = self.body("boot&tweaks=1&scenario=installed")
         self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ring_5,ble_interval")
 
+    def test_a_ring_level_is_not_kept_once_the_original_firmware_is_read(self):
+        dom, _, _ = self.body("boot&tweaks=1&scenario=restored")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ble_interval")
+
     def test_alerts_off_with_normal_installs_no_ring_code(self):  # with the other tweaks that need it off too
         dom, _, _ = self.body("boot&scenario=noalerts")
         self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,ble_interval")

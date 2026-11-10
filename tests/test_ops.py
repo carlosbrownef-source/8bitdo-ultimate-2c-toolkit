@@ -100,6 +100,16 @@ class BackupTest(Base):
         self.assertEqual(bkp.find_backups(self.tmp, f[:0x6000], bytes(other)), [])
 
 
+class DongleCheckTest(unittest.TestCase):
+    def test_no_answer_is_not_taken_for_the_controller(self):
+        with mock.patch.object(probe.app, "read", return_value=None), self.assertRaises(OpError):
+            probe.check_not_dongle(object())
+        with mock.patch.object(probe.app, "read", return_value=b"\xff" * 16), self.assertRaises(OpError):
+            probe.check_not_dongle(object())
+        with mock.patch.object(probe.app, "read", return_value=b"\0" * 16):
+            probe.check_not_dongle(object())
+
+
 class SameUnitTest(Base):
     """Pairing again adds one to the address at the start of the sector, so a controller's older backups must still count."""
 

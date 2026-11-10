@@ -46,7 +46,10 @@ def _check_device(ch, mode: str, identity: int | None) -> None:
 
 def check_not_dongle(ch) -> None:
     """On an open update channel: a paired dongle has the controller's USB ID, but its 0x10000 is blank."""
-    if app.read(ch, 0x10000, 16) == b"\xff" * 16:
+    head = app.read(ch, 0x10000, 16)
+    if head is None:   # no answer can't show it's the controller
+        raise OpError("The controller isn't answering. Unplug it, plug it back in and try again.")
+    if head == b"\xff" * 16:
         raise OpError("This looks like the 2.4 GHz dongle, which this app doesn't support.")
 
 

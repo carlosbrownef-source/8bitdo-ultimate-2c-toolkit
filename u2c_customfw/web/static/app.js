@@ -314,6 +314,7 @@ async function refresh() {
 let matched = "";
 function matchInstalled() {  // start from what's installed, so installing doesn't drop a tweak by surprise; the person's choices stay until other firmware is read
   const key = fw && fw.known && fw.recipes ? fw.recipes.join() : "";
+  if (fw && fw.known && fw.recipes && !fw.recipes.length) ringKept = "";   // the original firmware has no ring level to keep
   if (!key || key === matched) return;
   matched = key;
   tweakBoxes().forEach((x) => (x.checked = fw.recipes.includes(x.value)));
