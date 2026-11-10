@@ -99,12 +99,24 @@ def list_devices():
     return found
 
 
+def _on_report(ctx, result, sender, rtype, rid, report, length):
+    ch = _channels.get(sender)
+    if ch:
+        ch._on_report(rid, report, length)
+
+
+# IOKit can't reliably unregister a report callback (its callback set compares entries by context but hashes all their
+# bytes), so a callback freed with its channel could still be called. Every device gets this one callback, which is
+# never freed and routes by device, and a buffer that is never freed; registering them again adds nothing.
+_REPORT_CB = REPORT_CB(_on_report)
+_channels = {}   # device handle → its open channel
+_buffers = {}    # device handle → the buffer IOKit copies its reports into
+
+
 class IOKitChannel:
     def __init__(self, dev: DeviceInfo, report_id: int):
         global _open_channels
         self.dev, self.rid, self.replies = dev.handle, report_id, []
-        self.buf = (C.c_uint8 * 64)()
-        self.cb = REPORT_CB(self._on_report)
         r = iok.IOHIDDeviceOpen(self.dev, 0) & 0xFFFFFFFF
         if r == NOT_PERMITTED:
             raise PermissionDenied("macOS refused access to the controller. Allow Input Monitoring for this app "
@@ -112,11 +124,13 @@ class IOKitChannel:
         if r:
             raise OSError(f"The device couldn't be opened (IOReturn {r:#x}).")
         self.loop = cf.CFRunLoopGetCurrent()
+        _channels[self.dev] = self
+        buf = _buffers.setdefault(self.dev, (C.c_uint8 * 64)())
+        iok.IOHIDDeviceRegisterInputReportCallback(self.dev, buf, 64, _REPORT_CB, None)
         iok.IOHIDDeviceScheduleWithRunLoop(self.dev, self.loop, MODE)
-        iok.IOHIDDeviceRegisterInputReportCallback(self.dev, self.buf, 64, self.cb, None)
         _open_channels += 1
 
-    def _on_report(self, ctx, result, sender, rtype, rid, report, length):
+    def _on_report(self, rid, report, length):
         data = bytes(report[:length])
         if rid and (not data or data[0] != rid):
             data = bytes([rid]) + data
@@ -136,7 +150,8 @@ class IOKitChannel:
 
     def close(self) -> None:
         global _open_channels
-        iok.IOHIDDeviceRegisterInputReportCallback(self.dev, self.buf, 64, None, None)  # the device keeps no pointer into self
+        if _channels.get(self.dev) is self:
+            del _channels[self.dev]
         iok.IOHIDDeviceUnscheduleFromRunLoop(self.dev, self.loop, MODE)
         iok.IOHIDDeviceClose(self.dev, 0)
         _open_channels -= 1
