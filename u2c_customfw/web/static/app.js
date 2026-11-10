@@ -191,7 +191,8 @@ const IDENTIFIED = { "update record": "the controller's update record", "bank A 
 const VERSION_FROM = { "update record": "The update record", "bank A hash": "The installed firmware", "bank B hash": "The second copy of the firmware", unknown: "Couldn't be identified" };
 const WHO = { 0x301b: "The controller", 0x301c: "The 2.4 GHz dongle" };  // the problem report keeps the number
 const tweakOrder = (key) => key.startsWith("ring") ? Infinity : tweakBoxes().findIndex((x) => x.value === key);  // as the toggles, the Home ring last
-const firmwareName = () => !fw.known ? "Unknown" : fw.recipes.length ? `1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}${fw.titles && fw.titles.length ? `: ${fw.titles.join(", ")}` : ""}` : "Original 1.09";
+const firmwareName = () => !fw.known ? "Unknown" : fw.device === "dongle" ? (fw.tweaks.some((t) => t.on) ? `Dongle ${fw.version.toFixed(2)} with ${fw.tweaks.filter((t) => t.on).map((t) => t.title).join(", ")}` : `Original dongle ${fw.version.toFixed(2)}`)
+  : fw.recipes.length ? `1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}${fw.titles && fw.titles.length ? `: ${fw.titles.join(", ")}` : ""}` : "Original 1.09";
 function details() {
   const box = $("details-body"), inUpdateMode = !!st && st.devices.some((d) => d.mode === "boot");
   const say = (text) => { box.innerHTML = ""; const p = document.createElement("p"); p.style.marginBottom = 0; p.textContent = text; box.append(p); };

@@ -700,6 +700,8 @@ class ControllerTestCard(PageCase):
     def test_report_includes_the_firmware(self):
         dom, _, _ = self.body("boot&scenario=report")
         self.assertIn("Firmware: Original 1.09", dom.find("report-text").all_text())
+        dom = self.server.dom("&diagsim=dongle&scenario=report", 4000)
+        self.assertIn("Firmware: Dongle 1.03 with Xbox 360 controller over 2.4 GHz", dom.find("report-text").all_text())
 
     def test_battery_row(self):
         for query, want in (("bt&battery=0.8,discharging", "80 %"), ("bt&battery=0.42,charging", "42 %, charging"), ("bt&battery=1,full", "Full"), ("bt&battery=0.9,unknown", "90 %"),
