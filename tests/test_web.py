@@ -523,6 +523,28 @@ class WebTest(unittest.TestCase):
             self.assertEqual(e.exception.code, 400)
             e.exception.close()
 
+    def test_a_write_keeps_the_mac_awake_until_it_ends(self):
+        runner, gate, awake = jobs.Runner(self.store), threading.Event(), mock.Mock()
+        with mock.patch.dict(jobs.ACTIONS, patch=lambda args, store: gate.wait(5)), \
+                mock.patch.object(jobs, "keep_awake", return_value=awake) as keep:
+            self.assertTrue(runner.start("patch", write=True))
+            awake.terminate.assert_not_called()
+            gate.set()
+            with runner.cond:
+                self.assertTrue(runner.cond.wait_for(lambda: not runner.running, timeout=5))
+            awake.terminate.assert_called_once()
+            self.assertTrue(runner.start("patch", write=False))   # checking first writes nothing
+            self.assertEqual(keep.call_count, 1)
+
+    def test_a_job_that_fails_to_start_frees_the_device(self):
+        runner = jobs.Runner(self.store)
+        with mock.patch.object(jobs, "get_logger", side_effect=OSError("no log")):
+            with self.assertRaises(OSError):
+                runner.start("backup")
+        self.assertFalse(runner.running)
+        with mock.patch.dict(jobs.ACTIONS, backup=lambda args, store: None):
+            self.assertTrue(runner.start("backup"))
+
     def test_running_and_the_end_event_change_together(self):
         runner = jobs.Runner(self.store)
         jobs.ACTIONS["backup"] = lambda args, store: None
