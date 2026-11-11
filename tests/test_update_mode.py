@@ -177,7 +177,7 @@ class ByCableTest(Base):
         self.unit = Controller(self.flash, comes_back=False)
         code, text = go(["patch", "--tweaks", "cable_360", "--write"], self.unit, self.tmp)
         self.assertEqual(code, 0, text)
-        self.assertIn("Installed. Unplug the controller, hold Home for about 12 seconds until it turns off, then connect it again.", text)
+        self.assertIn("Installed. The controller hasn't come back yet: if macOS asks whether to allow the accessory to connect, allow it.", text)
 
 
     def test_a_bootloader_that_cant_be_opened_says_where_the_controller_is(self):
@@ -212,7 +212,7 @@ class ByCableTest(Base):
             code, text = go(["patch", "--tweaks", "cable_360", "--write"], self.unit, self.tmp)
         self.assertEqual(code, 0, text)
         self.assertEqual(self.tweaked(), ("ble_interval", "cable_360"))
-        self.assertIn("Installed. Unplug the controller, hold Home for about 12 seconds", text)
+        self.assertIn("Installed. The controller hasn't come back yet", text)
 
 
 class AlreadyInUpdateModeTest(Base):

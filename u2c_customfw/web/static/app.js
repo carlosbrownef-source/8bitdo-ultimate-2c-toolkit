@@ -380,6 +380,8 @@ $("log-toggle").onclick = () => { const l = $("log"); l.hidden = !l.hidden; $("l
 
 $("backup").onclick = () => runJob("Backing up…", "/api/backup", null, "Backup saved");
 const onDongle = () => !!fw && fw.device === "dongle";
+const restarts = () => (st && st.devices.some((d) => d.mode === "boot") ? "The app restarts the controller afterwards."
+  : "The app restarts the controller into update mode to write it, then restarts it again.");
 const dongleTweaks = () => ($("dongle-360").checked ? ["dongle_360"] : []);
 $("patch-dry").onclick = () => runJob("Checking…", "/api/patch", { tweaks: onDongle() ? dongleTweaks() : tweaks(), base, write: false }, "Check passed");
 $("patch-write").onclick = async () => {
@@ -389,14 +391,14 @@ $("patch-write").onclick = async () => {
       runJob("Installing…", "/api/patch", { tweaks: dongleTweaks(), write: true }, "Installed on the dongle");
     return;
   }
-  if (await ask("Install these tweaks?", "This changes the controller's firmware. The app restarts the controller into update mode to write it, then restarts it again. Installing modified firmware probably voids the controller\'s warranty.", tweakTitles(), "Install", "install"))
+  if (await ask("Install these tweaks?", `This changes the controller's firmware. ${restarts()} Installing modified firmware probably voids the controller\'s warranty.`, tweakTitles(), "Install", "install"))
     runJob("Installing…", "/api/patch", { tweaks: tweaks(), base, write: true }, "Tweaks installed");
 };
 $("restore-backup-dry").onclick = () => runJob("Checking…", "/api/restore", { source: "backup", backup: fw.restore_backup.name, write: false }, "Check passed");
 $("restore-stock-dry").onclick = () => runJob("Checking…", "/api/restore", { source: "stock", write: false }, "Check passed");
 $("restore-backup").onclick = async () => {
   const b = fw.restore_backup;
-  if (await ask("Restore your backup?", `This replaces the ${onDongle() ? "dongle" : "controller"}'s firmware with your backup “${b.name}”, made on ${b.taken}, which has ${b.firmware}.${onDongle() ? "" : " The app restarts the controller into update mode to write it, then restarts it again."}`, [], "Restore"))
+  if (await ask("Restore your backup?", `This replaces the ${onDongle() ? "dongle" : "controller"}'s firmware with your backup “${b.name}”, made on ${b.taken}, which has ${b.firmware}.${onDongle() ? "" : " " + restarts()}`, [], "Restore"))
     runJob("Restoring…", "/api/restore", { source: "backup", backup: b.name, write: true }, "Backup restored");
 };
 $("restore-stock").onclick = async () => {
@@ -405,7 +407,7 @@ $("restore-stock").onclick = async () => {
       runJob("Restoring…", "/api/restore", { source: "stock", write: true }, "Original firmware restored");
     return;
   }
-  if (await ask("Restore the original firmware 1.09?", "This replaces the controller's firmware with 8BitDo's original 1.09, downloaded from 8BitDo. The app restarts the controller into update mode to write it, then restarts it again. Your settings, pairings and calibration stay as they are.", [], "Restore", "danger"))
+  if (await ask("Restore the original firmware 1.09?", `This replaces the controller's firmware with 8BitDo's original 1.09, downloaded from 8BitDo. ${restarts()} Your settings, pairings and calibration stay as they are.`, [], "Restore", "danger"))
     runJob("Restoring…", "/api/restore", { source: "stock", write: true }, "Original firmware restored");
 };
 $("force-open").onclick = () => {

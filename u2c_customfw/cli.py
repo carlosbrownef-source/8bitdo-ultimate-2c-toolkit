@@ -18,7 +18,8 @@ from .transport import PermissionDenied, open_channel
 CONTROLLER_MODES = ("cable", "cable_360", "boot", "dongle", "dongle_paired")
 BOOT_HELP = "Turn the controller fully off, then hold LB + RB while plugging in the cable. The small light below the Home ring will blink white."
 RESTARTED = "The controller restarted with its new firmware."
-REPLUG = "Unplug the controller, hold Home for about 12 seconds until it turns off, then connect it again."
+REPLUG = ("The controller hasn't come back yet: if macOS asks whether to allow the accessory to connect, allow it. Otherwise unplug the "
+          "controller, hold Home for about 12 seconds until it turns off, then connect it again.")
 INSTALLED = "Installed. {} If you changed a Bluetooth tweak, remove the controller in System Settings → Bluetooth and pair it again."
 RESTORED = "Restored. {} If its Bluetooth tweaks changed, remove the controller in System Settings → Bluetooth and pair it again."
 NOT_ENTERED = "The controller didn't restart into update mode, so nothing was written. "
