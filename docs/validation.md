@@ -181,4 +181,13 @@ app. Between steps, the controller was put in update mode and restarted from it 
    into the firmware, as the controller again within about a second. Four times in a row, with no flash written. The app
    doesn't use it yet.
 
-Not validated: the dongle with 1.0.2, and the crash message, which was tried with a simulated core.
+6. **Dongle, with the 1.0.2 build itself.** Alone, it read as 1.03 with the Xbox 360 change, and its backup matched the one from
+   2026-11-08 byte for byte. Create Problem Report worked with it, alone and paired. Restore to the original 1.03 and installing
+   the change again (8 bytes each, about 31 s, through its bootloader, with `caffeinate` during each write) left a backup identical
+   to the one before. With the controller on 2.4 GHz it presents as `045e:028e` version `0x0103`: the app reads it through the
+   dongle and keeps its writes for when the controller is off, the Settings tab says the dongle has no settings, the controller
+   test finds the controller, and the check that the device by cable isn't the dongle refuses it.
+
+The 1.0.2 build also read the controller by cable and in update mode before it was published.
+
+Not validated: the crash message, which was tried with a simulated core.
