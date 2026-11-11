@@ -158,3 +158,27 @@ battery log in an unused flash area), the command line of this repository and sm
 Still to do: Restore when a 4 KB block outside the firmware area differs from the backup; quitting or closing the window during
 a real write; the 12.5 ms request on Linux or Windows; and, from 0.4, a sleeping Mac with the cable in and the closed Bluetooth
 update.
+
+# Hardware validation of 1.0.2 (2026-11-11)
+
+Run with the 1.0.2 beta (1.0.2b1, the published build), on the same controller, macOS 27.2 (Apple silicon), through the macOS
+app. Between steps, the controller was put in update mode and restarted from it with a script, not with L1 + R1 (see below).
+
+1. **Reads by cable.** The app identified 1.09 with its eleven tweaks, the Settings tab loaded, and no newer version was offered.
+   Asked for real, GitHub's latest release is offered to 1.0.0 with the right link and not to the beta.
+2. **Update mode.** The app read and identified the firmware through the bootloader and backed up the whole flash in about
+   1.5 minutes, so the bootloader's replies pass the new check on the address they echo.
+3. **Restore and install again.** Restore to the original 1.09 (4,333 bytes, about 33 s), then the same tweaks (4,333 bytes,
+   about 33 s). Each write kept `caffeinate -i -w <the core>` running, gone when it finished; the backup didn't start it. After
+   Restore, the Settings tab showed no ring level and the install offered "Home ring: normal". A backup afterwards differs from
+   the one before only in the two bytes of the installed ring level (5 % before, normal after); the pairings, the address and
+   the settings record are unchanged. With 5 % saved from the Settings tab, the controller starts at 5 %.
+4. **L4 and R4.** L4 mapped to A and saved stayed mapped after the Settings tab reloaded and after a restart, and pressing L4
+   showed A in the controller test. It was then cleared and saved again.
+5. **Update mode without buttons.** `81 05 00 51 00` on the update channel by cable restarts the controller into update mode
+   within a second, with the original firmware or with tweaks, as it does on the dongle: its handler sets analog register
+   `0x3c` to `0x5a`, which the bootloader checks at start-up. The bootloader's restart command (7) clears it and restarts
+   into the firmware, as the controller again within about a second. Four times in a row, with no flash written. The app
+   doesn't use it yet.
+
+Not validated: the dongle with 1.0.2, and the crash message, which was tried with a simulated core.
