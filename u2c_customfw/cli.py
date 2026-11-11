@@ -3,6 +3,7 @@
 import argparse
 import contextlib
 import sys
+import time
 from pathlib import Path
 
 from . import fetch, state
@@ -21,6 +22,7 @@ REPLUG = "Unplug the controller, hold Home for about 12 seconds until it turns o
 INSTALLED = "Installed. {} If you changed a Bluetooth tweak, remove the controller in System Settings → Bluetooth and pair it again."
 RESTORED = "Restored. {} If its Bluetooth tweaks changed, remove the controller in System Settings → Bluetooth and pair it again."
 NOT_ENTERED = "The controller didn't restart into update mode, so nothing was written. "
+IN_UPDATE_MODE = "The controller is in update mode and nothing was written. Try again: the app installs and restores from there too."
 BOOT_WAIT, BACK_WAIT, STEP = 8, 10, 0.3   # seconds: to reach update mode, to come back from it, between looks
 UNCHANGED = "The controller already has this firmware, so nothing was written."
 CHECKED = "The check passed and nothing was written."
@@ -237,12 +239,11 @@ def _into_update_mode(f):
     return info
 
 
-def _back(mode_found=lambda: [f for f in find() if f.mode in ("cable", "cable_360")]):
+def _back():
     """Whether the controller came back by cable after the bootloader restarted it."""
-    import time
     end = time.time() + BACK_WAIT
     while time.time() < end:
-        if mode_found():
+        if any(f.mode in ("cable", "cable_360") for f in find()):
             return True
         time.sleep(STEP)
     return False
@@ -254,7 +255,11 @@ def _update_mode(args, f):
     restart command (7) starts the firmware, unless a write began and failed, which leaves it there for Restore; a controller
     that was already in update mode and got nothing written stays there too. args.back says whether it came back by cable."""
     entered = f.mode != "boot"
-    ch = open_channel(_into_update_mode(f) if entered else f.info, 0)
+    info = _into_update_mode(f) if entered else f.info
+    try:
+        ch = open_channel(info, 0)
+    except (OSError, PermissionDenied) as e:
+        raise OpError(f"{e}. {IN_UPDATE_MODE}" if entered else str(e)) from e
     args.erasing, args.wrote, args.back, restart = False, False, None, False
     try:
         yield ch
@@ -265,7 +270,8 @@ def _update_mode(args, f):
     finally:
         try:
             if restart:
-                ch.xfer(boot.request(7), 0.5)
+                with contextlib.suppress(OSError, protocol.ProtocolError):   # not coming back is said below; it mustn't hide what happened
+                    ch.xfer(boot.request(7), 0.5)
         finally:
             ch.close()
         if restart:
@@ -298,13 +304,13 @@ def cmd_patch(args, store):
         return _dongle_change(args, store, f, xbox="dongle_360" in args.tweaks.split(","))
     keys = [k for k in args.tweaks.split(",") if k]
     keys += ["ble_interval"] if keys and "ble_interval" not in keys else []   # as the app: every install asks for 12.5 ms
-    stock = {}
+    stock = None
 
     def plan(ch, mode):
+        nonlocal stock
         b = _backup_for(args, ch, store, mode=mode)
-        if "x" not in stock:
-            stock["x"] = stock_for(args, b, store)
-        return patch.plan_patch(ch, b, stock["x"], keys, mode)
+        stock = stock or stock_for(args, b, store)   # once: a check by cable comes first, and it may download
+        return patch.plan_patch(ch, b, stock, keys, mode)
     _plan_and_write(args, f, plan, "Add --write to install.", INSTALLED)
 
 

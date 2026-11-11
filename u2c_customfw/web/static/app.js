@@ -148,7 +148,7 @@ function render() {
     "restore-backup-dry": dRestore, "restore-backup": dRestore, "restore-stock-dry": dStock, "restore-stock": dStock, "force-open": false, "report-open": true, refresh: true }
     : { backup: !!ctrl, "patch-dry": patchable, "patch-write": patchable,
     "restore-backup-dry": !!ctrl && !!fw && !!fw.restore_backup, "restore-backup": !!ctrl && !!fw && !!fw.restore_backup, "restore-stock-dry": !!ctrl && backed && on109, "restore-stock": !!ctrl && backed && on109,
-    "force-open": !!ctrl && backed, "report-open": true, refresh: true };
+    "force-open": boot && backed /* firmware that can't be identified may not know the command that enters update mode */, "report-open": true, refresh: true };
   for (const [id, ok] of Object.entries(can)) $(id).disabled = off || !ok;
   $("backup").classList.toggle("sec", dongleOnly ? dBacked : backed);   // once there's a backup, installing is the main step
   const stockWhy = dongleOnly || !ctrl || !backed || !fw || fw.error || on109 ? "" : fw.version ? `Not available, because this controller has firmware ${fw.version.toFixed(2)}.`

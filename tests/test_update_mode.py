@@ -180,6 +180,41 @@ class ByCableTest(Base):
         self.assertIn("Installed. Unplug the controller, hold Home for about 12 seconds until it turns off, then connect it again.", text)
 
 
+    def test_a_bootloader_that_cant_be_opened_says_where_the_controller_is(self):
+        self.unit = Controller(self.flash)
+        real = Controller.open
+
+        def fails_in_boot(unit, info, rid):
+            if unit.mode == "boot":
+                raise OSError("could not open the device")
+            return real(unit, info, rid)
+        with mock.patch.object(Controller, "open", fails_in_boot):
+            code, text = go(["patch", "--tweaks", "cable_360", "--write"], self.unit, self.tmp)
+        self.assertEqual(code, 1, text)
+        self.assertIn("The controller is in update mode and nothing was written.", text)
+
+    def test_a_restart_that_fails_doesnt_hide_a_good_install(self):
+        self.unit = Controller(self.flash, comes_back=False)
+        real = Controller.open
+
+        def restart_fails(unit, info, rid):
+            ch = real(unit, info, rid)
+            if unit.mode == "boot":
+                inner = ch.xfer
+
+                def xfer(r, timeout=0.5, accept=None):
+                    if int.from_bytes(r[1:3], "little") == 7:
+                        raise OSError("gone")
+                    return inner(r, timeout, accept)
+                ch.xfer = xfer
+            return ch
+        with mock.patch.object(Controller, "open", restart_fails):
+            code, text = go(["patch", "--tweaks", "cable_360", "--write"], self.unit, self.tmp)
+        self.assertEqual(code, 0, text)
+        self.assertEqual(self.tweaked(), ("ble_interval", "cable_360"))
+        self.assertIn("Installed. Unplug the controller, hold Home for about 12 seconds", text)
+
+
 class AlreadyInUpdateModeTest(Base):
     def test_a_check_leaves_it_in_update_mode(self):
         self.unit = Controller(self.flash, mode="boot")
