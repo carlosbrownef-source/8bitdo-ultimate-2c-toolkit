@@ -14,6 +14,10 @@ xattr -dr com.apple.quarantine "path/to/Firmware Toolkit.app"
 
 The app needs **Input Monitoring** to talk to them: check that it's allowed in System Settings → Privacy & Security → Input Monitoring. The controller's firmware can only be read by cable, and the dongle has to be plugged in on its own, with the controller off.
 
+### How do I update the app?
+
+When a newer version is out, the app says so at the bottom of its window, with a link to its page. Download it and replace the app, or run `brew upgrade firmware-toolkit` if you installed it with Homebrew. To find out, the app asks GitHub once each time it opens, and that request carries nothing about you or your controller. Otherwise it only goes online to download 8BitDo's original firmware, when a task needs it.
+
 ## Using it
 
 ### How do I put the controller in update mode?

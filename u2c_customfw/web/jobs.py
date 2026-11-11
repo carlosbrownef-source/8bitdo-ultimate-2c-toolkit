@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """One background job at a time, with an append-only event list that Server-Sent Events replay."""
+import os
+import subprocess
 import threading
 from types import SimpleNamespace
 
@@ -12,9 +14,18 @@ from ..transport import PermissionDenied
 ACTIONS = {"backup": cli.cmd_backup, "patch": cli.cmd_patch, "restore": cli.cmd_restore}
 
 
+def keep_awake():
+    """Keeps the Mac from sleeping while idle, which would stop the USB connection mid-write, until stopped or until
+    this process ends. None where caffeinate doesn't exist."""
+    try:
+        return subprocess.Popen(["/usr/bin/caffeinate", "-i", "-w", str(os.getpid())])
+    except OSError:
+        return None
+
+
 class Runner:
     def __init__(self, store):
-        self.store, self.events, self.running, self.lock = store, [], False, None
+        self.store, self.events, self.running, self.lock, self.awake = store, [], False, None, None
         self.writing = False   # a job that writes to the controller is running: the Mac app asks before quitting
         self.cond = threading.Condition()
 
@@ -33,7 +44,9 @@ class Runner:
 
     def _free(self) -> None:
         state.unlock_device(self.lock)
-        self.running = self.writing = False
+        if self.awake:
+            self.awake.terminate()
+        self.running, self.writing, self.awake = False, False, None
         self.cond.notify_all()
 
     def claim(self) -> bool:
@@ -50,19 +63,25 @@ class Runner:
             if not self._take():
                 return False
             self.events, self.writing = [], bool(params.get("write"))
-        args = SimpleNamespace(**{**dict(write=False, tweaks="", backup=None, download=False, source="backup", expect=None,
-                                         accept_disclaimer=False, force_unknown=False), **params})
-        log = get_logger(self.store)
-        log.info("job %s %s", name, params)   # the page never sends a path
+        try:   # until the thread runs, nothing else frees the device
+            if self.writing:
+                self.awake = keep_awake()
+            args = SimpleNamespace(**{**dict(write=False, tweaks="", backup=None, download=False, source="backup", expect=None,
+                                             accept_disclaimer=False, force_unknown=False), **params})
+            log = get_logger(self.store)
+            log.info("job %s %s", name, params)   # the page never sends a path
 
-        def say(text):
-            log.info("  %s", text)
-            args.last = str(text)   # the last sentence is the task's result
-            self.push({"type": "log", "text": str(text)})
-        args.say = say
-        args.hint = lambda text: None  # command-line advice, meaningless in the app
-        args.progress = lambda label, done, total: self.push({"type": "progress", "label": label, "done": done, "total": total})
-        threading.Thread(target=self._run, args=(name, args), daemon=True).start()
+            def say(text):
+                log.info("  %s", text)
+                args.last = str(text)   # the last sentence is the task's result
+                self.push({"type": "log", "text": str(text)})
+            args.say = say
+            args.hint = lambda text: None  # command-line advice, meaningless in the app
+            args.progress = lambda label, done, total: self.push({"type": "progress", "label": label, "done": done, "total": total})
+            threading.Thread(target=self._run, args=(name, args), daemon=True).start()
+        except BaseException:
+            self.release()
+            raise
         return True
 
     def _run(self, name, args):

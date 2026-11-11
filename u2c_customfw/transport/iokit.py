@@ -136,7 +136,9 @@ class IOKitChannel:
             data = bytes([rid]) + data
         self.replies.append(data)
 
-    def xfer(self, report: bytes, timeout: float = 0.5) -> bytes | None:
+    def xfer(self, report: bytes, timeout: float = 0.5, accept=None) -> bytes | None:
+        """The first reply after sending or, given accept, the first one it accepts: a late reply to an earlier request
+        that arrives after this one was sent is passed over instead of being taken as its answer."""
         while cf.CFRunLoopRunInMode(MODE, 0, True) == HANDLED_SOURCE:  # a reply that came after its request timed out
             pass                                                         # arrives now, not as this request's answer
         self.replies.clear()
@@ -144,9 +146,14 @@ class IOKitChannel:
         if iok.IOHIDDeviceSetReport(self.dev, 1, self.rid, buf, 64):  # kIOHIDReportTypeOutput
             return None
         end = time.monotonic() + timeout
-        while not self.replies and time.monotonic() < end:
+        while True:
+            for r in self.replies:
+                if accept is None or accept(r):
+                    return r
+            self.replies.clear()
+            if time.monotonic() >= end:
+                return None
             cf.CFRunLoopRunInMode(MODE, 0.02, True)
-        return self.replies[0] if self.replies else None
 
     def close(self) -> None:
         global _open_channels

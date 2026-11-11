@@ -34,9 +34,13 @@ def request(cmd: int, addr: int = 0, param: int = 0, data: bytes = b"", datalen:
 
 
 def _call(ch, r: bytes, timeout=1.0, tries=3):
+    """Both bootloaders build every reply from the request's first 16 bytes (controller 0x3804, dongle 0xed4), so the
+    command comes back at [4] and the address at [14:18]: a late reply to another request can't pass for this one's."""
+    def answers(a):
+        return len(a) >= 18 and a[0] == 0 and a[1] == 5 and a[2] == 0 and a[4] == r[1] and a[14:18] == r[13:17]
     for _ in range(tries):
-        a = ch.xfer(r, timeout)
-        if a and len(a) >= 5 and a[0] == 0 and a[1] == 5 and a[2] == 0 and a[4] == r[1]:
+        a = ch.xfer(r, timeout, accept=answers)
+        if a and answers(a):
             return a
     return None
 
@@ -55,7 +59,7 @@ def read(ch, addr: int, n: int, progress=None) -> bytes:
 
 
 def erase(ch, addr: int, n: int) -> None:
-    if _call(ch, request(4, addr, n), timeout=10.0, tries=1) is None:
+    if _call(ch, request(4, addr, n), timeout=max(10.0, 0.3 * n / 0x1000), tries=1) is None:   # up to 0.3 s a sector
         raise ProtocolError(f"Erasing {addr:#x}-{addr + n:#x} failed")
 
 

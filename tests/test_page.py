@@ -604,6 +604,18 @@ class ControllerTestCard(PageCase):
         dom, _, _ = self.body("boot&tweaks=1&scenario=installed")
         self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ring_5,ble_interval")
 
+    def test_a_newer_version_shows_a_line_with_its_page(self):
+        self.assertIn("hidden", self.server.dom().find("update").attrs)   # the simulation never asks GitHub
+        dom = self.server.dom("&diagsim=cable&update=1")
+        self.assertNotIn("hidden", dom.find("update").attrs)
+        self.assertEqual(dom.find("update-version").all_text(), "9.9.9")
+        self.assertEqual(dom.find("update-link").all_text(), "Download it from GitHub")
+        self.assertEqual(dom.find("update-link").attrs.get("href"), "https://github.com/carlosbrownef-source/8bitdo-ultimate-2c-toolkit/releases/tag/v9.9.9")
+
+    def test_a_ring_level_is_not_kept_once_the_original_firmware_is_read(self):
+        dom, _, _ = self.body("boot&tweaks=1&scenario=restored")
+        self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,ble_interval")
+
     def test_alerts_off_with_normal_installs_no_ring_code(self):  # with the other tweaks that need it off too
         dom, _, _ = self.body("boot&scenario=noalerts")
         self.assertEqual(dom.find("diag-snap").all_text(), "bt_xbox,bt_rumble,cable_360,dim_leds,ble_interval")
@@ -700,6 +712,8 @@ class ControllerTestCard(PageCase):
     def test_report_includes_the_firmware(self):
         dom, _, _ = self.body("boot&scenario=report")
         self.assertIn("Firmware: Original 1.09", dom.find("report-text").all_text())
+        dom = self.server.dom("&diagsim=dongle&scenario=report", 4000)
+        self.assertIn("Firmware: Dongle 1.03 with Xbox 360 controller over 2.4 GHz", dom.find("report-text").all_text())
 
     def test_battery_row(self):
         for query, want in (("bt&battery=0.8,discharging", "80 %"), ("bt&battery=0.42,charging", "42 %, charging"), ("bt&battery=1,full", "Full"), ("bt&battery=0.9,unknown", "90 %"),

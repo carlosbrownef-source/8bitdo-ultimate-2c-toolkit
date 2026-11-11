@@ -191,7 +191,8 @@ const IDENTIFIED = { "update record": "the controller's update record", "bank A 
 const VERSION_FROM = { "update record": "The update record", "bank A hash": "The installed firmware", "bank B hash": "The second copy of the firmware", unknown: "Couldn't be identified" };
 const WHO = { 0x301b: "The controller", 0x301c: "The 2.4 GHz dongle" };  // the problem report keeps the number
 const tweakOrder = (key) => key.startsWith("ring") ? Infinity : tweakBoxes().findIndex((x) => x.value === key);  // as the toggles, the Home ring last
-const firmwareName = () => !fw.known ? "Unknown" : fw.recipes.length ? `1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}${fw.titles && fw.titles.length ? `: ${fw.titles.join(", ")}` : ""}` : "Original 1.09";
+const firmwareName = () => !fw.known ? "Unknown" : fw.device === "dongle" ? (fw.tweaks.some((t) => t.on) ? `Dongle ${fw.version.toFixed(2)} with ${fw.tweaks.filter((t) => t.on).map((t) => t.title).join(", ")}` : `Original dongle ${fw.version.toFixed(2)}`)
+  : fw.recipes.length ? `1.09 with ${fw.recipes.length} ${fw.recipes.length === 1 ? "tweak" : "tweaks"}${fw.titles && fw.titles.length ? `: ${fw.titles.join(", ")}` : ""}` : "Original 1.09";
 function details() {
   const box = $("details-body"), inUpdateMode = !!st && st.devices.some((d) => d.mode === "boot");
   const say = (text) => { box.innerHTML = ""; const p = document.createElement("p"); p.style.marginBottom = 0; p.textContent = text; box.append(p); };
@@ -313,6 +314,7 @@ async function refresh() {
 let matched = "";
 function matchInstalled() {  // start from what's installed, so installing doesn't drop a tweak by surprise; the person's choices stay until other firmware is read
   const key = fw && fw.known && fw.recipes ? fw.recipes.join() : "";
+  if (fw && fw.known && fw.recipes && !fw.recipes.length) ringKept = "";   // the original firmware has no ring level to keep
   if (!key || key === matched) return;
   matched = key;
   tweakBoxes().forEach((x) => (x.checked = fw.recipes.includes(x.value)));
@@ -445,4 +447,10 @@ setInterval(async () => {
   try { now = await api("GET", "/api/state"); } catch (e) { return; }
   if (!busy && !reading && !refreshing && deviceKey(now) !== deviceKey(st)) refresh();
 }, WATCH_MS);
+api("GET", "/api/update").then((u) => {   // asked once, after the page is up; offline, nothing shows
+  if (!u.version) return;
+  $("update-version").textContent = u.version;
+  $("update-link").href = u.url;
+  $("update").hidden = false;
+}).catch(() => {});
 if (new URLSearchParams(location.search).has("diagsim")) showTab(new URLSearchParams(location.search).get("open") || "diagnostics");

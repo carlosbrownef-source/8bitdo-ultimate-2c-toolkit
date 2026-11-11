@@ -232,6 +232,15 @@ class WebTest(unittest.TestCase):
         self.assertEqual(self.call("POST", "/api/backup")[0], 202)
         self.events()
 
+    def test_a_newer_version_is_asked_once_per_launch(self):
+        from u2c_customfw import update
+        found = {"version": "9.9.9", "url": "https://github.com/x"}
+        with mock.patch.dict("os.environ", {"U2C_SIM": ""}), mock.patch.object(update, "newer", return_value=found) as newer:
+            self.assertEqual(json.loads(self.call("GET", "/api/update")[1]), found)
+            self.assertEqual(json.loads(self.call("GET", "/api/update")[1]), found)
+            self.assertEqual(newer.call_count, 1)
+            self.assertEqual(self.call("GET", "/api/update", token=None)[0], 403)
+
     def test_busy_says_whether_a_write_is_running(self):
         release = threading.Event()
         state.accept(self.store)
@@ -305,7 +314,7 @@ class WebTest(unittest.TestCase):
         dev = self.settings_device()
         real = dev.xfer
         calls = []
-        def fading(req, timeout=0.5):
+        def fading(req, timeout=0.5, accept=None):
             if req[2] == 5 and int.from_bytes(req[14:18], "little") == 0xD1C8:
                 calls.append(1)
                 if len(calls) > 1:
@@ -329,7 +338,7 @@ class WebTest(unittest.TestCase):
         dev = self.settings_device()
         self.assertEqual(self.call("GET", "/api/settings")[0], 200)
         real = dev.xfer
-        dev.xfer = lambda req, timeout=0.5: real(req, timeout) if req[3] == 0x55 else None  # the save goes out, then nothing answers
+        dev.xfer = lambda req, timeout=0.5, accept=None: real(req, timeout) if req[3] == 0x55 else None  # the save goes out, then nothing answers
         code, body = self.call("POST", "/api/settings", {"save": True, "values": {f.name: f.default for f in settings.FIELDS}})
         self.assertEqual(code, 409)
         self.assertNotIn("Saved", body)
@@ -522,6 +531,28 @@ class WebTest(unittest.TestCase):
                 urllib.request.urlopen(req, timeout=5)
             self.assertEqual(e.exception.code, 400)
             e.exception.close()
+
+    def test_a_write_keeps_the_mac_awake_until_it_ends(self):
+        runner, gate, awake = jobs.Runner(self.store), threading.Event(), mock.Mock()
+        with mock.patch.dict(jobs.ACTIONS, patch=lambda args, store: gate.wait(5)), \
+                mock.patch.object(jobs, "keep_awake", return_value=awake) as keep:
+            self.assertTrue(runner.start("patch", write=True))
+            awake.terminate.assert_not_called()
+            gate.set()
+            with runner.cond:
+                self.assertTrue(runner.cond.wait_for(lambda: not runner.running, timeout=5))
+            awake.terminate.assert_called_once()
+            self.assertTrue(runner.start("patch", write=False))   # checking first writes nothing
+            self.assertEqual(keep.call_count, 1)
+
+    def test_a_job_that_fails_to_start_frees_the_device(self):
+        runner = jobs.Runner(self.store)
+        with mock.patch.object(jobs, "get_logger", side_effect=OSError("no log")):
+            with self.assertRaises(OSError):
+                runner.start("backup")
+        self.assertFalse(runner.running)
+        with mock.patch.dict(jobs.ACTIONS, backup=lambda args, store: None):
+            self.assertTrue(runner.start("backup"))
 
     def test_running_and_the_end_event_change_together(self):
         runner = jobs.Runner(self.store)

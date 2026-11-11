@@ -80,7 +80,7 @@ class BackupTest(Base):
         dev = SimApp(controller_flash())
         real, calls = dev.xfer, [0]
 
-        def flaky(req, timeout=0.5):
+        def flaky(req, timeout=0.5, accept=None):
             r = real(req, timeout)
             calls[0] += 1
             if calls[0] > 11000 and r and req[2] == 0x05:
@@ -98,6 +98,16 @@ class BackupTest(Base):
         self.assertEqual([x.path for x in bkp.find_backups(self.tmp, f[:0x6000], f[image.MAC_SECTOR:image.MAC_SECTOR + 0x1000])], [b.path])
         other = bytearray(f[image.MAC_SECTOR:image.MAC_SECTOR + 0x1000]); other[3] ^= 1
         self.assertEqual(bkp.find_backups(self.tmp, f[:0x6000], bytes(other)), [])
+
+
+class DongleCheckTest(unittest.TestCase):
+    def test_no_answer_is_not_taken_for_the_controller(self):
+        with mock.patch.object(probe.app, "read", return_value=None), self.assertRaises(OpError):
+            probe.check_not_dongle(object())
+        with mock.patch.object(probe.app, "read", return_value=b"\xff" * 16), self.assertRaises(OpError):
+            probe.check_not_dongle(object())
+        with mock.patch.object(probe.app, "read", return_value=b"\0" * 16):
+            probe.check_not_dongle(object())
 
 
 class SameUnitTest(Base):
@@ -446,7 +456,7 @@ class DiagnosticsDataTest(Base):
         class Counting(SimBoot):
             asked = 0
 
-            def xfer(self, r, timeout=0.5):
+            def xfer(self, r, timeout=0.5, accept=None):
                 self.asked += int.from_bytes(r[1:3], "little") == 8
                 return super().xfer(r, timeout)
         for identity in ("auto", None):

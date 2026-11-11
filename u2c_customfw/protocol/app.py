@@ -23,10 +23,12 @@ def _req(addr: int, n: int) -> bytes:
 
 def read(ch, addr: int, n: int, tries: int = 3) -> bytes | None:
     """One chunk, accepted only if the reply echoes status 0, the read command, the length and the address."""
+    def answers(r):
+        return (len(r) >= 18 + n and r[0:3] == b"\x02\x05\x00" and r[4] == 0x05
+                and int.from_bytes(r[6:8], "little") == n and int.from_bytes(r[14:18], "little") == addr)
     for _ in range(tries):
-        r = ch.xfer(_req(addr, n))
-        if (r and len(r) >= 18 + n and r[0:3] == b"\x02\x05\x00" and r[4] == 0x05
-                and int.from_bytes(r[6:8], "little") == n and int.from_bytes(r[14:18], "little") == addr):
+        r = ch.xfer(_req(addr, n), accept=answers)
+        if r and answers(r):
             return r[18:18 + n]
     return None
 
