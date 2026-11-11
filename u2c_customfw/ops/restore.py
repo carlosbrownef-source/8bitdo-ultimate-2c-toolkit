@@ -2,25 +2,25 @@
 """Restore: put back this unit's backup, or 8BitDo's stock v1.09 bank A."""
 from .. import protocol
 from ..firmware import image, recipes
-from ..protocol import boot
+from . import probe
 from .backup import describe, taken
 from .patch import check_no_pending_update, check_unit, current_bank_a
 from .probe import detect_version
 from .plan import OpError, Plan, count
 
 
-def plan_restore(ch, backup, source: str, stock, force_unknown: bool = False) -> Plan:
+def plan_restore(ch, backup, source: str, stock, force_unknown: bool = False, mode: str = "boot") -> Plan:
     """Bank A may be in any state (this exists for damaged firmware); the unit checks still apply. Restoring stock also
     needs the firmware to be 1.09; force_unknown lets it proceed when the version cannot be determined (never when it is
     known to be another version)."""
-    check_unit(ch, backup)
+    check_unit(ch, backup, mode)
     if source not in ("backup", "stock"):
         raise OpError(f"unknown restore source {source!r}")
-    cur = current_bank_a(ch)
+    cur = current_bank_a(ch, mode)
     if source == "stock":  # a backup restore puts the update record back too, so only this one can be undone by it
         check_no_pending_update(ch, "A firmware update is pending on this controller, and it could replace the restored firmware the next time "
-                                    "the controller starts. Nothing was written. Restoring your backup still works.")
-        v, _ = detect_version(ch, "boot", cur)
+                                    "the controller starts. Nothing was written. Restoring your backup still works.", mode)
+        v, _ = detect_version(ch, mode, cur)
         if v is None and not force_unknown:
             raise OpError("This controller's firmware version can't be identified, so nothing was written. Restoring your "
                           "own backup still works, or you can use \"Install Firmware 1.09 Anyway…\" in the Diagnostics tab if you accept the risk.")
@@ -36,7 +36,7 @@ def plan_restore(ch, backup, source: str, stock, force_unknown: bool = False) ->
     others = []
     if source == "backup":
         try:
-            now = boot.read(ch, image.BANK_A_ERASE_END, image.CONFIG_START - image.BANK_A_ERASE_END)
+            now = probe._read(ch, mode, image.BANK_A_ERASE_END, image.CONFIG_START - image.BANK_A_ERASE_END)
         except protocol.ProtocolError as e:
             raise OpError(f"{e}. Nothing was written.") from e
         for a in range(image.BANK_A_ERASE_END, image.CONFIG_START, image.SECTOR):

@@ -22,7 +22,11 @@ When a newer version is out, the app says so at the bottom of its window, with a
 
 ### How do I put the controller in update mode?
 
-Turn it fully off, then hold LB + RB while you plug in the cable. The small light below the Home ring will blink white. The dongle has no buttons, so the app puts it in update mode by itself whenever it writes.
+You don't need to: with the controller connected by cable, the app puts it in update mode by itself when it installs or restores, and restarts it afterwards. It does the same with the dongle. If the app can't, for example because the controller's firmware is damaged, turn the controller fully off, then hold LB + RB while you plug in the cable. The small light below the Home ring will blink white.
+
+### The controller is stuck in update mode
+
+If a write was interrupted, use Restore: it works in update mode. To leave update mode without the app, unplug the cable and hold Home for about 12 seconds, until the controller turns off. Unplugging alone isn't enough, because the battery keeps it in update mode.
 
 ### macOS still sees the controller as a generic device over Bluetooth
 

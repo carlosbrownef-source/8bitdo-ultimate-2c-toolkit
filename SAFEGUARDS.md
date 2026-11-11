@@ -12,6 +12,8 @@ These are the checks the app makes before and while it writes to the controller 
 - **Never the dongle.** The controller's steps never write to the dongle. The app tells them apart by the bootloader's identity, the USB version and how the flash reads back.
 - **Checked edits.** Each tweak is a set of byte edits to the original firmware 1.09, and every edit checks the original bytes it replaces before writing.
 - **Restoring 8BitDo's 1.09.** The original firmware is downloaded from 8BitDo's update server, only when you ask, and checked against its known SHA-256. The app only restores it if the controller really is on 1.09, which it reads from the update record or, if that is blank, identifies by the hash of bank A or bank B. If the version can't be determined, it refuses.
+- **Update mode only to write.** *Check First* reads the controller by cable and leaves it running. To write, the app first checks that the device isn't the dongle, then puts the controller in update mode and checks everything again there, through the bootloader, before it erases anything. After a verified write, it restarts the controller into its new firmware.
+- **An interrupted write.** If a write stops after erasing, the controller stays in update mode, the app says so, and Restore still works there. Unplugging the cable doesn't leave update mode; holding Home for about 12 seconds with the cable out does.
 - **The last resort.** *Install Firmware 1.09 Anyway…*, in the Diagnostics tab, can override an unknown version, behind a warning and a confirmation that spells out the risks. It never overrides a version that is known to be different.
 
 ## The dongle

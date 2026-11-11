@@ -244,7 +244,7 @@ def make_server(store: Path, port: int = 0):
                 ch = cli.open_channel(f.info, 0 if f.mode == "boot" else 0x81)
                 try:
                     fw = probe.read_firmware(ch, f.mode)
-                    pick = bkp.restorable(cli.unit_backups(ch, store)) if f.mode == "boot" else None   # what Restore your backup would use
+                    pick = bkp.restorable(cli.unit_backups(ch, store, f.mode))   # what Restore your backup would use
                 finally:
                     ch.close()
                 st, version = fw.state, fw.version

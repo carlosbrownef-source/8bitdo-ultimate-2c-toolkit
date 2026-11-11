@@ -106,6 +106,9 @@ class SimBoot:
             for i, x in enumerate(data):
                 self.f[addr + i] &= x  # flash only clears bits
             return ok()
+        if cmd == 7:
+            self.ops.append(("restart",))
+            return None   # it restarts at once
         raise AssertionError(f"unexpected bootloader command {cmd}")
 
     def close(self):

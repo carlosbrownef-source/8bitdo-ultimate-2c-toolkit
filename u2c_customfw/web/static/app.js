@@ -41,8 +41,6 @@ ${face(215, 43, "Y")}${face(198, 60, "X")}${face(232, 60, "B")}${face(215, 77, "
 
 const CONTROLLER = ["cable", "cable_360", "boot"];
 let st = null, fw = null, reading = false, busy = false, base = "backup";
-const bootInfo = document.createElement("button");
-bootInfo.type = "button"; bootInfo.className = "info"; bootInfo.id = "boot-info"; bootInfo.textContent = "?"; bootInfo.setAttribute("aria-label", "How to enter update mode");
 
 const tweakBoxes = () => [...document.querySelectorAll(".tweak")];
 const RING_NAMES = { ring_normal: "normal", ring_25: "25 %", ring_5: "5 %", ring_1: "1 %", ring_0_1: "0.1 %", ring_off: "off" };
@@ -120,7 +118,7 @@ function render() {
   const dongleOnly = (!ctrl && devs.some((d) => d.mode.startsWith("dongle"))) || (boot && isDongleFw);   // also a dongle left in update mode
   const dongleReady = dongleOnly && isDongleFw && !paired, dBacked = isDongleFw && fw.backed;
   const backed = !!st && st.backups.length > 0, off = busy || reading, on109 = !!fw && !!fw.version && fw.version.toFixed(2) === "1.09";
-  const patchable = boot && backed && tweaks().length > 0 && !(fw && fw.known === false && !on109);
+  const patchable = !!ctrl && backed && tweaks().length > 0 && !(fw && fw.known === false && !on109);
   hero(devs, ctrl, boot);
 
   $("last-backup").textContent = dongleOnly ? (isDongleFw && fw.restore_backup ? lastBackup([fw.restore_backup.name]) : "") : st ? lastBackup(st.backups) : "";
@@ -129,11 +127,10 @@ function render() {
     if (!("ctrl" in e.dataset)) e.dataset.ctrl = e.textContent;
     e.textContent = dongleOnly ? e.dataset.dongle : e.dataset.ctrl;
   });
-  $("pre-boot").hidden = dongleOnly;   // the app puts the dongle in update mode itself
+  $("pre-boot").hidden = dongleOnly || !boot;   // the app puts the controller and the dongle in update mode itself
   const pre = (el, ok, yes, no) => { el.className = ok ? "ok" : ""; el.innerHTML = ok ? ICON.ok : ICON.no; el.append(ok ? yes : no); };
   pre($("pre-backup"), dongleOnly ? dBacked : backed, "Backup saved", "No backup yet");
   pre($("pre-boot"), boot, "In update mode", "Not in update mode");
-  if (!boot) $("pre-boot").append(bootInfo);  // its ? shows how to get there
 
   const xbox = tweakBoxes().find((x) => x.value === "bt_xbox"), rumble = tweakBoxes().find((x) => x.value === "bt_rumble");
   if (!xbox.checked) rumble.checked = false;
@@ -150,16 +147,16 @@ function render() {
   const can = dongleOnly ? { backup: !boot, "patch-dry": dongleReady && dBacked, "patch-write": dongleReady && dBacked,
     "restore-backup-dry": dRestore, "restore-backup": dRestore, "restore-stock-dry": dStock, "restore-stock": dStock, "force-open": false, "report-open": true, refresh: true }
     : { backup: !!ctrl, "patch-dry": patchable, "patch-write": patchable,
-    "restore-backup-dry": boot && !!fw && !!fw.restore_backup, "restore-backup": boot && !!fw && !!fw.restore_backup, "restore-stock-dry": boot && backed && on109, "restore-stock": boot && backed && on109,
-    "force-open": boot && backed, "report-open": true, refresh: true };
+    "restore-backup-dry": !!ctrl && !!fw && !!fw.restore_backup, "restore-backup": !!ctrl && !!fw && !!fw.restore_backup, "restore-stock-dry": !!ctrl && backed && on109, "restore-stock": !!ctrl && backed && on109,
+    "force-open": !!ctrl && backed, "report-open": true, refresh: true };
   for (const [id, ok] of Object.entries(can)) $(id).disabled = off || !ok;
   $("backup").classList.toggle("sec", dongleOnly ? dBacked : backed);   // once there's a backup, installing is the main step
-  const stockWhy = dongleOnly || !boot || !backed || !fw || fw.error || on109 ? "" : fw.version ? `Not available, because this controller has firmware ${fw.version.toFixed(2)}.`
+  const stockWhy = dongleOnly || !ctrl || !backed || !fw || fw.error || on109 ? "" : fw.version ? `Not available, because this controller has firmware ${fw.version.toFixed(2)}.`
     : "Not available, because the firmware version can't be identified.";
   $("restore-stock-why").textContent = stockWhy; $("restore-stock-why").hidden = !stockWhy;
-  const restoreWhy = dongleOnly ? (paired ? "Turn the controller off so the dongle is connected on its own." : !dBacked ? "Back up the dongle first to restore it." : "") : !boot ? "Put the controller in update mode to restore." : !backed ? "Back up the controller first to restore your backup." : "";
+  const restoreWhy = dongleOnly ? (paired ? "Turn the controller off so the dongle is connected on its own." : !dBacked ? "Back up the dongle first to restore it." : "") : !ctrl ? "Connect the controller by cable to restore." : !backed ? "Back up the controller first to restore your backup." : "";
   $("restore-why").textContent = restoreWhy; $("restore-why").hidden = !restoreWhy;
-  const backupWhy = dongleOnly ? (dBacked && !fw.restore_backup ? "Not available, because no backup of this dongle has firmware this app recognises." : "") : boot && backed && !!fw && "restore_backup" in fw && !fw.restore_backup ? "Not available, because no backup of this controller has firmware this app recognises." : "";
+  const backupWhy = dongleOnly ? (dBacked && !fw.restore_backup ? "Not available, because no backup of this dongle has firmware this app recognises." : "") : !!ctrl && backed && !!fw && "restore_backup" in fw && !fw.restore_backup ? "Not available, because no backup of this controller has firmware this app recognises." : "";
   $("restore-backup-why").textContent = backupWhy; $("restore-backup-why").hidden = !backupWhy;
   const hot = !dongleOnly && !!fw && fw.known === false && !fw.version && !fw.error;
   $("force-zone").classList.toggle("hot", hot);
@@ -376,14 +373,6 @@ document.addEventListener("scroll", () => document.querySelectorAll(".pop:popove
   name.insertBefore(b, name.querySelector("small"));
   popover(b, name.querySelector("small"));
 });
-{  // the controller with LB and RB held and the update-mode light blinking
-  const fig = document.createElement("div"), cap = document.createElement("p");
-  fig.className = "pop-pad";
-  fig.innerHTML = pad(null, false, "gboot").replace(/(data-k="[LR]B" )/g, '$1class="hold" ')
-    .replace('<circle cx="150" cy="59" r="1.6" fill="#1c2026"/>', '<circle class="blink" cx="150" cy="59" r="6" fill="#fff" opacity=".25"/><circle class="blink" cx="150" cy="59" r="2.4" fill="#fff"/>');
-  cap.textContent = "Turn the controller fully off, then hold LB and RB, shown in colour, while plugging in the cable. The small light below the Home ring will blink white.";
-  popover(bootInfo, fig, cap)($("tweaks-act").querySelector(".btns"), () => bootInfo.isConnected);  // Check First and Install show it too, until it's in update mode
-}
 document.querySelectorAll("[data-base]").forEach((b) => (b.onclick = () => {
   base = b.dataset.base; document.querySelectorAll("[data-base]").forEach((x) => setOn(x, x === b));
 }));
@@ -400,14 +389,14 @@ $("patch-write").onclick = async () => {
       runJob("Installing…", "/api/patch", { tweaks: dongleTweaks(), write: true }, "Installed on the dongle");
     return;
   }
-  if (await ask("Install these tweaks?", "This changes the controller's firmware. Installing modified firmware probably voids the controller\'s warranty.", tweakTitles(), "Install", "install"))
+  if (await ask("Install these tweaks?", "This changes the controller's firmware. The app restarts the controller into update mode to write it, then restarts it again. Installing modified firmware probably voids the controller\'s warranty.", tweakTitles(), "Install", "install"))
     runJob("Installing…", "/api/patch", { tweaks: tweaks(), base, write: true }, "Tweaks installed");
 };
 $("restore-backup-dry").onclick = () => runJob("Checking…", "/api/restore", { source: "backup", backup: fw.restore_backup.name, write: false }, "Check passed");
 $("restore-stock-dry").onclick = () => runJob("Checking…", "/api/restore", { source: "stock", write: false }, "Check passed");
 $("restore-backup").onclick = async () => {
   const b = fw.restore_backup;
-  if (await ask("Restore your backup?", `This replaces the ${onDongle() ? "dongle" : "controller"}'s firmware with your backup “${b.name}”, made on ${b.taken}, which has ${b.firmware}.`, [], "Restore"))
+  if (await ask("Restore your backup?", `This replaces the ${onDongle() ? "dongle" : "controller"}'s firmware with your backup “${b.name}”, made on ${b.taken}, which has ${b.firmware}.${onDongle() ? "" : " The app restarts the controller into update mode to write it, then restarts it again."}`, [], "Restore"))
     runJob("Restoring…", "/api/restore", { source: "backup", backup: b.name, write: true }, "Backup restored");
 };
 $("restore-stock").onclick = async () => {
@@ -416,7 +405,7 @@ $("restore-stock").onclick = async () => {
       runJob("Restoring…", "/api/restore", { source: "stock", write: true }, "Original firmware restored");
     return;
   }
-  if (await ask("Restore the original firmware 1.09?", "This replaces the controller's firmware with 8BitDo's original 1.09, downloaded from 8BitDo. Your settings, pairings and calibration stay as they are.", [], "Restore", "danger"))
+  if (await ask("Restore the original firmware 1.09?", "This replaces the controller's firmware with 8BitDo's original 1.09, downloaded from 8BitDo. The app restarts the controller into update mode to write it, then restarts it again. Your settings, pairings and calibration stay as they are.", [], "Restore", "danger"))
     runJob("Restoring…", "/api/restore", { source: "stock", write: true }, "Original firmware restored");
 };
 $("force-open").onclick = () => {
