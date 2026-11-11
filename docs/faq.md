@@ -32,6 +32,14 @@ macOS remembers how a Bluetooth device described itself. After installing or rem
 
 Rumble over Bluetooth needs both the Xbox Series X|S tweak and the Rumble over Bluetooth tweak. Then open the Diagnostics tab and try the vibration both ways: the way a native game would, and by sending the report straight to the controller. If only the direct report vibrates, the firmware isn't the problem.
 
+### Home opens Apple Games instead of reaching Steam
+
+This is Steam on macOS, not the controller, and it happens with any controller that has a Home button. macOS uses Home to open Apple Games unless the app in front asks for it. Steam asks, and macOS shows a prompt to let it respond to Home, but on macOS 27.2 the Steam window belongs to a helper process that doesn't ask. So while Steam is in front, Home still opens Apple Games, and Steam doesn't see it, not even in its controller settings. With another app in front that asks for Home, such as a game or this app's Diagnostics tab, Steam does receive it.
+
+### How long does the battery last?
+
+As a personal experience rather than a measurement: with the tweaks installed, including Processor rest, my brother got about 50 hours over Bluetooth on battery, on his Linux computer. How long it lasts for you depends on use, vibration, the Home ring's brightness and the battery's age.
+
 ### Can I go back to the original firmware?
 
 Yes. The bootloader, which runs update mode, is never modified, so Restore always works: it restores your own backup or 8BitDo's original firmware, 1.09 for the controller and 1.03 for the dongle. [SAFEGUARDS.md](../SAFEGUARDS.md) lists every check the app makes before it writes.
