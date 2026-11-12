@@ -1,24 +1,30 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Command-line front end: devices, backup, identify, patch, restore, report."""
 import argparse
+import contextlib
 import sys
+import time
 from pathlib import Path
 
 from . import fetch, state
 from .firmware import image, recipes
-from .ops import backup as bkp, devices, dongle as dng, patch, report, restore, shown
+from .ops import backup as bkp, devices, dongle as dng, patch, probe, report, restore, shown
 from .ops.log import get_logger
 from .ops.plan import OpError
 from . import protocol
-from .protocol import boot
+from .protocol import app, boot
 from .transport import PermissionDenied, open_channel
 
 CONTROLLER_MODES = ("cable", "cable_360", "boot", "dongle", "dongle_paired")
 BOOT_HELP = "Turn the controller fully off, then hold LB + RB while plugging in the cable. The small light below the Home ring will blink white."
-INSTALLED = ("Installed. Unplug the controller and connect it again. If you changed a Bluetooth tweak, remove the controller in "
-             "System Settings → Bluetooth and pair it again.")
-RESTORED = ("Restored. Unplug the controller and connect it again. If its Bluetooth tweaks changed, remove the controller in "
-            "System Settings → Bluetooth and pair it again.")
+RESTARTED = "The controller restarted with its new firmware."
+REPLUG = ("The controller hasn't come back yet: if macOS asks whether to allow the accessory to connect, allow it. Otherwise unplug the "
+          "controller, hold Home for about 12 seconds until it turns off, then connect it again.")
+INSTALLED = "Installed. {} If you changed a Bluetooth tweak, remove the controller in System Settings → Bluetooth and pair it again."
+RESTORED = "Restored. {} If its Bluetooth tweaks changed, remove the controller in System Settings → Bluetooth and pair it again."
+NOT_ENTERED = "The controller didn't restart into update mode, so nothing was written. "
+IN_UPDATE_MODE = "The controller is in update mode and nothing was written. Try again: the app installs and restores from there too."
+BOOT_WAIT, BACK_WAIT, STEP = 8, 10, 0.3   # seconds: to reach update mode, to come back from it, between looks
 UNCHANGED = "The controller already has this firmware, so nothing was written."
 CHECKED = "The check passed and nothing was written."
 DONGLE_DONE = "Done. The dongle restarted with its new firmware. Turn the controller on to use it."
@@ -180,17 +186,17 @@ def cmd_identify(args, store):
     args.say(("original 1.09" + (f" with tweaks: {', '.join(shown(s.recipes))}" if shown(s.recipes) else "")) if s.known else "unknown firmware")
 
 
-def unit_backups(ch, store):
-    """The backups of the controller in update mode on ch, newest first."""
-    return bkp.find_backups(store, boot.read(ch, 0, image.BOOT_END), boot.read(ch, image.MAC_SECTOR, image.SECTOR))
+def unit_backups(ch, store, mode="boot"):
+    """The backups of the controller on ch, in update mode or by cable, newest first."""
+    return bkp.find_backups(store, probe._read(ch, mode, 0, image.BOOT_END), probe._read(ch, mode, image.MAC_SECTOR, image.SECTOR))
 
 
-def _backup_for(args, ch, store, recognised=False):
+def _backup_for(args, ch, store, recognised=False, mode="boot"):
     """The backup named with --backup, or the newest of this unit; recognised: the newest whose firmware the app
     recognises, which is the one Restore puts back."""
     if args.backup:
         return bkp.load(Path(args.backup))
-    found = unit_backups(ch, store)
+    found = unit_backups(ch, store, mode)
     if not found:
         raise Exit(2, "There's no backup of this controller. Back it up first, connected by cable.")
     if not recognised:
@@ -202,52 +208,126 @@ def _backup_for(args, ch, store, recognised=False):
     return b
 
 
-def _write(args, ch, plan, done, hint):
-    """Write the plan unless it's a check or changes nothing, and end with the sentence the app shows as the result."""
+def _write(args, ch, plan, hint):
+    """Write the plan unless it's a check or changes nothing; True if it wrote. args.erasing marks that a write has begun."""
     if not plan.bank_a and not plan.other_sectors:
         args.unchanged = True
         args.say(UNCHANGED)
-        return
+        return False
     if not args.write:
         args.say(f"{CHECKED} {plan.summary}")
         args.hint(hint)
-        return
+        return False
     args.say(plan.summary)
+    args.erasing = True
     patch.apply(ch, plan, args.progress)
-    args.say(done)
+    args.wrote = True
+    return True
+
+
+def _into_update_mode(f):
+    """By cable: restart the controller into update mode, once the update channel shows it isn't the dongle (a paired dongle
+    has the controller's USB ID). Returns the bootloader's device."""
+    ch = open_channel(f.info, 0x81)
+    try:
+        probe._check_device(ch, f.mode, None)
+        app.enter_update_mode(ch)
+    finally:
+        ch.close()
+    info = dng._wait(find, "boot", BOOT_WAIT, STEP)
+    if info is None:
+        raise Exit(2, NOT_ENTERED + BOOT_HELP)
+    return info
+
+
+def _back():
+    """Whether the controller came back by cable after the bootloader restarted it."""
+    end = time.time() + BACK_WAIT
+    while time.time() < end:
+        if any(f.mode in ("cable", "cable_360") for f in find()):
+            return True
+        time.sleep(STEP)
+    return False
+
+
+@contextlib.contextmanager
+def _update_mode(args, f):
+    """The bootloader's channel. By cable, the app puts the controller in update mode first. Afterwards the bootloader's
+    restart command (7) starts the firmware, unless a write began and failed, which leaves it there for Restore; a controller
+    that was already in update mode and got nothing written stays there too. args.back says whether it came back by cable."""
+    entered = f.mode != "boot"
+    info = _into_update_mode(f) if entered else f.info
+    try:
+        ch = open_channel(info, 0)
+    except (OSError, PermissionDenied) as e:
+        raise OpError(f"{e}. {IN_UPDATE_MODE}" if entered else str(e)) from e
+    args.erasing, args.wrote, args.back, restart = False, False, None, False
+    try:
+        yield ch
+        restart = entered or args.wrote
+    except BaseException:
+        restart = entered and not args.erasing
+        raise
+    finally:
+        try:
+            if restart:
+                with contextlib.suppress(OSError, protocol.ProtocolError):   # not coming back is said below; it mustn't hide what happened
+                    ch.xfer(boot.request(7), 0.5)
+        finally:
+            ch.close()
+        if restart:
+            args.back = _back()
+
+
+def _plan_and_write(args, f, plan, hint, done):
+    """By cable, check through the update channel, as for the dongle, so a check leaves the controller as it is. Only to write
+    something, put it in update mode, check again there and write; then it restarts (see _update_mode)."""
+    if f.mode != "boot":
+        ch = open_channel(f.info, 0x81)
+        try:
+            probe._check_device(ch, f.mode, None)
+            first = plan(ch, f.mode)
+        finally:
+            ch.close()
+        if not args.write or (not first.bank_a and not first.other_sectors):
+            _write(args, None, first, hint)
+            return
+    with _update_mode(args, f) as ch:
+        wrote = _write(args, ch, plan(ch, "boot"), hint)
+    if wrote:
+        args.say(done.format(RESTARTED if args.back else REPLUG))
 
 
 def cmd_patch(args, store):
     need_accept(args, store)
-    f = pick(("boot", "dongle", "dongle_paired"))
+    f = pick(("boot", "cable", "cable_360", "dongle", "dongle_paired"))
     if f.mode.startswith("dongle") or _dongle_in_boot(f):
         return _dongle_change(args, store, f, xbox="dongle_360" in args.tweaks.split(","))
-    ch = open_channel(f.info, 0)
-    try:
-        b = _backup_for(args, ch, store)
-        keys = [k for k in args.tweaks.split(",") if k]
-        keys += ["ble_interval"] if keys and "ble_interval" not in keys else []   # as the app: every install asks for 12.5 ms
-        plan = patch.plan_patch(ch, b, stock_for(args, b, store), keys)
-        _write(args, ch, plan, INSTALLED, "Add --write to install.")
-    finally:
-        ch.close()
+    keys = [k for k in args.tweaks.split(",") if k]
+    keys += ["ble_interval"] if keys and "ble_interval" not in keys else []   # as the app: every install asks for 12.5 ms
+    stock = None
+
+    def plan(ch, mode):
+        nonlocal stock
+        b = _backup_for(args, ch, store, mode=mode)
+        stock = stock or stock_for(args, b, store)   # once: a check by cable comes first, and it may download
+        return patch.plan_patch(ch, b, stock, keys, mode)
+    _plan_and_write(args, f, plan, "Add --write to install.", INSTALLED)
 
 
 def cmd_restore(args, store):
     need_accept(args, store)
-    f = pick(("boot", "dongle", "dongle_paired"))
+    f = pick(("boot", "cable", "cable_360", "dongle", "dongle_paired"))
     if f.mode.startswith("dongle") or _dongle_in_boot(f):
         return _dongle_change(args, store, f, xbox=None, source=args.source)
-    ch = open_channel(f.info, 0)
-    try:
-        b = _backup_for(args, ch, store, recognised=args.source == "backup")
+    stock = fetch.fetch_stock() if args.source == "stock" else None   # before update mode: a failed download leaves it as it was
+
+    def plan(ch, mode):
+        b = _backup_for(args, ch, store, recognised=args.source == "backup", mode=mode)
         if args.source == "backup" and getattr(args, "expect", None) and b.path.name != args.expect:  # the page names the backup it showed
             raise Exit(2, "The backup to restore isn't the one shown, so nothing was written. Check again.")
-        stock = fetch.fetch_stock() if args.source == "stock" else None
-        plan = restore.plan_restore(ch, b, args.source, stock, args.force_unknown)
-        _write(args, ch, plan, RESTORED, "Add --write to restore.")
-    finally:
-        ch.close()
+        return restore.plan_restore(ch, b, args.source, stock, args.force_unknown, mode)
+    _plan_and_write(args, f, plan, "Add --write to restore.", RESTORED)
 
 
 def cmd_report(args, store):

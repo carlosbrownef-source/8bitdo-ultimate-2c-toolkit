@@ -82,8 +82,6 @@
     installed: () => { document.getElementById("diag-snap").textContent = tweaks().join(); },
     restored: async () => { window.simRestored = true; await readFirmware(); document.getElementById("diag-snap").textContent = tweaks().join(); },   // the next read finds the original firmware
     infopop: () => { $("strip-firmware").click(); const x = document.querySelector('.tweak[value="fast_scan"]'), b = x.parentElement.querySelector(".info"); b.click(); setTimeout(() => { document.getElementById("diag-snap").textContent = `${x.checked} ${document.getElementById(b.getAttribute("aria-controls")).matches(":popover-open")}`; }, 200); },
-    bootpop: () => { $("strip-firmware").click(); setTimeout(() => $("boot-info").click(), 300); },
-    installhover: () => { $("strip-firmware").click(); setTimeout(() => { $("tweaks-act").querySelector(".btns").dispatchEvent(new MouseEvent("mouseenter")); document.getElementById("diag-snap").textContent = String(document.querySelector(".pop-pad").parentElement.matches(":popover-open")); }, 300); },
     helpsettings: () => { $("strip-settings").click(); $("help-open").click(); setTimeout(() => { document.getElementById("diag-snap").textContent = document.querySelector("[data-hsec]:not([hidden])").dataset.hsec; }, 100); },
     donglecheck: () => { $("strip-firmware").click(); setTimeout(() => { $("dongle-360").click(); $("patch-dry").click(); }, 300); },
     keptchoice: () => { document.querySelector('.tweak[value="cable_360"]').click(); refresh(); setTimeout(() => { document.getElementById("diag-snap").textContent = tweaks().join(); }, 1000); },

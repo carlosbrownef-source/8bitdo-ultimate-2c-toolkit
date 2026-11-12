@@ -22,7 +22,15 @@ When a newer version is out, the app says so at the bottom of its window, with a
 
 ### How do I put the controller in update mode?
 
-Turn it fully off, then hold LB + RB while you plug in the cable. The small light below the Home ring will blink white. The dongle has no buttons, so the app puts it in update mode by itself whenever it writes.
+You don't need to: with the controller connected by cable, the app puts it in update mode by itself when it installs or restores, and restarts it afterwards. It does the same with the dongle. If the app can't, for example because the controller's firmware is damaged, turn the controller fully off, then hold LB + RB while you plug in the cable. The small light below the Home ring will blink white.
+
+### The controller doesn't appear after installing or restoring
+
+Restoring the original firmware, or installing tweaks over it, changes how the controller identifies itself over USB, and macOS may then block it as a new accessory until you allow it. If macOS asks whether to allow the accessory to connect, allow it.
+
+### The controller is stuck in update mode
+
+If a write was interrupted, use Restore: it works in update mode. To leave update mode without the app, unplug the cable and hold Home for about 12 seconds, until the controller turns off. Unplugging alone isn't enough, because the battery keeps it in update mode.
 
 ### macOS still sees the controller as a generic device over Bluetooth
 
@@ -31,6 +39,16 @@ macOS remembers how a Bluetooth device described itself. After installing or rem
 ### A game doesn't vibrate over Bluetooth
 
 Rumble over Bluetooth needs both the Xbox Series X|S tweak and the Rumble over Bluetooth tweak. Then open the Diagnostics tab and try the vibration both ways: the way a native game would, and by sending the report straight to the controller. If only the direct report vibrates, the firmware isn't the problem.
+
+### Home doesn't work in Steam by cable or with the dongle
+
+By cable and with the dongle, the controller presents itself as a wired Xbox 360 controller, and Steam reads that kind of controller through macOS's game controller framework. There, macOS keeps Home to open Apple Games unless the app in front asks for it. Steam asks, and macOS shows a prompt to let it respond to Home, but on macOS 27.2 the Steam window belongs to a helper process that doesn't ask. So while Steam is in front, Home opens Apple Games and Steam doesn't see it, not even in its controller settings. This is Steam's side, not the controller's.
+
+Over Bluetooth, Steam reads the controller itself and Home works there, including in its controller settings and to open Big Picture, although macOS may also open Apple Games. If you need Home in Steam, use Bluetooth.
+
+### How long does the battery last?
+
+As a personal experience rather than a measurement: with the tweaks installed, including Processor rest, my brother got about 50 hours over Bluetooth on battery, on his Linux computer. How long it lasts for you depends on use, vibration, the Home ring's brightness and the battery's age.
 
 ### Can I go back to the original firmware?
 

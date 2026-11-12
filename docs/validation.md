@@ -191,3 +191,28 @@ app. Between steps, the controller was put in update mode and restarted from it 
 The 1.0.2 build also read the controller by cable and in update mode before it was published.
 
 Not validated: the crash message, which was tried with a simulated core.
+
+# Hardware validation of 1.0.3 (2026-11-11)
+
+Run on the same controller, macOS 27.2 (Apple silicon), with the 1.0.3 build through the macOS app, and the command line of the
+same branch. Writes were made by cable; between them the controller was left as the app left it.
+
+1. **Entering and leaving update mode.** The app's own code (`_into_update_mode`, the bootloader's restart command and the wait
+   for the controller by cable) ran five times in a row with nothing written: update mode in 0.9 s, the bootloader identified
+   as the controller's, back by cable in 1.0 to 1.2 s. Unplugging the cable doesn't leave update mode entered this way, since
+   the battery keeps the flag; holding Home for about 12 seconds with the cable out does; the restart command also starts the
+   firmware after entering with LB + RB.
+2. **Check First by cable** reads through the update channel and leaves the controller running: installing what's there
+   (6 s), installing other tweaks (6 s), restoring the original (7 s) and restoring the backup (22 s, which also compares the
+   memory outside the firmware). Restore → Your Backup is offered by cable. Reading the firmware by cable now takes about
+   4.8 s instead of 3.5 s, to find that backup. The app's core kept the same number of IOKit clients from task to task.
+3. **Restore the original 1.09** (4,333 bytes): update mode, the write with `caffeinate` held throughout, and the restart. The
+   controller came back as `2dc8:310a`, an identity this Mac blocked as a new accessory ("device functionality blocked by
+   transport restrictions") until it was allowed, so the app didn't see it within 10 s and said so; its message now starts with
+   allowing the accessory.
+4. **Restore your backup** by cable, over the original: checked by cable, then again in update mode, written, and back as
+   `045e:028e` with "The controller restarted with its new firmware", in about 1.5 minutes.
+5. **Install by cable** without Finer stick movement (7 bytes, 41 s), then **install from update mode entered with LB + RB**
+   with it again (7 bytes): both restarted the controller into its new firmware.
+6. **Afterwards**, a backup by cable matched the one taken before these writes except the settings record's ring byte
+   (`+25`), which holds the level installed and the level saved: normal installed, 5 % saved, as the controller had it.

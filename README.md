@@ -59,8 +59,8 @@ Or from source, with Python 3.12+: `python3 -m u2c_customfw.web` prints a local 
 The app's **Help** button explains each step and why each tweak is needed.
 
 1. **Back up** with the controller connected by cable. The backup holds your controller's calibration and Bluetooth pairing keys too, and the app requires one before it writes anything.
-2. **Install tweaks.** Choose them, put the controller in update mode (turn it fully off, then hold LB + RB while plugging in the cable; the small light below the Home ring will blink white), use *Check First*, then *Install Tweaks…*. Afterwards unplug the cable; if a Bluetooth tweak changed, remove the controller from Bluetooth settings and pair it again.
-3. **Restore** your backup, or 8BitDo's original firmware 1.09, from update mode, whenever you want to go back.
+2. **Install tweaks.** Choose them, use *Check First*, then *Install Tweaks…*, with the controller connected by cable. The app puts it in update mode to write and restarts it afterwards. If a Bluetooth tweak changed, remove the controller from Bluetooth settings and pair it again.
+3. **Restore** your backup, or 8BitDo's original firmware 1.09, the same way, whenever you want to go back.
 
 For the **dongle**, turn the controller off and plug the dongle in on its own. The steps are the same: back it up, switch its one tweak on or off and install, or restore. The app puts it in update mode by itself.
 

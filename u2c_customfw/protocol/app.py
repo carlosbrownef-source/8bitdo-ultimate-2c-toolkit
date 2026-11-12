@@ -5,7 +5,7 @@ Reads are `81 05 05` (any address, at most 46 bytes). The only other commands se
 only the ring tweak acts on, with no reply: `81 05 00 52 <level>` and `81 05 00 53` (see docs/firmware-notes.md). Reads are tried
 first; if they get no answer, the session start `81 05 00 21 01` (it only replies) is sent, and if reads still fail,
 `81 05 c1`, which turns the flash's write protection off until the controller restarts and changes no data.
-`81 05 00 51` (reboot into the bootloader) is never sent.
+`81 05 00 51 00` restarts the controller into update mode, only to install or restore by cable (enter_update_mode).
 """
 import time
 
@@ -31,6 +31,12 @@ def read(ch, addr: int, n: int, tries: int = 3) -> bytes | None:
         if r and answers(r):
             return r[18:18 + n]
     return None
+
+
+def enter_update_mode(ch) -> None:
+    """Restarts the controller into update mode: the firmware sets analog register 0x3c to 0x5a, which the bootloader checks
+    at start-up, so it stays there until the bootloader's restart command (7) or until the power is cut. No reply."""
+    _command(ch, 0x51, 0x00)
 
 
 def set_ring(ch, level: int) -> None:

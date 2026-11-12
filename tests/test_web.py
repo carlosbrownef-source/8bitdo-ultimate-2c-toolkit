@@ -432,6 +432,16 @@ class WebTest(unittest.TestCase):
             data = json.loads(self.call("GET", "/api/firmware")[1])
         self.assertIsNone(data["restore_backup"])
 
+    def test_firmware_endpoint_by_cable_names_the_backup_restore_uses(self):
+        flash = controller_flash()
+        (self.store / "controller-20260101-000000.bin").write_bytes(flash)
+        info = transport.DeviceInfo(0x045E, 0x028E, 0x01, "USB", "x", None)
+        with mock.patch.object(cli, "find", lambda: [devices.Found(info, "cable_360")]), \
+                mock.patch.object(cli, "open_channel", lambda i, rid: SimApp(flash)), \
+                mock.patch.object(recipes, "_constants", lambda a=None, b=None, c=None: (K["stock_sha256"], K["region_sha256"], K["remainder_sha256"])):
+            data = json.loads(self.call("GET", "/api/firmware")[1])
+        self.assertEqual(data["restore_backup"]["name"], "controller-20260101-000000.bin")
+
     def test_firmware_endpoint_reads_the_idle_dongle(self):
         from tests.test_dongle import XBOX, K as DK, flash
         from u2c_customfw.ops import dongle

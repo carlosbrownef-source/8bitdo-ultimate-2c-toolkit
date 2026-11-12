@@ -20,7 +20,7 @@ What was established by disassembling 8BitDo's v1.09 image. Addresses are image 
 
 ## Update channel (running controller)
 
-USB interface with vendor usage page `0xff7a`, 64-byte reports: output report `0x81`, input report `0x02`. Read command `81 05 05` (length at byte 6, address at bytes 14-17, at most 46 bytes), reply `02 05` with status, echoes and data from byte 18; no checksum. In v1.09 the handler has no state gate and the session start `81 05 00 21 01` only replies; other firmware states weren't checked. `81 05 c1` lifts the flash write protection until restart. `81 05 00 51 00` makes the app reboot into the bootloader (not used by this app).
+USB interface with vendor usage page `0xff7a`, 64-byte reports: output report `0x81`, input report `0x02`. Read command `81 05 05` (length at byte 6, address at bytes 14-17, at most 46 bytes), reply `02 05` with status, echoes and data from byte 18; no checksum. In v1.09 the handler has no state gate and the session start `81 05 00 21 01` only replies; other firmware states weren't checked. `81 05 c1` lifts the flash write protection until restart. `81 05 00 51 00` makes the firmware set analog register `0x3c` to `0x5a` and reboot; the bootloader then stays in update mode, and its restart command (7) clears the register and starts the firmware. Unplugging doesn't clear it while the battery is connected; cutting the power, by holding Home with the cable out, does. This app uses it to install and restore by cable.
 
 ## Bootloader (`2dc8:3208`)
 

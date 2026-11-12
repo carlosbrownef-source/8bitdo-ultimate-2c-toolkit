@@ -119,7 +119,7 @@ class TabsTest(PageCase):
 
     def test_restore_says_why_it_is_off(self):
         self.assertEqual(self.why(""), "")
-        self.assertEqual(self.why("&diagsim=cable"), "Put the controller in update mode to restore.")
+        self.assertEqual(self.why("&diagsim=cable"), "")   # by cable, the app puts it in update mode itself
         self.assertEqual(self.why("&diagsim=boot&nobackup=1"), "Back up the controller first to restore your backup.")
 
     def test_install_says_why_it_is_off(self):
@@ -176,18 +176,12 @@ class TabsTest(PageCase):
         self.assertIn("hidden", self.server.dom("&diagsim=web&permission=1").find("privacy-open").attrs)   # only the Mac app can open it
         self.assertIn("hidden", self.server.dom().find("privacy-open").attrs)
 
-    def test_hovering_check_first_or_install_shows_the_update_mode_help_until_ready(self):
-        self.assertEqual(self.server.dom("&diagsim=cable&scenario=installhover").find("diag-snap").all_text(), "true")
-        self.assertEqual(self.server.dom("&diagsim=boot&scenario=installhover").find("diag-snap").all_text(), "false")
-
-    def test_update_mode_help_is_behind_the_question_mark_until_ready(self):
-        dom = self.server.dom()
-        self.assertEqual(dom.find("pre-boot").all_text().strip(), "In update mode")
+    def test_by_cable_install_and_restore_are_on_and_the_update_mode_line_only_shows_in_update_mode(self):
         dom = self.server.dom("&diagsim=cable")
-        self.assertEqual(dom.find("pre-boot").all_text().split(), ["Not", "in", "update", "mode", "?"])
-        pop = dom.find(dom.find("boot-info").attrs["aria-controls"]).all_text()
-        self.assertIn("Turn the controller fully off, then hold LB and RB", pop)
-        self.assertIn("The small light below the Home ring will blink white.", pop)
+        for id_ in ("patch-dry", "patch-write", "restore-stock-dry", "restore-stock"):
+            self.assertNotIn("disabled", dom.find(id_).attrs, id_)
+        self.assertIn("hidden", dom.find("pre-boot").attrs)
+        self.assertEqual(self.server.dom().find("pre-boot").all_text().strip(), "In update mode")
 
     def test_the_last_resort_is_one_calm_line_unless_it_applies(self):
         dom = self.server.dom()
@@ -517,7 +511,7 @@ class ControllerTestCard(PageCase):
         dom = self.server.dom("&diagsim=bt")
         ids = [n.attrs["id"] for n in dom.walk() if n.tag == "lineargradient"]
         self.assertEqual(len(ids), len(set(ids)), ids)
-        self.assertEqual(len(ids), 3)   # the hero, the controller test and the update-mode pop-up
+        self.assertEqual(len(ids), 2)   # the hero and the controller test
 
     def test_states(self):
         for state_, sentence in (
