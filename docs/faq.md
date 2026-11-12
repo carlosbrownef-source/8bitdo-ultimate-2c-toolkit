@@ -40,9 +40,11 @@ macOS remembers how a Bluetooth device described itself. After installing or rem
 
 Rumble over Bluetooth needs both the Xbox Series X|S tweak and the Rumble over Bluetooth tweak. Then open the Diagnostics tab and try the vibration both ways: the way a native game would, and by sending the report straight to the controller. If only the direct report vibrates, the firmware isn't the problem.
 
-### Home opens Apple Games instead of reaching Steam
+### Home doesn't work in Steam by cable or with the dongle
 
-This is Steam on macOS, not the controller, and it happens with any controller that has a Home button. macOS uses Home to open Apple Games unless the app in front asks for it. Steam asks, and macOS shows a prompt to let it respond to Home, but on macOS 27.2 the Steam window belongs to a helper process that doesn't ask. So while Steam is in front, Home still opens Apple Games, and Steam doesn't see it, not even in its controller settings. With another app in front that asks for Home, such as a game or this app's Diagnostics tab, Steam does receive it.
+By cable and with the dongle, the controller presents itself as a wired Xbox 360 controller, and Steam reads that kind of controller through macOS's game controller framework. There, macOS keeps Home to open Apple Games unless the app in front asks for it. Steam asks, and macOS shows a prompt to let it respond to Home, but on macOS 27.2 the Steam window belongs to a helper process that doesn't ask. So while Steam is in front, Home opens Apple Games and Steam doesn't see it, not even in its controller settings. This is Steam's side, not the controller's.
+
+Over Bluetooth, Steam reads the controller itself and Home works there, including in its controller settings and to open Big Picture, although macOS may also open Apple Games. If you need Home in Steam, use Bluetooth.
 
 ### How long does the battery last?
 
